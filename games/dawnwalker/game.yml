@@ -1,0 +1,9 @@
+id: dawnwalker
+name: The Blood of Dawnwalker
+status: discovery
+platforms:
+  - steam
+adapter: undecided
+notes:
+  - Add the Steam app ID after the game is installed or released.
+  - Do not add install rules until a modding workflow is verified.

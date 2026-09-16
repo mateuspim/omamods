@@ -1,0 +1,9 @@
+# Runtime state and downloaded content
+.omamods/
+archives/
+backups/
+
+# Editor and system files
+.DS_Store
+.idea/
+.vscode/
