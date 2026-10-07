@@ -13,11 +13,11 @@ from textual.widgets import DataTable, Input, OptionList, Static
 from omamods.cdn_download import RetryPolicy
 from omamods.download_queue import DOWNLOADING, FAILED
 from omamods.mod_fetch import download_log
-from omamods.game_shelf import GameShelf, build_shelf
+from omamods.game_shelf import MOD_READY, GameShelf, ShelfEntry, build_shelf
 from omamods.installed_games import InstalledGame, InstalledScan
 from omamods.manifests import GameManifest
 from omamods.nexus_config import UserSettings
-from omamods.pak_games import PakOverlayGame
+from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.tui.app import OmaModsApp
 from omamods.tui.dialogs import ConfirmDialog, InfoDialog
 from omamods.tui.mods_screen import ModsScreen
@@ -74,8 +74,7 @@ def home_shelf(root: Path) -> GameShelf:
         ),
         InstalledGame("GOG", "1207", "Hades", root / "Hades", True),
     )
-    mod_ready = frozenset({"cronos", "stellar-blade"})
-    return build_shelf(catalog, mod_ready, InstalledScan(games, ()), (root,))
+    return build_shelf(catalog, PakGameCatalog(), InstalledScan(games, ()), (root,))
 
 
 class TuiFixture(unittest.IsolatedAsyncioTestCase):
@@ -434,7 +433,7 @@ class TuiTests(TuiFixture):
 class FailingShelfScanner:
     """Raise like an unreadable games catalog would."""
 
-    def __call__(self) -> GameShelf:
+    def __call__(self, settings: UserSettings) -> GameShelf:
         raise ValueError("games directory 'games': expected an existing directory")
 
 
@@ -512,3 +511,24 @@ class HomeScreenTests(TuiFixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ScannedGameServiceTests(TuiFixture):
+    def test_scan_remembers_unreal_games_for_the_nxm_handler(self) -> None:
+        game = PakOverlayGame(
+            "remnant2",
+            "Remnant II",
+            "remnant2",
+            Path("Remnant2/Content/Paks"),
+            "~mods",
+            (frozenset({".pak"}),),
+            self.root / "Remnant2",
+        )
+        entry = ShelfEntry("steam:1", "Remnant II", MOD_READY, (), None, game)
+        shelf = self.scanner.shelf
+        self.scanner.shelf = replace(shelf, entries=(*shelf.entries, entry))
+        service = self._app({}).service
+        service.shelf()
+        self.assertIs(service.catalog.for_domain("remnant2"), game)
+        reloaded = ModsService(service.host)
+        self.assertEqual(reloaded.catalog.get("remnant2"), game)

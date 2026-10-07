@@ -6,7 +6,6 @@ from collections.abc import Callable
 from textual.app import App
 from textual.binding import Binding
 
-from omamods.mod_fetch import game_for_domain
 from omamods.nexus_api import parse_nexus_page
 from omamods.tui.commands import (
     GLOBAL_COMMANDS,
@@ -147,7 +146,7 @@ class OmaModsApp(App[None]):
 
     def add_mod(self, url: str) -> None:
         """Open the URL's game and fetch the mod; e.g. ``app.add_mod('https://...')``."""
-        game = game_for_domain(parse_nexus_page(url).domain)
+        game = self.service.catalog.for_domain(parse_nexus_page(url).domain)
         screen = self._open_game(game.game_id)
         screen.call_after_refresh(screen.fetch_url, url)
 

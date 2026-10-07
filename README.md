@@ -77,6 +77,23 @@ lists them in three groups:
   from Heroic Games Launcher (native or Flatpak). Proton, the Steam Linux
   Runtime, and Steamworks redistributables are hidden.
 
+### Auto-detected Unreal games
+
+Each scan also checks every installed game for an Unreal Engine layout
+(`<Project>/Content/Paks/*.pak`, ignoring `Engine/`). When the game's title
+matches a game on Nexus, it moves to **Mod-ready** and uses the same pak
+installer as Cronos and Stellar Blade: mods go to `Content/Paks/~mods`, and
+IoStore games (`.utoc` present) accept both lone `.pak` files and
+`.pak/.ucas/.utoc` sets. Games that ship `.sig` files carry a warning, since
+they may refuse unsigned paks. Mods that need UE4SS, Lua, or DLL loaders are
+still refused.
+
+Title matching uses Nexus' game list, which needs an API key once and is cached
+for a week in `<storage>/cache/nexus_games.json`. Unreal games with no match
+stay in their group with a note. The scan's results are saved to
+`<storage>/detected_games.json` so the `nxm` handler, which runs as its own
+process, can stage downloads for them.
+
 The detail panel shows the game's folder, library, size, Steam app ID, build,
 and Proton prefix. `o` opens the folder in your file manager, `/` searches by
 name, and `w` lists records that could not be read. Catalog games match Steam

@@ -4,10 +4,11 @@ from argparse import Namespace
 from pathlib import Path
 import shutil
 import sys
+import time
 from typing import Mapping, TextIO
 
 from omamods.browser_windows import chromium_browser
-from omamods.nexus_api import NexusApi
+from omamods.nexus_api import NexusApi, NexusTransport
 from omamods.nexus_cli import (
     CatalogSources,
     NexusRuntime,
@@ -15,12 +16,15 @@ from omamods.nexus_cli import (
     game_inspection,
 )
 from omamods.nexus_config import UserSettings, load_user_config
-from omamods.nexus_workflow import game_paks
+from omamods.detected_games import load_detected_games
+from omamods.nexus_games import NexusGameDirectory, load_game_directory
+from omamods.nexus_workflow import game_paks, scanned_game_paks
 from omamods.nxm_handler import handle_nxm_click
-from omamods.game_shelf import GameShelf, ShelfSources, scan_shelf
+from omamods.game_shelf import GameShelf
 from omamods.heroic_games import default_heroic_roots
 from omamods.manifests import GameManifest, load_catalog
-from omamods.pak_games import PAK_OVERLAY_GAMES, PakOverlayGame
+from omamods.pak_games import PakGameCatalog, PakOverlayGame
+from omamods.shelf_scan import ShelfSources, scan_shelf
 from omamods.tui.service import ModsService, TuiHost
 
 
@@ -46,8 +50,24 @@ class SteamPaksLocator:
         self.sources = sources
 
     def __call__(self, game: PakOverlayGame, settings: UserSettings) -> Path:
+        if game.install_root is not None:
+            return scanned_game_paks(game)
         inspection = game_inspection(self.args, game, self.sources)
         return game_paks(game, settings, inspection)
+
+
+class CachedNexusGames:
+    """Load Nexus' game list for title matching; e.g. ``CachedNexusGames(...)()``."""
+
+    def __init__(self, transport: NexusTransport, settings: UserSettings) -> None:
+        self.transport = transport
+        self.settings = settings
+
+    def __call__(self) -> NexusGameDirectory:
+        settings = self.settings
+        api = NexusApi(self.transport, settings.api_key) if settings.api_key else None
+        cache = settings.storage_root / "cache" / "nexus_games.json"
+        return load_game_directory(cache, api, time.time())
 
 
 class HostShelfScanner:
@@ -64,7 +84,7 @@ class HostShelfScanner:
         sources = self.sources
         return load_catalog(self.args.games_dir, sources.files, sources.decoder)
 
-    def __call__(self) -> GameShelf:
+    def __call__(self, settings: UserSettings) -> GameShelf:
         args, runtime = self.args, self.runtime
         config_home = runtime.environment.get("XDG_CONFIG_HOME")
         shelf_sources = ShelfSources(
@@ -72,7 +92,8 @@ class HostShelfScanner:
             tuple(args.steam_root) if args.steam_root else self.sources.steam_roots,
             default_heroic_roots(runtime.home, config_home),
             self.sources.files,
-            frozenset(PAK_OVERLAY_GAMES),
+            PakGameCatalog(),
+            CachedNexusGames(runtime.transport, settings),
         )
         return scan_shelf(shelf_sources)
 
@@ -117,7 +138,9 @@ def _handle_nxm(args: Namespace, runtime: NexusRuntime, stdout: TextIO) -> int:
         runtime.config_files,
     )
     api = NexusApi(runtime.transport, settings.api_key)
-    code = handle_nxm_click(args.link, api, settings.storage_root, runtime.runner)
+    root = settings.storage_root
+    games = PakGameCatalog(load_detected_games(root))
+    code = handle_nxm_click(args.link, api, root, runtime.runner, games)
     print("Staged" if code == 0 else "Failed; see logs/nxm.jsonl", file=stdout)
     return code
 

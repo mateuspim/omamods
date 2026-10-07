@@ -10,6 +10,7 @@ from omamods.cli import default_games_dir
 from omamods.host_cli import omamods_executable
 from omamods.nexus_api import NexusApi
 from omamods.nexus_config import parse_user_config, save_api_key, with_api_key
+from omamods.pak_games import PakGameCatalog
 from omamods.nxm_handler import (
     DESKTOP_ENTRY_NAME,
     desktop_entry,
@@ -56,7 +57,9 @@ class NxmHandlerTests(unittest.TestCase):
     def test_click_stages_logs_and_notifies(self) -> None:
         runner = FakeCommandRunner()
         api = NexusApi(FakeNexusSite(premium=False), "k")
-        self.assertEqual(handle_nxm_click(LINK, api, self.root, runner), 0)
+        self.assertEqual(
+            handle_nxm_click(LINK, api, self.root, runner, PakGameCatalog()), 0
+        )
         event = json.loads((self.root / "logs/nxm.jsonl").read_text())
         self.assertEqual((event["status"], event["game"]), ("staged", "stellar-blade"))
         self.assertNotIn("key=a", json.dumps(event))
@@ -66,14 +69,16 @@ class NxmHandlerTests(unittest.TestCase):
         site = FakeNexusSite(premium=False)
         site.old_version_ids = {7}
         runner = FakeCommandRunner()
-        handle_nxm_click(LINK, NexusApi(site, "k"), self.root, runner)
+        handle_nxm_click(LINK, NexusApi(site, "k"), self.root, runner, PakGameCatalog())
         _, title, body = runner.commands[-1]
         self.assertIn("OLD", title)
         self.assertEqual(body, "Black 1.0 (OLD_VERSION)")
 
     def test_bad_click_is_logged_as_failure(self) -> None:
         api = NexusApi(FakeNexusSite(), "k")
-        code = handle_nxm_click("nxm://bad", api, self.root, FakeCommandRunner())
+        code = handle_nxm_click(
+            "nxm://bad", api, self.root, FakeCommandRunner(), PakGameCatalog()
+        )
         self.assertEqual(code, 1)
         self.assertIn('"failed"', (self.root / "logs/nxm.jsonl").read_text())
 
@@ -82,7 +87,7 @@ class NxmHandlerTests(unittest.TestCase):
         site = FakeNexusSite(premium=False)
         site.broken_download_error = InvalidURL("URL can't contain control characters")
         code = handle_nxm_click(
-            LINK, NexusApi(site, "k"), self.root, FakeCommandRunner()
+            LINK, NexusApi(site, "k"), self.root, FakeCommandRunner(), PakGameCatalog()
         )
         self.assertEqual(code, 1)
         self.assertIn("InvalidURL", (self.root / "logs/nxm.jsonl").read_text())

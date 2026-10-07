@@ -8,8 +8,7 @@ from textual.screen import Screen
 from textual.widgets import Footer, Header, OptionList, Static
 from textual.widgets.option_list import OptionDoesNotExist
 
-from omamods.game_shelf import MOD_READY, GameShelf, ShelfEntry
-from omamods.pak_games import pak_overlay_game
+from omamods.game_shelf import GameShelf, ShelfEntry
 from omamods.tui.dialogs import InfoDialog
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
@@ -117,10 +116,10 @@ class GamesScreen(Screen[None]):
             self.query_one("#game-info", Static).update(card)
 
     def _staged_count(self, entry: ShelfEntry) -> int | None:
-        if entry.section != MOD_READY:
+        if entry.pak_game is None:
             return None
         try:
-            return len(self.service.staged_mods(pak_overlay_game(entry.key)))
+            return len(self.service.staged_mods(entry.pak_game))
         except (OSError, ValueError):
             return None
 
@@ -132,10 +131,10 @@ class GamesScreen(Screen[None]):
         entry = self.selected_entry()
         if entry is None:
             return
-        if entry.section != MOD_READY:
+        if entry.pak_game is None:
             self.notify(f"{entry.name}: installing mods is not supported yet.")
             return
-        self.app.push_screen(ModsScreen(self.service, pak_overlay_game(entry.key)))
+        self.app.push_screen(ModsScreen(self.service, entry.pak_game))
 
     def action_open_folder(self) -> None:
         """Open the highlighted game's install folder in the file manager."""

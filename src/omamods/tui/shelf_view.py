@@ -106,14 +106,44 @@ def _status_line(entry: ShelfEntry) -> Text:
     else:
         state = "Installed" if install.ready else "Incomplete or updating"
     text = Text.assemble((f"{dot} {state}", colour))
-    text.append(f"   {SECTION_BADGES[entry.section]}", style="magenta")
+    text.append(f"   {section_badge(entry)}", style="magenta")
+    return text
+
+
+def section_badge(entry: ShelfEntry) -> str:
+    """Label the entry's support; e.g. ``section_badge(e) == 'Mod-ready'``."""
+    game = entry.pak_game
+    if game is not None and game.install_root is not None:
+        return "Mod-ready (auto-detected Unreal game)"
+    return SECTION_BADGES[entry.section]
+
+
+def _scanned_game_notes(entry: ShelfEntry) -> Text:
+    game = entry.pak_game
+    if game is None or game.install_root is None:
+        return Text()
+    folder = game.install_root / game.paks_subpath / game.mods_dirname
+    text = Text(f"\nMods go to {folder} (Nexus: {game.nexus_domain}).", style="dim")
+    if game.signed:
+        text.append(
+            "\n⚠ This game ships .sig files and may refuse unsigned mod paks; "
+            "check the mod page for a signature or bypass.",
+            style="yellow",
+        )
     return text
 
 
 def _mod_support(entry: ShelfEntry, staged_mods: int | None) -> Text:
     if entry.section == MOD_READY:
         staged = "" if staged_mods is None else f" · {staged_mods} mod(s) staged"
-        return Text(f"Enter manages this game's mods{staged}.", style="green")
+        text = Text(f"Enter manages this game's mods{staged}.", style="green")
+        return text.append_text(_scanned_game_notes(entry))
+    if entry.unreal is not None:
+        return Text(
+            f"Unreal Engine game, but no Nexus game page matched {entry.name!r}. "
+            "Matching needs a Nexus API key (K) once; then r rescans.",
+            style="yellow",
+        )
     if entry.section == CATALOG:
         adapter = entry.manifest.adapter if entry.manifest else "undecided"
         return Text(f"Adapter planned: {adapter}. Installing is not supported yet.")

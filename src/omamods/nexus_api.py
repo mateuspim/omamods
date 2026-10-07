@@ -271,6 +271,10 @@ class NexusApi:
         self.transport = transport
         self.api_key = api_key
 
+    def games(self) -> object:
+        """Read Nexus' game list, unvalidated; for example, ``api.games()``."""
+        return self.transport.get_json(f"{API_ROOT}/games.json", self.api_key)
+
     def mod_info(self, page: NexusPage) -> NexusModInfo:
         """Read page details; for example, ``api.mod_info(page)``."""
         url = f"{API_ROOT}/games/{page.domain}/mods/{page.mod_id}.json"

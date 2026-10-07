@@ -9,6 +9,7 @@ from omamods.host_programs import CommandRunner
 from omamods.mod_fetch import stage_nxm_link
 from omamods.mod_plan import STALE_CATEGORIES
 from omamods.nexus_api import NexusApi, parse_nxm_link
+from omamods.pak_games import PakGameCatalog
 
 DESKTOP_ENTRY_NAME = "omamods-nxm.desktop"
 NXM_MIME_TYPE = "x-scheme-handler/nxm"
@@ -65,12 +66,16 @@ def log_nxm_event(log: Path, event: dict[str, object]) -> None:
 
 
 def handle_nxm_click(
-    link_text: str, api: NexusApi, root: Path, runner: CommandRunner
+    link_text: str,
+    api: NexusApi,
+    root: Path,
+    runner: CommandRunner,
+    games: PakGameCatalog,
 ) -> int:
-    """Stage a clicked file; e.g. ``handle_nxm_click('nxm://...', api, root, runner)``."""
+    """Stage a clicked file; e.g. ``handle_nxm_click('nxm://...', api, root, runner, games)``."""
     log = root / "logs/nxm.jsonl"
     try:
-        clicked = stage_nxm_link(api, root, parse_nxm_link(link_text))
+        clicked = stage_nxm_link(api, root, parse_nxm_link(link_text), games)
     except Exception as error:  # Browser-launched: no terminal shows a traceback.
         log_nxm_event(log, {"status": "failed", "error": repr(error)})
         runner.run(("notify-send", "OmaMods download failed", str(error)))

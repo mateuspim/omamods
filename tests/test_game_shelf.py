@@ -12,10 +12,12 @@ from omamods.game_shelf import (
     LIBRARY,
     MOD_READY,
     ShelfEntry,
-    ShelfSources,
     build_shelf,
-    scan_shelf,
 )
+from omamods.nexus_config import UserSettings
+from omamods.nexus_games import NexusGameDirectory
+from omamods.pak_games import PakGameCatalog
+from omamods.shelf_scan import ShelfSources, scan_shelf
 from omamods.host_cli import HostShelfScanner
 from omamods.installed_games import InstalledGame, InstalledScan
 from omamods.manifests import GameManifest
@@ -78,8 +80,7 @@ def render(renderable: object) -> str:
 
 class BuildShelfTests(unittest.TestCase):
     def setUp(self) -> None:
-        mod_ready = frozenset({"stellar-blade", "cronos"})
-        self.shelf = build_shelf(CATALOG_GAMES, mod_ready, FOUND, (STEAM,))
+        self.shelf = build_shelf(CATALOG_GAMES, PakGameCatalog(), FOUND, (STEAM,))
 
     def test_sections_put_installed_games_first(self) -> None:
         keys = [entry.key for entry in self.shelf.entries]
@@ -120,7 +121,12 @@ class ScanShelfTests(unittest.TestCase):
             (STEAM, STEAM / "steamapps", STEAM / "steamapps/common/C"),
         )
         sources = ShelfSources(
-            lambda: CATALOG_GAMES, (STEAM,), (), files, frozenset({"cronos"})
+            lambda: CATALOG_GAMES,
+            (STEAM,),
+            (),
+            files,
+            PakGameCatalog(),
+            lambda: NexusGameDirectory({}),
         )
         shelf = scan_shelf(sources)
         cronos = next(e for e in shelf.entries if e.key == "cronos")
@@ -140,7 +146,8 @@ class ScanShelfTests(unittest.TestCase):
             FakeNexusTransport(),
             FakeArchiveReader({}),
         )
-        shelf = HostShelfScanner(args, sources, runtime)()
+        settings = UserSettings("", Path("/store"), {}, ())
+        shelf = HostShelfScanner(args, sources, runtime)(settings)
         self.assertEqual([e.key for e in shelf.entries], ["cronos"])
         self.assertEqual(shelf.libraries, (STEAM,))
         self.assertIn(STEAM / "steamapps/libraryfolders.vdf", files.reads)
@@ -148,8 +155,7 @@ class ScanShelfTests(unittest.TestCase):
 
 class ShelfViewTests(unittest.TestCase):
     def setUp(self) -> None:
-        mod_ready = frozenset({"stellar-blade", "cronos"})
-        self.shelf = build_shelf(CATALOG_GAMES, mod_ready, FOUND, (STEAM,))
+        self.shelf = build_shelf(CATALOG_GAMES, PakGameCatalog(), FOUND, (STEAM,))
 
     def test_format_size(self) -> None:
         self.assertEqual(format_size(52_300_000_000), "52.3 GB")

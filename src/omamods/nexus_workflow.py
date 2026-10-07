@@ -79,6 +79,18 @@ def game_paks(
     return paks
 
 
+def scanned_game_paks(game: PakOverlayGame) -> Path:
+    """Locate a game found by scanning; e.g. ``scanned_game_paks(remnant2)``."""
+    if game.install_root is None:
+        raise ValueError(f"{game.name} install_root=None: expected a scanned game")
+    paks = game.install_root / game.paks_subpath
+    if not paks.is_dir():
+        raise ValueError(
+            f"{game.name} Paks={str(paks)!r}: expected it to still exist; rescan with r"
+        )
+    return paks
+
+
 def _install_cached(
     game: PakOverlayGame,
     settings: UserSettings,

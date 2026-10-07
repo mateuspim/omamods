@@ -15,7 +15,6 @@ from omamods.download_queue import (
     DownloadStatus,
     shown_state,
 )
-from omamods.pak_games import pak_overlay_game
 from omamods.tui.commands import CommandSpec
 from omamods.tui.service import ModsService
 
@@ -112,7 +111,7 @@ class DownloadsScreen(Screen[None]):
         key = (status.game_id, status.mod_id)
         if key not in self.titles:
             try:
-                game = pak_overlay_game(status.game_id)
+                game = self.service.catalog.get(status.game_id)
                 title = self.service.staged_mod(game, status.mod_id).title
             except ValueError:
                 title = f"{status.game_id} mod {status.mod_id}"

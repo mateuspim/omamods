@@ -40,7 +40,9 @@ from omamods.pak_archive import (
     plan_pak_assets,
     variant_folders,
 )
-from omamods.pak_games import PAK_OVERLAY_GAMES, PakOverlayGame, pak_overlay_game
+from omamods.detected_games import load_detected_games, save_detected_games
+from omamods.pak_detection import scanned_pak_games
+from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.staging import (
     StagedMod,
     list_staged_mods,
@@ -81,6 +83,8 @@ class ModsService:
         self.windows = NexusWindows(host.runner, host.launcher, host.browser)
         self.browser_queue = BrowserQueue()
         self.hidden_windows = HiddenWindows()
+        # Until the first scan, reuse the last one so queued downloads resolve.
+        self.catalog = PakGameCatalog(load_detected_games(self.settings.storage_root))
 
     def _load_settings(self) -> UserSettings:
         host = self.host
@@ -98,11 +102,16 @@ class ModsService:
 
     def games(self) -> tuple[PakOverlayGame, ...]:
         """List supported games; for example, ``service.games()``."""
-        return tuple(PAK_OVERLAY_GAMES.values())
+        return self.catalog.all()
 
     def shelf(self) -> GameShelf:
         """Find catalog and installed games; e.g. ``service.shelf().entries``."""
-        return self.host.scan_shelf()
+        shelf = self.host.scan_shelf(self.settings)
+        scanned = scanned_pak_games(shelf)
+        self.catalog = PakGameCatalog(scanned)
+        # The nxm handler runs in its own process and reads this file.
+        save_detected_games(self.settings.storage_root, scanned)
+        return shelf
 
     def has_api_key(self) -> bool:
         """Report whether Nexus calls can work; e.g. ``service.has_api_key()``."""
@@ -164,7 +173,7 @@ class ModsService:
         """Move Nexus windows on as files arrive; e.g. ``service.advance_browser_downloads()``."""
         messages: list[str] = []
         for game_id, mod_id in list(self.browser_queue.pending):
-            game = pak_overlay_game(game_id)
+            game = self.catalog.get(game_id)
             mod = self.staged_mod(game, mod_id)
             step = self.browser_queue.advance(game_id, mod_id, mod.archives.keys())
             messages.extend(self._surprise_messages(game_id, mod, step.unexpected))
@@ -185,14 +194,14 @@ class ModsService:
             return ()
         statuses = self.downloads()
         for game_id, mod_id in self.hidden_windows.to_hide(waiting, statuses):
-            self.windows.hide_mod(pak_overlay_game(game_id).nexus_domain, mod_id)
+            self.windows.hide_mod(self.catalog.get(game_id).nexus_domain, mod_id)
         restored = self.hidden_windows.to_restore(waiting, statuses)
         return tuple(
             self._reopen_popup(game_id, mod_id) for game_id, mod_id in restored
         )
 
     def _reopen_popup(self, game_id: str, mod_id: int) -> str:
-        game = pak_overlay_game(game_id)
+        game = self.catalog.get(game_id)
         self.close_nexus_window(game, mod_id)
         url = self.browser_queue.waiting_url(game_id, mod_id)
         if url is not None:
@@ -232,7 +241,7 @@ class ModsService:
 
     def retry(self, status: DownloadStatus) -> bool:
         """Fetch a queue entry again; True when staged. E.g. ``service.retry(s)``."""
-        game = pak_overlay_game(status.game_id)
+        game = self.catalog.get(status.game_id)
         mod = self.staged_mod(game, status.mod_id)
         file = next((f for f in mod.files if f.file_id == status.file_id), None)
         if file is None:

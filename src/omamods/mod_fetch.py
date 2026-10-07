@@ -21,7 +21,7 @@ from omamods.nexus_api import (
     describe_nexus_file,
     select_file,
 )
-from omamods.pak_games import PAK_OVERLAY_GAMES, PakOverlayGame
+from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.pak_storage import PARTIAL_SUFFIX, archive_path, download_archive
 from omamods.staging import (
     StagedMod,
@@ -49,15 +49,6 @@ def files_tab_url(page: NexusPage, file_id: int) -> str:
         f"https://www.nexusmods.com/{page.domain}/mods/{page.mod_id}"
         f"?tab=files&file_id={file_id}&nmm=1"
     )
-
-
-def game_for_domain(domain: str) -> PakOverlayGame:
-    """Map a Nexus domain to a game; e.g. ``game_for_domain('stellarblade')``."""
-    for game in PAK_OVERLAY_GAMES.values():
-        if game.nexus_domain == domain:
-            return game
-    supported = sorted(game.nexus_domain for game in PAK_OVERLAY_GAMES.values())
-    raise ValueError(f"Nexus domain={domain!r}: expected one of {supported!r}")
 
 
 def fetch_picture(transport: NexusTransport, folder: Path, url: str) -> Path:
@@ -200,10 +191,10 @@ class ClickedDownload:
 
 
 def stage_nxm_link(
-    api: NexusApi, root: Path, link: NxmAuthorization
+    api: NexusApi, root: Path, link: NxmAuthorization, games: PakGameCatalog
 ) -> ClickedDownload:
-    """Handle a site download click; e.g. ``stage_nxm_link(api, root, link)``."""
-    game = game_for_domain(link.domain)
+    """Handle a site download click; e.g. ``stage_nxm_link(api, root, link, games)``."""
+    game = games.for_domain(link.domain)
     page = NexusPage(link.domain, link.mod_id)
     staged = stage_mod_details(api, game, page, root)
     file = select_file(staged.files, link.file_id)

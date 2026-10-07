@@ -11,7 +11,6 @@ from omamods.install_records import (
 )
 from omamods.mod_fetch import (
     BrowserDownloadRequired,
-    game_for_domain,
     stage_file,
     stage_mod_details,
     stage_nxm_link,
@@ -24,7 +23,7 @@ from omamods.nexus_api import (
     parse_nxm_link,
 )
 from omamods.nexus_workflow import revert_mod_files
-from omamods.pak_games import PAK_OVERLAY_GAMES
+from omamods.pak_games import PAK_OVERLAY_GAMES, PakGameCatalog
 from omamods.staging import (
     list_staged_mods,
     picture_path,
@@ -56,10 +55,10 @@ class NexusMetadataTests(unittest.TestCase):
         listed = parse_file_listing(FakeNexusSite().get_json("files.json", "k"))
         self.assertEqual((listed[0].display_name, listed[0].size_kb), ("Black", 2048))
 
-    def test_game_for_domain(self) -> None:
-        self.assertIs(game_for_domain("stellarblade"), SB)
+    def test_catalog_maps_domains(self) -> None:
+        self.assertIs(PakGameCatalog().for_domain("stellarblade"), SB)
         with self.assertRaisesRegex(ValueError, "expected one of"):
-            game_for_domain("skyrim")
+            PakGameCatalog().for_domain("skyrim")
 
 
 class StagingTests(TemporaryRoot):
@@ -144,7 +143,7 @@ class DownloadTests(TemporaryRoot):
     def test_nxm_click_stages_details_and_file(self) -> None:
         api = NexusApi(FakeNexusSite(premium=False), "k")
         link = parse_nxm_link("nxm://stellarblade/mods/1/files/8?key=a&expires=9")
-        clicked = stage_nxm_link(api, self.root, link)
+        clicked = stage_nxm_link(api, self.root, link, PakGameCatalog())
         game, archive = clicked.game, clicked.archive
         self.assertEqual(clicked.describe(), "Hair 1.0 (OPTIONAL)")
         self.assertIs(game, SB)

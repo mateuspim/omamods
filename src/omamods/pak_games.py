@@ -17,6 +17,11 @@ class PakOverlayGame:
     paks_subpath: Path
     mods_dirname: str
     flat_suffix_sets: tuple[frozenset[str], ...]
+    # Set for games found by scanning instead of listed here; their folder is
+    # known from the launcher, so no catalog manifest is needed to find Paks.
+    install_root: Path | None = None
+    # Shipped .sig files mean the game may refuse unsigned mod paks.
+    signed: bool = False
 
 
 PAK_OVERLAY_GAMES: dict[str, PakOverlayGame] = {
@@ -42,10 +47,37 @@ PAK_OVERLAY_GAMES: dict[str, PakOverlayGame] = {
 
 
 def pak_overlay_game(game_id: str) -> PakOverlayGame:
-    """Look up a supported game; e.g. ``pak_overlay_game('stellar-blade')``."""
-    game = PAK_OVERLAY_GAMES.get(game_id)
-    if game is None:
-        raise ValueError(
-            f"game={game_id!r}: expected one of {sorted(PAK_OVERLAY_GAMES)!r}"
-        )
-    return game
+    """Look up a built-in game; e.g. ``pak_overlay_game('stellar-blade')``."""
+    return PakGameCatalog().get(game_id)
+
+
+class PakGameCatalog:
+    """Built-in games plus any found by scanning; e.g. ``PakGameCatalog().get('cronos')``."""
+
+    def __init__(self, detected: tuple[PakOverlayGame, ...] = ()) -> None:
+        self.games: dict[str, PakOverlayGame] = {}
+        for game in detected:
+            self.games.setdefault(game.game_id, game)
+        # Built-ins carry hand-checked settings, so they win over a scan.
+        self.games.update(PAK_OVERLAY_GAMES)
+
+    def all(self) -> tuple[PakOverlayGame, ...]:
+        """List every game; for example, ``catalog.all()``."""
+        return tuple(self.games.values())
+
+    def get(self, game_id: str) -> PakOverlayGame:
+        """Look up by ID; for example, ``catalog.get('atomicheart')``."""
+        game = self.games.get(game_id)
+        if game is None:
+            raise ValueError(
+                f"game={game_id!r}: expected one of {sorted(self.games)!r}"
+            )
+        return game
+
+    def for_domain(self, domain: str) -> PakOverlayGame:
+        """Map a Nexus domain; for example, ``catalog.for_domain('stellarblade')``."""
+        for game in self.games.values():
+            if game.nexus_domain == domain:
+                return game
+        supported = sorted(game.nexus_domain for game in self.games.values())
+        raise ValueError(f"Nexus domain={domain!r}: expected one of {supported!r}")

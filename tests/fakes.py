@@ -11,6 +11,7 @@ from omamods.cdn_download import (
     copy_with_progress,
 )
 from omamods.game_shelf import GameShelf
+from omamods.nexus_config import UserSettings
 
 
 class FakeFiles:
@@ -336,7 +337,33 @@ class FakeShelfScanner:
         self.shelf = shelf
         self.scans = 0
 
-    def __call__(self) -> GameShelf:
-        """Hand back the fixture; for example, ``scanner().entries``."""
+    def __call__(self, settings: UserSettings) -> GameShelf:
+        """Hand back the fixture; for example, ``scanner(settings).entries``."""
         self.scans += 1
         return self.shelf
+
+
+class FakeNexusGamesTransport:
+    """Serve Nexus' game list, or fail like an offline host, and count requests."""
+
+    def __init__(self, games: object, failure: Exception | None = None) -> None:
+        self.games = games
+        self.failure = failure
+        self.requests: list[str] = []
+
+    def get_json(self, url: str, api_key: str) -> object:
+        """Return the game list; for example, ``fake.get_json(url, key)``."""
+        self.requests.append(url)
+        if self.failure is not None:
+            raise self.failure
+        return self.games
+
+    def download(
+        self,
+        url: str,
+        destination: BytesIO,
+        progress: ProgressCallback | None = None,
+        resume_from: int = 0,
+    ) -> None:
+        """Refuse; the game list never downloads archives."""
+        raise AssertionError(f"url={url!r}: expected no downloads")
