@@ -1,0 +1,317 @@
+"""Named, deterministic substitutes for filesystem, Nexus, and archive I/O."""
+
+from io import BytesIO
+import json
+from pathlib import Path
+
+from omamods.cdn_download import (
+    NexusHttpError,
+    ProgressCallback,
+    TransientDownloadError,
+    copy_with_progress,
+)
+
+
+class FakeFiles:
+    """Model read operations without touching the developer's Steam installation."""
+
+    def __init__(
+        self,
+        contents: dict[Path, str] | None = None,
+        directories: tuple[Path, ...] = (),
+        aliases: dict[Path, Path] | None = None,
+        failures: dict[Path, OSError] | None = None,
+    ) -> None:
+        self.contents = contents or {}
+        self.directories = set(directories)
+        self.aliases = aliases or {}
+        self.failures = failures or {}
+        self.reads: list[Path] = []
+
+    def read_text(self, path: Path) -> str:
+        """Track reads; for example, ``fake.read_text(Path('/steam/test.acf'))``."""
+        self.reads.append(path)
+        if path in self.failures:
+            raise self.failures[path]
+        if path not in self.contents:
+            raise FileNotFoundError(f"{path}: expected an existing file")
+        return self.contents[path]
+
+    def is_dir(self, path: Path) -> bool:
+        """Use declared directories; for example, ``fake.is_dir(Path('/steam'))``."""
+        return self.resolve(path) in self.directories
+
+    def glob(self, path: Path, pattern: str) -> tuple[Path, ...]:
+        """Find fixture manifests; for example, ``fake.glob(Path('games'), '*/game.yml')``."""
+        return tuple(
+            sorted(item for item in self.contents if item.match(str(path / pattern)))
+        )
+
+    def resolve(self, path: Path) -> Path:
+        """Resolve declared aliases; for example, ``fake.resolve(Path('/alias'))``."""
+        return self.aliases.get(path, path)
+
+
+class FakePath:
+    """Path-shaped fake for testing LocalFiles without real filesystem I/O."""
+
+    def __init__(self, text: str = "text", error: UnicodeError | None = None) -> None:
+        self.text = text
+        self.error = error
+        self.encoding: str | None = None
+
+    def read_text(self, encoding: str) -> str:
+        """Capture encoding; for example, ``path.read_text(encoding='utf-8-sig')``."""
+        self.encoding = encoding
+        if self.error:
+            raise self.error
+        return self.text
+
+    def is_dir(self) -> bool:
+        """Represent a directory; for example, ``path.is_dir()``."""
+        return True
+
+    def glob(self, pattern: str) -> tuple[Path, ...]:
+        """Return unsorted entries; for example, ``path.glob('*/game.yml')``."""
+        return (Path("z/game.yml"), Path("a/game.yml"))
+
+    def resolve(self) -> Path:
+        """Resolve to a fixed path; for example, ``path.resolve()``."""
+        return Path("/resolved")
+
+
+def sample_fields() -> dict[str, object]:
+    """Provide isolated manifest fields; for example, ``fields = sample_fields()``."""
+    return {
+        "id": "demo",
+        "name": "Demo Game",
+        "status": "discovery",
+        "platforms": ["steam"],
+        "adapter": "undecided",
+        "steam_app_id": 42,
+    }
+
+
+def app_text(app_id: str = "42", directory: str = "Demo", flags: str = "4") -> str:
+    """Build Steam test metadata; for example, ``app_text(flags='2')``."""
+    return (
+        f'"AppState" {{ "appid" "{app_id}" "installdir" "{directory}" '
+        f'"buildid" "12345" "StateFlags" "{flags}" }}'
+    )
+
+
+class FakeConfigFiles:
+    """Retain private config content in memory."""
+
+    def __init__(self) -> None:
+        self.contents: dict[Path, str] = {}
+
+    def read_text(self, path: Path) -> str:
+        """Read recorded text; e.g. ``fake.read_text(path)``."""
+        if path not in self.contents:
+            raise FileNotFoundError(path)
+        return self.contents[path]
+
+    def create_private(self, path: Path, content: str) -> None:
+        """Reject replacement; e.g. ``fake.create_private(path, text)``."""
+        if path in self.contents:
+            raise FileExistsError(path)
+        self.contents[path] = content
+
+    def replace_private(self, path: Path, content: str) -> None:
+        """Overwrite text; e.g. ``fake.replace_private(path, text)``."""
+        self.contents[path] = content
+
+
+class FakeNexusTransport:
+    """Return predictable API metadata and archive bytes."""
+
+    def __init__(self) -> None:
+        self.requests: list[str] = []
+        self.downloads: list[str] = []
+        self.archive = b"fake archive"
+
+    def get_json(self, url: str, api_key: str) -> object:
+        """Return one MAIN file or CDN link; e.g. ``fake.get_json(url, key)``."""
+        self.requests.append(url)
+        if url.endswith("files.json"):
+            return {
+                "files": [
+                    {"file_id": 7, "file_name": "mod.zip", "category_name": "MAIN"}
+                ]
+            }
+        return [{"URI": "https://cdn.example/mod.zip"}]
+
+    def download(
+        self,
+        url: str,
+        destination: BytesIO,
+        progress: ProgressCallback | None = None,
+        resume_from: int = 0,
+    ) -> None:
+        """Write fake archive; e.g. ``fake.download(url, stream)``."""
+        self.downloads.append(url)
+        destination.write(self.archive)
+
+
+class FakeArchiveReader:
+    """Expose chosen archive members without a real archive tool."""
+
+    def __init__(self, contents: dict[str, bytes]) -> None:
+        self.contents = contents
+
+    def members(self, archive: Path) -> tuple[str, ...]:
+        """List fake members; e.g. ``fake.members(path)``."""
+        return tuple(self.contents)
+
+    def copy_member(self, archive: Path, member: str, destination: BytesIO) -> None:
+        """Write fake member; e.g. ``fake.copy_member(path, name, stream)``."""
+        destination.write(self.contents[member])
+
+
+class FakeNexusSite:
+    """Answer mod info, file listings, and downloads like a small Nexus."""
+
+    def __init__(self, premium: bool = True, picture_online: bool = True) -> None:
+        self.premium = premium
+        self.picture_online = picture_online
+        self.fail_downloads = False
+        self.broken_download_error: Exception | None = None
+        self.old_version_ids: set[int] = set()
+        self.archive = b"archive"
+        self.connection_resets = 0
+        self.bytes_before_reset = 3
+        self.resume_offsets: list[int] = []
+        self.requests: list[str] = []
+        self.downloads: list[str] = []
+        self.picture = b"picture"
+
+    def get_json(self, url: str, api_key: str) -> object:
+        """Route by endpoint; e.g. ``site.get_json(url, key)``."""
+        self.requests.append(url)
+        if url.endswith("files.json"):
+            return {
+                "files": [
+                    self._file(7, "Black.zip", "MAIN"),
+                    self._file(8, "Hair.zip", "OPTIONAL"),
+                ]
+            }
+        if "download_link" in url:
+            return self._download_link(url)
+        return {
+            "name": "Sample Outfit",
+            "summary": "A suit.",
+            "author": "someone",
+            "version": "1.0",
+            "picture_url": "https://staticdelivery.nexusmods.com/suit.png",
+        }
+
+    def _file(self, file_id: int, name: str, category: str) -> dict[str, object]:
+        if file_id in self.old_version_ids:
+            category = "OLD_VERSION"
+        return {
+            "file_id": file_id,
+            "file_name": name,
+            "category_name": category,
+            "uploaded_timestamp": 1,
+            "name": name.removesuffix(".zip"),
+            "version": "1.0",
+            "size_kb": 2048,
+        }
+
+    def _download_link(self, url: str) -> object:
+        if not self.premium and "key=" not in url:
+            raise NexusHttpError(403, "a successful API response")
+        return [{"URI": "https://cdn.example/" + url.split("/files/")[1]}]
+
+    def download(
+        self,
+        url: str,
+        destination: BytesIO,
+        progress: ProgressCallback | None = None,
+        resume_from: int = 0,
+    ) -> None:
+        """Write picture or archive bytes; e.g. ``site.download(url, stream)``."""
+        self.downloads.append(url)
+        if url.endswith(".png") and not self.picture_online:
+            raise NexusHttpError(404, "a downloadable file")
+        if self.fail_downloads:
+            raise NexusHttpError(503, "a downloadable file")
+        if self.broken_download_error is not None:
+            raise self.broken_download_error
+        body = self.picture if url.endswith(".png") else self.archive
+        self.resume_offsets.append(resume_from)
+        if self.connection_resets:
+            # Like mod 533's CDN: send part of the file, then drop the connection.
+            self.connection_resets -= 1
+            part = body[resume_from : resume_from + self.bytes_before_reset]
+            copy_with_progress(
+                BytesIO(part), destination, len(body), progress, resume_from
+            )
+            raise TransientDownloadError(
+                "Nexus download interrupted: Connection reset by peer"
+            )
+        rest = BytesIO(body[resume_from:])
+        copy_with_progress(rest, destination, len(body), progress, resume_from)
+
+
+class FakeCommandRunner:
+    """Record host commands and answer xdg-mime queries."""
+
+    def __init__(self, exit_code: int = 0, output: str = "") -> None:
+        self.commands: list[tuple[str, ...]] = []
+        self.exit_code = exit_code
+        self.output = output
+
+    def run(self, command: tuple[str, ...]) -> tuple[int, str]:
+        """Record a command; e.g. ``runner.run(('true',))``."""
+        self.commands.append(command)
+        return self.exit_code, self.output
+
+
+class FakeLauncher:
+    """Record GUI programs instead of starting them."""
+
+    def __init__(self) -> None:
+        self.launched: list[tuple[str, ...]] = []
+
+    def launch(self, command: tuple[str, ...]) -> None:
+        """Record a launch; e.g. ``launcher.launch(('imv', 'a.png'))``."""
+        self.launched.append(command)
+
+
+class FakeHyprland:
+    """Answer xdg-settings and hyprctl like a Lua-config Hyprland session."""
+
+    def __init__(
+        self, clients: list[dict[str, object]], dispatch_reply: str = "ok"
+    ) -> None:
+        self.clients = clients
+        self.dispatch_reply = dispatch_reply
+        self.commands: list[tuple[str, ...]] = []
+
+    def run(self, command: tuple[str, ...]) -> tuple[int, str]:
+        """Route by program; e.g. ``hyprland.run(('hyprctl', 'clients', '-j'))``."""
+        self.commands.append(command)
+        if command[:2] == ("hyprctl", "clients"):
+            return 0, json.dumps(self.clients)
+        if command[:2] == ("hyprctl", "dispatch"):
+            return 0, self.dispatch_reply
+        if command[0] == "xdg-settings":
+            return 0, "brave-origin.desktop"
+        return 0, ""
+
+    def closed(self) -> list[str]:
+        """List dispatched close commands; e.g. ``hyprland.closed()``."""
+        return [c[2] for c in self.commands if c[:2] == ("hyprctl", "dispatch")]
+
+
+class FakeSleep:
+    """Record retry waits instead of sleeping, keeping tests fast."""
+
+    def __init__(self) -> None:
+        self.delays: list[float] = []
+
+    def __call__(self, seconds: float) -> None:
+        """Record a wait; for example, ``sleep(2.0)``."""
+        self.delays.append(seconds)

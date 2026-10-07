@@ -1,0 +1,10 @@
+id: stellar-blade
+name: Stellar Blade
+status: discovery
+platforms:
+  - steam
+adapter: direct-overlay
+steam_app_id: 3489700
+notes:
+  - The installer places self-contained .pak/.utoc/.ucas mods under SB/Content/Paks/~mods.
+  - Archives with several variant folders need --option; loader or script mods are refused.

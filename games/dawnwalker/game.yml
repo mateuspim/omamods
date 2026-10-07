@@ -3,7 +3,8 @@ name: The Blood of Dawnwalker
 status: discovery
 platforms:
   - steam
-adapter: undecided
+adapter: direct-overlay
+steam_app_id: 3751260
 notes:
-  - Add the Steam app ID after the game is installed or released.
-  - Do not add install rules until a modding workflow is verified.
+  - Some asset mods use Dawnwalker/Content/Paks/~mods with matching .pak, .utoc, and .ucas files.
+  - Script and loader-based mods need separate support; no install rules are enabled yet.

@@ -1,0 +1,10 @@
+id: cronos
+name: 'Cronos: The New Dawn'
+status: discovery
+platforms:
+  - steam
+adapter: direct-overlay
+steam_app_id: 2101960
+notes:
+  - Nexus mod 38 places its Mods folder under Cronos/Content/Paks.
+  - The installer supports a Mods folder or one flat same-stem pak/utoc/ucas triplet.

@@ -1,0 +1,10 @@
+id: divinity-original-sin-2
+name: 'Divinity: Original Sin 2'
+status: discovery
+platforms:
+  - steam
+adapter: game-native
+steam_app_id: 435150
+notes:
+  - Prefer the Steam Workshop and the game's own Mods menu for Definitive Edition mods.
+  - Mod versions, dependencies, and load order must be captured before profiles can be reproduced.

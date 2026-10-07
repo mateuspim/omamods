@@ -7,3 +7,10 @@ backups/
 .DS_Store
 .idea/
 .vscode/
+
+# Python development artifacts
+.venv/
+__pycache__/
+*.egg-info/
+build/
+dist/

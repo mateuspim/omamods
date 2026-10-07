@@ -1,0 +1,10 @@
+id: silent-hill-2
+name: SILENT HILL 2
+status: discovery
+platforms:
+  - steam
+adapter: direct-overlay
+steam_app_id: 2124490
+notes:
+  - Simple .pak mods can use SHProto/Content/Paks/~mods.
+  - Some mods require UE4SS, additional files, or a manager; follow each author's instructions.
