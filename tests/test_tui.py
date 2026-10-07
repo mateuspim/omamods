@@ -149,37 +149,51 @@ class TuiTests(TuiFixture):
             self.assertEqual(self.launcher.launched[-1][0], "imv")
 
     async def test_every_variant_is_ticked_and_installs(self) -> None:
-        app = self._app({"Mod/Black/s.pak": b"b", "Mod/White/s.pak": b"w"})
+        app = self._app({"Mod/Black/b.pak": b"b", "Mod/White/w.pak": b"w"})
         async with app.run_test(size=(140, 45)) as pilot:
             await self._open_stellar_blade_and_add(app, pilot)
             await pilot.press("i", "enter", "y")
             await app.workers.wait_for_complete()
             await pilot.pause()
-            self.assertEqual((self.paks / "~mods/Black/s.pak").read_bytes(), b"b")
-            self.assertEqual((self.paks / "~mods/White/s.pak").read_bytes(), b"w")
+            self.assertEqual((self.paks / "~mods/Black/b.pak").read_bytes(), b"b")
+            self.assertEqual((self.paks / "~mods/White/w.pak").read_bytes(), b"w")
             await pilot.press("u", "y")
             await pilot.pause()
-            self.assertFalse((self.paks / "~mods/Black/s.pak").exists())
-            self.assertFalse((self.paks / "~mods/White/s.pak").exists())
+            self.assertFalse((self.paks / "~mods/Black/b.pak").exists())
+            self.assertFalse((self.paks / "~mods/White/w.pak").exists())
 
     async def test_unticked_variant_is_left_out(self) -> None:
-        app = self._app({"Mod/Black/s.pak": b"b", "Mod/White/s.pak": b"w"})
+        app = self._app({"Mod/Black/b.pak": b"b", "Mod/White/w.pak": b"w"})
         async with app.run_test(size=(140, 45)) as pilot:
             await self._open_stellar_blade_and_add(app, pilot)
             await pilot.press("i", "space", "enter", "y")
             await app.workers.wait_for_complete()
             await pilot.pause()
-            self.assertTrue((self.paks / "~mods/White/s.pak").is_file())
+            self.assertTrue((self.paks / "~mods/White/w.pak").is_file())
             self.assertFalse((self.paks / "~mods/Black").exists())
 
     async def test_unticking_every_variant_installs_nothing(self) -> None:
-        app = self._app({"Mod/Black/s.pak": b"b", "Mod/White/s.pak": b"w"})
+        app = self._app({"Mod/Black/b.pak": b"b", "Mod/White/w.pak": b"w"})
         async with app.run_test(size=(140, 45)) as pilot:
             await self._open_stellar_blade_and_add(app, pilot)
             await pilot.press("i", "space", "down", "space", "enter")
             await app.workers.wait_for_complete()
             await pilot.pause()
             self.assertFalse((self.paks / "~mods").exists())
+
+    async def test_alternative_variants_start_unticked_and_exclude_each_other(
+        self,
+    ) -> None:
+        # Regression: colours of one outfit share file names; installing both
+        # let the game load both and pick one silently.
+        app = self._app({"Mod/Black/s.pak": b"b", "Mod/White/s.pak": b"w"})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._open_stellar_blade_and_add(app, pilot)
+            await pilot.press("i", "space", "down", "space", "enter", "y")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            self.assertEqual((self.paks / "~mods/White/s.pak").read_bytes(), b"w")
+            self.assertFalse((self.paks / "~mods/Black").exists())
 
     async def test_non_premium_opens_files_tab(self) -> None:
         self.site.premium = False

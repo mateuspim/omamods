@@ -1,17 +1,39 @@
 """Exercise archive layouts for Cronos and Stellar Blade asset mods."""
 
+from dataclasses import replace
 from pathlib import Path
 import unittest
 
-from omamods.pak_archive import plan_pak_assets
+from omamods.pak_archive import plan_pak_assets, variant_folders
 from omamods.pak_games import PAK_OVERLAY_GAMES, pak_overlay_game
 
 CRONOS = PAK_OVERLAY_GAMES["cronos"]
 STELLAR_BLADE = PAK_OVERLAY_GAMES["stellar-blade"]
+CLAIR_OBSCUR = replace(
+    STELLAR_BLADE,
+    game_id="clairobscurexpedition33",
+    name="Clair Obscur: Expedition 33",
+    paks_subpath=Path("Sandfall/Content/Paks"),
+)
+SUFFIXES = ("pak", "ucas", "utoc")
 
 
 def targets(members: tuple[str, ...], option: str | None = None) -> list[Path]:
     return [a.target for a in plan_pak_assets(members, STELLAR_BLADE, option)]
+
+
+def outfit_set_members() -> tuple[str, ...]:
+    """Shaped like a real Clair Obscur outfit mod: shared Addons per
+    character, then armor/no+armor x colour alternatives of one outfit."""
+    members: list[str] = []
+    for who in ("hero", "knight"):
+        name = who.capitalize()
+        members += [f"SuitCollection/{who}/{name}_Addons_P.{s}" for s in SUFFIXES]
+        for kind in ("armor", "no+armor"):
+            for colour in ("black", "blue", "red"):
+                folder = f"SuitCollection/{who}/{kind}/{colour}"
+                members += [f"{folder}/{name}_B_P.{s}" for s in SUFFIXES]
+    return (*members, "SuitCollection/_0_Patch_SuitPack.zip")
 
 
 class PakGameTests(unittest.TestCase):
@@ -66,6 +88,33 @@ class StellarBladeLayoutTests(unittest.TestCase):
         self.assertEqual(targets(members, "Mod/Black"), [Path("~mods/Black/s.pak")])
         with self.assertRaisesRegex(ValueError, "option='Red'"):
             targets(members, "Red")
+
+    def test_variant_installs_with_the_paks_above_it(self) -> None:
+        members = (*outfit_set_members(), "SuitCollection/....txt")
+        option = "SuitCollection/hero/armor/black"
+        planned = plan_pak_assets(members, CLAIR_OBSCUR, option)
+        self.assertEqual(
+            sorted(asset.target for asset in planned),
+            sorted(
+                [Path("~mods/hero") / f"Hero_Addons_P.{s}" for s in SUFFIXES]
+                + [Path("~mods/hero/armor/black") / f"Hero_B_P.{s}" for s in SUFFIXES]
+            ),
+        )
+
+    def test_only_innermost_folders_are_variants(self) -> None:
+        # Regression: a mod offered the shared Addons folders as
+        # variants beside the outfits, and kept only 'black' as the folder.
+        variants = variant_folders(outfit_set_members(), CLAIR_OBSCUR)
+        self.assertEqual(len(variants), 12)
+        self.assertNotIn("SuitCollection/hero", variants)
+        self.assertIn("SuitCollection/knight/no+armor/red", variants)
+
+    def test_a_lone_variant_installs_with_shared_paks_without_an_option(self) -> None:
+        members = ("Mod/base.pak", "Mod/Red/r.pak")
+        self.assertEqual(variant_folders(members, STELLAR_BLADE), ())
+        self.assertEqual(
+            targets(members), [Path("~mods/Mod/base.pak"), Path("~mods/Mod/Red/r.pak")]
+        )
 
     def test_loader_dependent_archives_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "loaders and scripts"):

@@ -1,5 +1,7 @@
 """Small modal dialogs shared by the TUI screens."""
 
+from collections.abc import Mapping
+
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
@@ -78,25 +80,48 @@ class FilePicker(ModalScreen[tuple[NexusFile, ...] | None]):
 
 
 class VariantPicker(ModalScreen[tuple[str, ...] | None]):
-    """Choose which variant folders of an archive to install; all start ticked."""
+    """Choose which variant folders of an archive to install.
+
+    Variants start ticked unless they exclude others; ticking one of those
+    unticks the variants it excludes, so at most one of them installs.
+    """
 
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
         Binding("enter", "confirm", "Install selected", priority=True),
     ]
 
-    def __init__(self, title: str, variants: tuple[str, ...]) -> None:
+    def __init__(
+        self,
+        title: str,
+        variants: tuple[str, ...],
+        exclusive: Mapping[str, frozenset[str]] | None = None,
+    ) -> None:
         super().__init__()
         self.title_text = title
         self.variants = variants
+        self.exclusive = exclusive or {}
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog"):
             yield Label(self.title_text, classes="dialog-title")
-            yield SelectionList[str](*((v, v, True) for v in self.variants))
-            yield Static(
-                "Space toggles, Enter installs selected, Esc cancels", classes="hint"
+            yield SelectionList[str](
+                *((v, v, not self.exclusive.get(v)) for v in self.variants)
             )
+            hint = "Space toggles, Enter installs selected, Esc cancels"
+            if any(self.exclusive.values()):
+                hint += "\nVariants with the same files are alternatives: pick one"
+            yield Static(hint, classes="hint")
+
+    def on_selection_list_selection_toggled(
+        self, event: SelectionList.SelectionToggled[str]
+    ) -> None:
+        picker = self.query_one(SelectionList)
+        ticked = event.selection.value
+        if ticked not in picker.selected:
+            return
+        for other in self.exclusive.get(ticked, frozenset()):
+            picker.deselect(other)
 
     def action_confirm(self) -> None:
         chosen = set(self.query_one(SelectionList).selected)

@@ -111,10 +111,14 @@ def _in_option(path: PurePosixPath, option: str) -> bool:
     return option in path.parent.parts or path.parent.as_posix() == option
 
 
+def _is_shared_with(path: PurePosixPath, folders: set[PurePosixPath]) -> bool:
+    return any(path.parent in folder.parents for folder in folders)
+
+
 def select_variant(
     assets: tuple[ArchiveAsset, ...], option: str | None
 ) -> tuple[ArchiveAsset, ...]:
-    """Keep one variant folder; e.g. ``select_variant(assets, 'Black')``."""
+    """Keep one variant folder and the folders above it; e.g. ``select_variant(assets, 'Black')``."""
     if option is None:
         return assets
     chosen = tuple(asset for asset in assets if _in_option(asset[1], option))
@@ -122,7 +126,40 @@ def select_variant(
         raise ValueError(
             f"option={option!r}: expected a folder from {asset_folders(assets)!r}"
         )
-    return chosen
+    # Paks beside the variant folders are shared parts every variant needs,
+    # e.g. a Clair Obscur outfit mod's 'hero/Hero_Addons_P'.
+    folders = {path.parent for _, path in chosen}
+    return tuple(
+        asset
+        for asset in assets
+        if asset in chosen or _is_shared_with(asset[1], folders)
+    )
+
+
+def _common_folder(folders: list[PurePosixPath]) -> PurePosixPath:
+    common = folders[0]
+    for folder in folders[1:]:
+        while common != folder and common not in folder.parents:
+            common = common.parent
+    return common
+
+
+def variant_base(assets: tuple[ArchiveAsset, ...]) -> PurePosixPath:
+    """Find the folder variant paths are kept below; e.g. ``variant_base(assets)``."""
+    folders = sorted({path.parent for _, path in assets})
+    common = _common_folder(folders)
+    # Keep a lone folder's own name, as authors ask (Stellar Blade mod 3477).
+    return common.parent if common in folders else common
+
+
+def _single_variant_chain(folders: list[PurePosixPath], game: PakOverlayGame) -> None:
+    deepest = max(folders, key=lambda folder: len(folder.parts))
+    if all(folder == deepest or folder in deepest.parents for folder in folders):
+        return
+    raise ValueError(
+        f"{game.name} archive folders={[f.as_posix() for f in folders]!r}: "
+        "expected one variant; set option in the [[mods]] entry"
+    )
 
 
 def _anchored_target(path: PurePosixPath, mods_dirname: str) -> Path | None:
@@ -176,19 +213,16 @@ def _flat_assets(
 
 
 def _folder_assets(
-    assets: tuple[ArchiveAsset, ...], game: PakOverlayGame
+    assets: tuple[ArchiveAsset, ...], game: PakOverlayGame, base: PurePosixPath
 ) -> tuple[PlannedAsset, ...]:
-    folders = asset_folders(assets)
-    if folders == ["."]:
+    if asset_folders(assets) == ["."]:
         return _flat_assets(assets, game)
-    if len(folders) > 1:
-        raise ValueError(
-            f"{game.name} archive folders={folders!r}: expected one variant; "
-            "set option in the [[mods]] entry"
-        )
-    # Authors ask for the option folder to be copied intact (Stellar Blade mod 3477).
+    _single_variant_chain(sorted({path.parent for _, path in assets}), game)
+    # Authors ask for the option folder to be copied intact (Stellar Blade mod
+    # 3477). Keeping the path below the base also keeps same-named folders of
+    # different variants apart ('hero/armor/black' vs 'knight/armor/black').
     return tuple(
-        PlannedAsset(member, Path(game.mods_dirname, path.parent.name, path.name))
+        PlannedAsset(member, Path(game.mods_dirname, *path.relative_to(base).parts))
         for member, path in assets
     )
 
@@ -210,14 +244,26 @@ def plan_pak_assets(
     members: tuple[str, ...], game: PakOverlayGame, option: str | None
 ) -> tuple[PlannedAsset, ...]:
     """Constrain paths; e.g. ``plan_pak_assets(('Mods/a.pak',), cronos, None)``."""
-    assets = select_variant(_asset_members(members), option)
-    if not assets:
+    every_asset = _asset_members(members)
+    if not every_asset:
         raise ValueError(
             f"{game.name} archive members={list(members)!r}: expected .pak assets"
         )
-    planned = _anchored_assets(assets, game) or _folder_assets(assets, game)
+    assets = select_variant(every_asset, option)
+    planned = _anchored_assets(assets, game) or _folder_assets(
+        assets, game, variant_base(every_asset)
+    )
     _require_unique_pak(planned, game)
     return planned
+
+
+def _innermost(folders: list[str]) -> tuple[str, ...]:
+    paths = [PurePosixPath(folder) for folder in folders]
+    return tuple(
+        folder.as_posix()
+        for folder in paths
+        if not any(folder in other.parents for other in paths)
+    )
 
 
 def variant_folders(members: tuple[str, ...], game: PakOverlayGame) -> tuple[str, ...]:
@@ -225,5 +271,6 @@ def variant_folders(members: tuple[str, ...], game: PakOverlayGame) -> tuple[str
     assets = _asset_members(members)
     if _anchored_assets(assets, game):
         return ()
-    folders = asset_folders(assets)
-    return tuple(folders) if len(folders) > 1 else ()
+    # Folders above other variants hold shared paks installed with each one.
+    folders = _innermost(asset_folders(assets))
+    return folders if len(folders) > 1 else ()

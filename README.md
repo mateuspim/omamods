@@ -146,7 +146,13 @@ another with `Ctrl+P` → *Change theme*.
 4. Press `i` to install the mod: all staged MAIN, UPDATE, MISCELLANEOUS, and
    hand-downloaded files at once. OPTIONAL files are left out because they are
    often alternatives. For any archive with several variant folders, a list
-   shows them all ticked: Space unticks, Enter installs every ticked variant.
+   shows them: Space toggles, Enter installs every ticked variant. Variants
+   holding the same file names (colours of one outfit, say) are alternatives:
+   they start unticked, and ticking one unticks the others. Only the innermost
+   folders are variants; paks in a folder above a variant (an outfit's shared
+   "Addons", say) install with it. Unreal variants keep their folder path
+   under `~mods` (`~mods/hero/armor/black/`). Archives packed inside the
+   archive are not installed, and a warning names them.
    Each variant is recorded separately, and uninstalling the file removes all
    of them. Files that would write the same game file are refused with both names, and
    the exact target paths are shown before anything is written.

@@ -277,7 +277,21 @@ class ModsScreen(RequirementScreen):
         if not variants:
             return None if variants is None else (None,)
         title = f"{file.file_name} has variants; pick which to install"
-        return await self.app.push_screen_wait(VariantPicker(title, variants))
+        exclusive = self._attempt(
+            lambda: self.service.exclusive_variants(archive, variants)
+        )
+        picker = VariantPicker(title, variants, exclusive)
+        return await self.app.push_screen_wait(picker)
+
+    def _warn_nested(self, file: NexusFile, archive: Path) -> None:
+        nested = self._attempt(lambda: self.service.nested_archives(archive))
+        if nested:
+            self.notify(
+                f"Not installed from {file.file_name}, archives inside the "
+                f"archive: {', '.join(nested)}",
+                severity="warning",
+                timeout=15,
+            )
 
     async def _plan_file(
         self, mod: StagedMod, file: NexusFile
@@ -286,6 +300,7 @@ class ModsScreen(RequirementScreen):
         options = await self._chosen_variants(file, archive)
         if options is None:
             return None
+        self._warn_nested(file, archive)
         plans: list[FilePlan] = []
         for option in options:
             assets = self._attempt(

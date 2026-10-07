@@ -40,6 +40,7 @@ from omamods.detected_games import load_detected_games, save_detected_games
 from omamods.pak_detection import scanned_pak_games
 from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.tui.requirement_flow import RequirementFlow
+from omamods.variant_choices import exclusive_variants, nested_archives
 from omamods.staging import (
     StagedMod,
     list_staged_mods,
@@ -293,6 +294,16 @@ class ModsService:
     def variants(self, game: PakOverlayGame, archive: Path) -> tuple[str, ...]:
         """List variant folders; e.g. ``service.variants(sb, archive)``."""
         return game_variants(self.host.reader.members(archive), game)
+
+    def exclusive_variants(
+        self, archive: Path, variants: tuple[str, ...]
+    ) -> Mapping[str, frozenset[str]]:
+        """Pair alternatives; e.g. ``service.exclusive_variants(archive, ('A', 'B'))``."""
+        return exclusive_variants(self.host.reader.members(archive), variants)
+
+    def nested_archives(self, archive: Path) -> tuple[str, ...]:
+        """List archives an install skips; e.g. ``service.nested_archives(archive)``."""
+        return nested_archives(self.host.reader.members(archive))
 
     def plan(
         self, game: PakOverlayGame, archive: Path, option: str | None
