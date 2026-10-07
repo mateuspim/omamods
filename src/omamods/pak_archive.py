@@ -127,20 +127,32 @@ def _anchored_assets(
     return tuple(PlannedAsset(member, target) for member, target in planned if target)
 
 
+def _incomplete_stems(
+    paths: tuple[PurePosixPath, ...], game: PakOverlayGame
+) -> list[str]:
+    suffixes: dict[str, list[str]] = {}
+    for path in paths:
+        suffixes.setdefault(path.stem, []).append(path.suffix.lower())
+    return sorted(
+        stem
+        for stem, found in suffixes.items()
+        if len(set(found)) != len(found)
+        or frozenset(found) not in game.flat_suffix_sets
+    )
+
+
 def _flat_assets(
     assets: tuple[ArchiveAsset, ...], game: PakOverlayGame
 ) -> tuple[PlannedAsset, ...]:
     paths = tuple(path for _, path in assets)
-    suffixes = frozenset(path.suffix.lower() for path in paths)
-    if (
-        len({path.stem for path in paths}) != 1
-        or len(suffixes) != len(paths)
-        or suffixes not in game.flat_suffix_sets
-    ):
+    # Packs may ship several loose sets, one per outfit (a Stellar Blade outfit pack).
+    incomplete = _incomplete_stems(paths, game)
+    if incomplete:
         shapes = " or ".join("/".join(sorted(s)) for s in game.flat_suffix_sets)
         raise ValueError(
             f"{game.name} archive root={[str(p) for p in paths]!r}: "
-            f"expected one same-stem {shapes} set"
+            f"expected each same-stem group to be a {shapes} set; "
+            f"incomplete: {incomplete!r}"
         )
     return tuple(
         PlannedAsset(member, Path(game.mods_dirname, path.name))

@@ -31,6 +31,22 @@ class StellarBladeLayoutTests(unittest.TestCase):
         members = ("a_P.pak", "a_P.utoc", "a_P.ucas")
         self.assertEqual(len(targets(members)), 3)
 
+    def test_several_flat_triplets_install_together(self) -> None:
+        # Regression: an outfit pack ships one loose triplet per outfit.
+        members = tuple(
+            f"{stem}_P.{suffix}"
+            for stem in ("BlackNails", "Red Passion", "Planet Diving Suit (2nd)")
+            for suffix in ("pak", "ucas", "utoc")
+        )
+        self.assertEqual(
+            sorted(targets(members)), sorted(Path("~mods") / m for m in members)
+        )
+
+    def test_one_incomplete_set_rejects_the_pack_and_names_it(self) -> None:
+        members = ("a_P.pak", "a_P.ucas", "a_P.utoc", "b_P.ucas", "b_P.utoc")
+        with self.assertRaisesRegex(ValueError, r"incomplete: \['b_P'\]"):
+            targets(members)
+
     def test_existing_tilde_mods_folder_is_anchor(self) -> None:
         self.assertEqual(
             targets(("Pack/~Mods/Hair/h.pak",)), [Path("~mods/Hair/h.pak")]
