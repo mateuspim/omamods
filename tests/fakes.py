@@ -445,3 +445,18 @@ class FakeDllFiles:
         if path not in self.files:
             raise FileNotFoundError(f"{path}: expected an existing DLL")
         return self.files[path]
+
+
+class FakeAyakaPages:
+    """Serve mod pages by URL; e.g. ``FakeAyakaPages({url: html})``."""
+
+    def __init__(self, pages: dict[str, str]) -> None:
+        self.pages = pages
+        self.requests: list[str] = []
+
+    def get_text(self, url: str) -> str:
+        """Return a stored page; e.g. ``fake.get_text(url)``."""
+        self.requests.append(url)
+        if url not in self.pages:
+            raise ValueError(f"AyakaMods HTTP 404 for {url!r}: expected a page")
+        return self.pages[url]
