@@ -13,6 +13,17 @@ class BrowserQueueTests(unittest.TestCase):
         self.assertFalse(queue.add("sb", 1, 7, "u7"))
         self.assertTrue(queue.add("sb", 2, 9, "u9"))  # Other mods get a window.
 
+    def test_waiting_url_and_files_follow_the_first_file(self) -> None:
+        queue = BrowserQueue()
+        self.assertIsNone(queue.waiting_url("sb", 1))
+        queue.add("sb", 1, 7, "u7")
+        queue.add("sb", 1, 8, "u8")
+        queue.add("sb", 2, 9, "u9")
+        self.assertEqual(queue.waiting_url("sb", 1), "u7")
+        self.assertEqual(queue.waiting_files(), {("sb", 1): 7, ("sb", 2): 9})
+        queue.advance("sb", 1, {7})
+        self.assertEqual(queue.waiting_url("sb", 1), "u8")
+
     def test_steps_to_next_file_then_finishes(self) -> None:
         queue = BrowserQueue()
         queue.add("sb", 1, 7, "u7")

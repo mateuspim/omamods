@@ -132,8 +132,12 @@ Manager Download** runs `omamods nxm handle`, which downloads into staging and
 sends a desktop notification. The TUI picks the file up within a few seconds.
 With a Chromium-family default browser (Brave, Chromium, Vivaldi, ...) on
 Hyprland, the page opens in its own app window showing the first file's
-download popup. As each file arrives, the TUI moves the window on to the next
-file's popup, and closes it once every file you chose has arrived. To float
+download popup. Once your click starts a download, the TUI moves the window
+out of sight to Hyprland's hidden `special:omamods` workspace (Hyprland has no
+minimise; `hyprctl dispatch togglespecialworkspace omamods` peeks at it). As
+each file arrives, the TUI opens the next file's popup in a fresh window, and
+closes it once every file you chose has arrived. If a download fails, the
+popup comes back so you can click again. To float
 and centre that window, add an Omarchy window rule to
 `~/.config/hypr/hyprland.lua`:
 

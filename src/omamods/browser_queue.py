@@ -81,3 +81,12 @@ class BrowserQueue:
         """The file the window shows now; e.g. ``q.waiting_for('sb', 1)``."""
         queue = self.pending.get((game_id, mod_id))
         return queue[0][0] if queue else None
+
+    def waiting_url(self, game_id: str, mod_id: int) -> str | None:
+        """The popup the window shows now; e.g. ``q.waiting_url('sb', 1)``."""
+        queue = self.pending.get((game_id, mod_id))
+        return queue[0][1] if queue else None
+
+    def waiting_files(self) -> dict[tuple[str, int], int]:
+        """Each mod's shown file; e.g. ``q.waiting_files() == {('sb', 1): 7}``."""
+        return {key: queue[0][0] for key, queue in self.pending.items() if queue}

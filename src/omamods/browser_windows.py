@@ -1,4 +1,5 @@
-"""Open Nexus pages in their own browser window, and close it after downloads.
+"""Open Nexus pages in their own browser window; hide it once a download starts
+and close it after downloads.
 
 Chromium-family browsers started with ``--app=<url>`` get a Hyprland window
 class derived from the URL, e.g.
@@ -15,6 +16,8 @@ from omamods.host_programs import CommandRunner, Launcher
 
 CHROMIUM_NAMES = ("brave", "chrom", "vivaldi", "edge", "opera")
 HYPRLAND_ADDRESS = re.compile(r"0x[0-9a-f]+")
+# Where started downloads park their window; `hyprctl dispatch togglespecialworkspace omamods` shows it.
+HIDDEN_WORKSPACE = "special:omamods"
 
 
 def exec_program(desktop_entry: str) -> str | None:
@@ -80,18 +83,35 @@ class NexusWindows:
             and HYPRLAND_ADDRESS.fullmatch(str(client.get("address", "")))
         )
 
-    def _close(self, address: str) -> None:
-        # Lua-config Hyprland (seen on 0.56.2) needs this form; older takes the legacy one.
-        lua = f'hl.dsp.window.close({{ window = "address:{address}" }})'
+    def _dispatch(self, lua: str, legacy: tuple[str, ...]) -> None:
+        # Lua-config Hyprland (seen on 0.56.2) needs the Lua form; older takes legacy.
         _, output = self.runner.run(("hyprctl", "dispatch", lua))
         if output != "ok":
-            self.runner.run(
-                ("hyprctl", "dispatch", "closewindow", f"address:{address}")
-            )
+            self.runner.run(("hyprctl", "dispatch", *legacy))
+
+    def _close(self, address: str) -> None:
+        lua = f'hl.dsp.window.close({{ window = "address:{address}" }})'
+        self._dispatch(lua, ("closewindow", f"address:{address}"))
+
+    def _hide(self, address: str) -> None:
+        # Hyprland has no minimise; Omarchy's scratchpad uses this same silent move.
+        lua = (
+            f'hl.dsp.window.move({{ workspace = "{HIDDEN_WORKSPACE}", '
+            f'follow = false, window = "address:{address}" }})'
+        )
+        legacy = f"{HIDDEN_WORKSPACE},address:{address}"
+        self._dispatch(lua, ("movetoworkspacesilent", legacy))
 
     def close_mod(self, domain: str, mod_id: int) -> int:
         """Close a mod's windows; e.g. ``windows.close_mod('stellarblade', 1)``."""
         addresses = self._addresses(domain, mod_id)
         for address in addresses:
             self._close(address)
+        return len(addresses)
+
+    def hide_mod(self, domain: str, mod_id: int) -> int:
+        """Move a mod's windows off screen; e.g. ``windows.hide_mod('stellarblade', 1)``."""
+        addresses = self._addresses(domain, mod_id)
+        for address in addresses:
+            self._hide(address)
         return len(addresses)

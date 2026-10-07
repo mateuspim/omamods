@@ -29,6 +29,7 @@ from omamods.nexus_workflow import (
     revert_mod_files,
 )
 from omamods.cdn_download import RetryPolicy
+from omamods.browser_hiding import HiddenWindows
 from omamods.browser_queue import STAY, BrowserQueue
 from omamods.browser_windows import NexusWindows
 from omamods.host_programs import CommandRunner, Launcher
@@ -79,6 +80,7 @@ class ModsService:
         self.settings = self._load_settings()
         self.windows = NexusWindows(host.runner, host.launcher, host.browser)
         self.browser_queue = BrowserQueue()
+        self.hidden_windows = HiddenWindows()
 
     def _load_settings(self) -> UserSettings:
         host = self.host
@@ -169,12 +171,34 @@ class ModsService:
             if step.action == STAY:
                 continue
             self.close_nexus_window(game, mod_id)
+            self.hidden_windows.forget((game_id, mod_id))
             if step.url is None:
                 messages.append(f"{mod.title}: all files downloaded; closed Nexus")
                 continue
             self.open_nexus(step.url)
             messages.append(f"{mod.title}: file arrived; opening the next one")
-        return tuple(messages)
+        return tuple(messages) + self._move_browser_windows()
+
+    def _move_browser_windows(self) -> tuple[str, ...]:
+        waiting = self.browser_queue.waiting_files()
+        if not waiting:
+            return ()
+        statuses = self.downloads()
+        for game_id, mod_id in self.hidden_windows.to_hide(waiting, statuses):
+            self.windows.hide_mod(pak_overlay_game(game_id).nexus_domain, mod_id)
+        restored = self.hidden_windows.to_restore(waiting, statuses)
+        return tuple(
+            self._reopen_popup(game_id, mod_id) for game_id, mod_id in restored
+        )
+
+    def _reopen_popup(self, game_id: str, mod_id: int) -> str:
+        game = pak_overlay_game(game_id)
+        self.close_nexus_window(game, mod_id)
+        url = self.browser_queue.waiting_url(game_id, mod_id)
+        if url is not None:
+            self.open_nexus(url)
+        title = self.staged_mod(game, mod_id).title
+        return f"{title}: download failed; reopened Nexus so you can click again"
 
     def _surprise_messages(
         self, game_id: str, mod: StagedMod, unexpected: tuple[int, ...]

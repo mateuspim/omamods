@@ -75,6 +75,27 @@ class NexusWindowTests(unittest.TestCase):
             hyprland.commands[-1][2:], ("closewindow", "address:0x5652e6a01af0")
         )
 
+    def test_hide_moves_only_the_mod_window_silently(self) -> None:
+        hyprland = FakeHyprland([MAIN_BROWSER, SB_WINDOW])
+        windows = NexusWindows(hyprland, FakeLauncher(), "brave")
+        self.assertEqual(windows.hide_mod("stellarblade", 1), 1)
+        self.assertEqual(
+            hyprland.hidden(),
+            [
+                'hl.dsp.window.move({ workspace = "special:omamods", '
+                'follow = false, window = "address:0x5652e6a01af0" })'
+            ],
+        )
+        self.assertEqual(hyprland.closed(), [])
+
+    def test_hide_legacy_hyprland_fallback(self) -> None:
+        hyprland = FakeHyprland([SB_WINDOW], dispatch_reply="error")
+        NexusWindows(hyprland, FakeLauncher(), "brave").hide_mod("stellarblade", 1)
+        self.assertEqual(
+            hyprland.commands[-1][2:],
+            ("movetoworkspacesilent", "special:omamods,address:0x5652e6a01af0"),
+        )
+
     def test_unexpected_addresses_are_never_dispatched(self) -> None:
         injected = dict(SB_WINDOW, address='0x1" }) os.exit() --')
         hyprland = FakeHyprland([injected])

@@ -1,5 +1,6 @@
 """Drive the TUI headlessly against fake Nexus, archives, and host programs."""
 
+from dataclasses import replace
 from io import BytesIO, StringIO
 from pathlib import Path
 import tempfile
@@ -10,6 +11,8 @@ from rich.console import Console
 from textual.widgets import DataTable, Input, OptionList, Static
 
 from omamods.cdn_download import RetryPolicy
+from omamods.download_queue import DOWNLOADING, FAILED
+from omamods.mod_fetch import download_log
 from omamods.game_shelf import GameShelf, build_shelf
 from omamods.installed_games import InstalledGame, InstalledScan
 from omamods.manifests import GameManifest
@@ -185,6 +188,34 @@ class TuiTests(TuiFixture):
             self.assertEqual(len(opened), 2)
             self.assertIn("file_id=8", opened[1][1])  # Jumped to the second file.
             self.assertEqual(len(hyprland.closed()), 2)  # After 7, and when done.
+
+    def _set_browser_state(self, file_id: int, state: str) -> None:
+        log = download_log(self.root / "store")
+        current = next(s for s in log.statuses() if s.file_id == file_id)
+        log.write(replace(current, state=state))
+
+    async def test_nexus_window_hides_once_the_download_starts(self) -> None:
+        self.site.premium = False
+        window = "brave-www.nexusmods.com__stellarblade_mods_1-Default"
+        hyprland = FakeHyprland([{"address": "0xab", "initialClass": window}])
+        app = self._app({}, hyprland)
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._open_stellar_blade_and_add(app, pilot)
+            app.advance_browser_downloads()
+            self.assertEqual(hyprland.hidden(), [])  # No click yet.
+            self._set_browser_state(7, DOWNLOADING)
+            app.advance_browser_downloads()
+            app.advance_browser_downloads()
+            self.assertEqual(len(hyprland.hidden()), 1)  # Hidden once, not per poll.
+            self.assertIn("address:0xab", hyprland.hidden()[0])
+            self._set_browser_state(7, FAILED)
+            app.advance_browser_downloads()
+            await pilot.pause()
+            reopened = [c for c in self.launcher.launched if c[0] == "brave"]
+            self.assertEqual(len(reopened), 2)
+            self.assertIn("file_id=7", reopened[1][1])
+            messages = [str(n.message) for n in app._notifications]
+            self.assertTrue(any("download failed; reopened" in m for m in messages))
 
     async def test_unrequested_file_is_flagged_and_removable(self) -> None:
         self.site.premium = False

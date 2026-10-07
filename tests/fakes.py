@@ -302,9 +302,20 @@ class FakeHyprland:
             return 0, "brave-origin.desktop"
         return 0, ""
 
+    def _dispatched(self, action: str) -> list[str]:
+        return [
+            c[2]
+            for c in self.commands
+            if c[:2] == ("hyprctl", "dispatch") and action in c[2]
+        ]
+
     def closed(self) -> list[str]:
         """List dispatched close commands; e.g. ``hyprland.closed()``."""
-        return [c[2] for c in self.commands if c[:2] == ("hyprctl", "dispatch")]
+        return self._dispatched("window.close")
+
+    def hidden(self) -> list[str]:
+        """List dispatched hide moves; e.g. ``hyprland.hidden()``."""
+        return self._dispatched("special:omamods")
 
 
 class FakeSleep:
