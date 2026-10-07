@@ -36,6 +36,7 @@ from omamods.host_programs import (
     Launcher,
     SubprocessRunner,
 )
+from omamods.archive_readers import FallbackArchiveReader, SevenZipArchiveReader
 from omamods.pak_archive import ArchiveReader, BsdtarArchiveReader
 from omamods.pak_games import PakOverlayGame, pak_overlay_game
 from omamods.steam_apps import GameInspection, inspect_game
@@ -63,7 +64,7 @@ class NexusRuntime:
             environment,
             LocalConfigFiles(),
             UrlNexusTransport(),
-            BsdtarArchiveReader(),
+            FallbackArchiveReader((BsdtarArchiveReader(), SevenZipArchiveReader())),
         )
 
 

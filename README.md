@@ -219,7 +219,9 @@ The Cronos adapter installs archives containing a `Mods` directory into
 `Cronos/Content/Paks`, matching [mod 38's installation instructions](https://www.nexusmods.com/cronosthenewdawn/mods/38).
 It also accepts mod 38's current flat `.pak`/`.utoc`/`.ucas` triplet and
 places those files under `Paks/Mods`.
-Install `bsdtar` (`libarchive` on Arch) to read ZIP, 7z, or RAR archives. Close
+Install `bsdtar` (`libarchive` on Arch) to read ZIP, 7z, or RAR archives,
+and `7z` (`7zip` on Arch) for RAR5 archives that libarchive refuses with
+"Declared dictionary size is not supported". Close
 the game before installing or reverting.
 
 ```sh
