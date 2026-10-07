@@ -1,0 +1,203 @@
+"""The OmaMods terminal UI: pick a game, then stage and install its mods."""
+
+import time
+from collections.abc import Callable
+
+from textual.app import App
+from textual.binding import Binding
+
+from omamods.mod_fetch import game_for_domain
+from omamods.nexus_api import parse_nexus_page
+from omamods.tui.commands import (
+    GLOBAL_COMMANDS,
+    CommandSpec,
+    find_game,
+    help_text,
+    parse_command,
+    resolve_command,
+)
+from omamods.tui.dialogs import CommandPrompt, InfoDialog, TextPrompt
+from omamods.tui.downloads_screen import DownloadsScreen
+from omamods.tui.games_screen import GamesScreen
+from omamods.tui.mods_screen import ModsScreen
+from omamods.tui.service import ModsService
+from omamods.tui.vim import ChordTracker, run_motion
+
+BROWSER_POLL_SECONDS = 2.0
+APP_CSS = """
+#queue { height: 1fr; }
+#queue-help { color: $text-muted; padding: 0 1; }
+#mods { width: 34; border: round $primary; }
+#detail { border: round $primary; padding: 0 1; }
+#picture { height: 20; }
+#picture Image { width: auto; height: 100%; }
+#details { margin: 1 0; }
+#files { height: auto; max-height: 14; }
+#status, #home-status { color: $text-muted; padding: 0 1; }
+#command-line { dock: bottom; border: tall $primary; }
+.command-screen { align: left bottom; }
+.placeholder { color: $text-muted; content-align: center middle; height: 100%; }
+.dialog { width: 70; height: auto; border: thick $primary; background: $surface; padding: 1 2; }
+.dialog.wide { width: 100; max-height: 90%; }
+.dialog-title { text-style: bold; margin-bottom: 1; }
+.hint { color: $text-muted; margin-top: 1; }
+ModalScreen { align: center middle; }
+"""
+
+
+def one_argument(args: tuple[str, ...], usage: str) -> str:
+    """Require one argument; for example, ``one_argument(('sb',), ':game <name>')``."""
+    if len(args) != 1:
+        raise ValueError(f"{usage}: expected one argument, got {list(args)}")
+    return args[0]
+
+
+class OmaModsApp(App[None]):
+    """Run the TUI; for example, ``OmaModsApp(service).run()``."""
+
+    CSS = APP_CSS
+    TITLE = "OmaMods"
+    BINDINGS = [
+        Binding("D", "downloads", "Downloads"),
+        Binding("colon", "command_line", ":cmd"),
+        Binding("slash", "search", "/search", show=False),
+        Binding("j", "motion('down')", show=False),
+        Binding("k", "motion('up')", show=False),
+        Binding("G", "motion('bottom')", show=False),
+        Binding("g", "vim_g", show=False),
+        Binding("ctrl+d", "motion('page_down')", show=False),
+        Binding("ctrl+u", "motion('page_up')", show=False),
+        Binding("h", "focus_previous", show=False),
+        Binding("l", "focus_next", show=False),
+    ]
+
+    def __init__(self, service: ModsService) -> None:
+        super().__init__()
+        self.service = service
+        self.chord = ChordTracker()
+
+    def on_mount(self) -> None:
+        self.push_screen(GamesScreen(self.service))
+        self.set_interval(BROWSER_POLL_SECONDS, self.advance_browser_downloads)
+
+    def advance_browser_downloads(self) -> None:
+        """Step Nexus windows through queued files; runs on a timer on every screen."""
+        try:
+            messages = self.service.advance_browser_downloads()
+        except (OSError, ValueError) as error:
+            self.notify(str(error), severity="error")
+            return
+        for message in messages:
+            self.notify(message, timeout=8)
+
+    def action_downloads(self) -> None:
+        """Open the queue from any screen; for example, ``app.action_downloads()``."""
+        if not isinstance(self.screen, DownloadsScreen):
+            self.push_screen(DownloadsScreen(self.service))
+
+    def action_motion(self, motion: str) -> None:
+        """Move the focused list like vim; e.g. ``app.action_motion('down')``."""
+        run_motion(self.focused, motion)
+
+    def action_vim_g(self) -> None:
+        if self.chord.press(time.monotonic()):
+            run_motion(self.focused, "top")
+
+    def _screen_commands(self) -> tuple[CommandSpec, ...]:
+        return GLOBAL_COMMANDS + getattr(self.screen, "SCREEN_COMMANDS", ())
+
+    def action_command_line(self) -> None:
+        words = tuple(spec.name for spec in self._screen_commands())
+        self.push_screen(CommandPrompt(":", words), self.run_command_line)
+
+    def action_search(self) -> None:
+        if hasattr(self.screen, "search"):
+            self.push_screen(CommandPrompt("/", ()), self._search)
+
+    def _search(self, text: str | None) -> None:
+        if text:
+            self.screen.search(text)
+
+    def run_command_line(self, text: str | None) -> None:
+        """Run a ':' line on the current screen; e.g. ``app.run_command_line('q')``."""
+        try:
+            parsed = parse_command(text or "")
+            if parsed is None:
+                return
+            spec = resolve_command(parsed.word, self._screen_commands())
+            handler = self._global_handlers().get(spec.name)
+            if handler is None:
+                self.screen.run_command(spec.name, parsed.args)
+            else:
+                handler(parsed.args)
+        except (OSError, ValueError) as error:
+            self.notify(str(error), severity="error", timeout=10)
+
+    def _global_handlers(self) -> dict[str, Callable[[tuple[str, ...]], None]]:
+        return {
+            "quit": lambda args: self._quit_screen(),
+            "quitall": lambda args: self.exit(),
+            "help": lambda args: self._show_help(),
+            "game": lambda args: self._open_game(one_argument(args, ":game <name>")),
+            "queue": lambda args: self.action_downloads(),
+            "key": lambda args: self.save_api_key(one_argument(args, ":key <api-key>")),
+            "nxm": lambda args: self.action_register_nxm(),
+            "add": lambda args: self.add_mod(one_argument(args, ":add <url>")),
+        }
+
+    def _quit_screen(self) -> None:
+        if isinstance(self.screen, GamesScreen):
+            self.exit()
+        else:
+            self.pop_screen()
+
+    def _show_help(self) -> None:
+        self.push_screen(InfoDialog("Commands", help_text(self._screen_commands())))
+
+    def _open_game(self, query: str) -> ModsScreen:
+        game = find_game(self.service.games(), query)
+        if isinstance(self.screen, ModsScreen) and self.screen.game == game:
+            return self.screen
+        screen = ModsScreen(self.service, game)
+        self.push_screen(screen)
+        return screen
+
+    def add_mod(self, url: str) -> None:
+        """Open the URL's game and fetch the mod; e.g. ``app.add_mod('https://...')``."""
+        game = game_for_domain(parse_nexus_page(url).domain)
+        screen = self._open_game(game.game_id)
+        screen.call_after_refresh(screen.fetch_url, url)
+
+    def action_prompt_api_key(self) -> None:
+        prompt = TextPrompt(
+            "Paste your personal Nexus API key "
+            "(nexusmods.com/users/myaccount?tab=api)",
+            "API key",
+            secret=True,
+        )
+        self.push_screen(prompt, lambda key: key and self._save_key_safely(key))
+
+    def _save_key_safely(self, api_key: str) -> None:
+        try:
+            self.save_api_key(api_key)
+        except (OSError, ValueError) as error:
+            self.notify(str(error), severity="error", timeout=10)
+
+    def save_api_key(self, api_key: str) -> None:
+        """Store the key and refresh the home screen; e.g. ``app.save_api_key(k)``."""
+        self.service.save_api_key(api_key)
+        self.notify("API key saved to your private config.")
+        for screen in self.screen_stack:
+            if isinstance(screen, GamesScreen):
+                screen.refresh_status()
+
+    def action_register_nxm(self) -> None:
+        try:
+            registration = self.service.register_nxm()
+        except (OSError, ValueError) as error:
+            self.notify(str(error), severity="error", timeout=10)
+            return
+        previous = registration.previous_handler or "none"
+        self.notify(
+            f"nxm links now open OmaMods (previous handler: {previous}).", timeout=10
+        )
