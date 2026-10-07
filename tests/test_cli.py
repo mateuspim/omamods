@@ -7,7 +7,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from omamods.cli import main, run_cli
+from omamods.cli import _parser, main, run_cli
 from omamods.yaml_codec import SafeYamlDecoder
 from tests.fakes import FakeFiles, app_text
 
@@ -35,6 +35,10 @@ class FakeCliFiles(FakeFiles):
 
 
 class CliTests(unittest.TestCase):
+    def test_bare_command_opens_the_tui(self) -> None:
+        self.assertEqual(_parser().parse_args([]).command, "tui")
+        self.assertEqual(_parser().parse_args(["game", "list"]).command, "game")
+
     def setUp(self) -> None:
         self.files = FakeCliFiles()
         self.stdout, self.stderr = StringIO(), StringIO()

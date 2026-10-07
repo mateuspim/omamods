@@ -1,5 +1,9 @@
 """Compose the read-only command-line application."""
 
+# argparse._SubParsersAction is only subscriptable at runtime from Python 3.14;
+# deferred annotations keep the declared 3.12 support working.
+from __future__ import annotations
+
 import argparse
 from collections.abc import Sequence
 import os
@@ -23,7 +27,9 @@ def _parser() -> argparse.ArgumentParser:
         description="Discover games and install configured Nexus mods."
     )
     _global_options(parser)
-    commands = parser.add_subparsers(dest="command", required=True)
+    # A bare `omamods` opens the TUI, the command people run most.
+    commands = parser.add_subparsers(dest="command")
+    parser.set_defaults(command="tui")
     game = commands.add_parser("game", help="list games with an OmaMods manifest")
     game_commands = game.add_subparsers(dest="game_command", required=True)
     game_commands.add_parser("list", help="list catalog games and installation status")

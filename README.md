@@ -53,7 +53,17 @@ Neither command writes to Steam, game directories, or Proton prefixes.
 ## Terminal UI
 
 ```sh
-omamods tui
+omamods        # same as `omamods tui`
+```
+
+To run `omamods` from any directory while you work on the code, install it as
+an editable [uv](https://docs.astral.sh/uv/) tool. Code changes apply at once;
+reinstall only after changing dependencies in `pyproject.toml`:
+
+```sh
+uv tool install --editable .            # puts omamods in ~/.local/bin
+uv tool install --editable --reinstall . # after dependency changes
+uv tool uninstall omamods
 ```
 
 1. Press `k` once and paste your personal Nexus API key
