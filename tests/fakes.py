@@ -10,6 +10,7 @@ from omamods.cdn_download import (
     TransientDownloadError,
     copy_with_progress,
 )
+from omamods.game_shelf import GameShelf
 
 
 class FakeFiles:
@@ -315,3 +316,16 @@ class FakeSleep:
     def __call__(self, seconds: float) -> None:
         """Record a wait; for example, ``sleep(2.0)``."""
         self.delays.append(seconds)
+
+
+class FakeShelfScanner:
+    """Return a fixed home-screen shelf and count scans, without touching Steam."""
+
+    def __init__(self, shelf: GameShelf) -> None:
+        self.shelf = shelf
+        self.scans = 0
+
+    def __call__(self) -> GameShelf:
+        """Hand back the fixture; for example, ``scanner().entries``."""
+        self.scans += 1
+        return self.shelf

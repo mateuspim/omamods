@@ -99,6 +99,8 @@ class ModsScreen(Screen[None]):
 
     def on_mount(self) -> None:
         self.sub_title = self.game.name
+        self.query_one("#mods").border_title = "Mods"
+        self.query_one("#detail").border_title = "Details"
         table = self.query_one("#files", DataTable)
         table.add_columns(
             "Installed", "Staged", "Category", "Version", "Size", "File", "ID"

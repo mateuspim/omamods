@@ -43,14 +43,16 @@ class GameInspection:
         return "not-found"
 
 
-def _decimal_field(fields: KeyValues, key: str) -> str:
+def decimal_field(fields: KeyValues, key: str) -> str:
+    """Read a numeric manifest field; e.g. ``decimal_field(fields, 'appid')``."""
     value = fields.get(key)
     if not isinstance(value, str) or not value.isascii() or not value.isdecimal():
         raise ValueError(f"{key}={value!r}: expected a decimal integer string")
     return value
 
 
-def _install_directory(fields: KeyValues) -> str:
+def install_directory(fields: KeyValues) -> str:
+    """Read a safe folder name; e.g. ``install_directory(fields) == 'StellarBlade'``."""
     value = fields.get("installdir")
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"installdir={value!r}: expected one nonempty directory name")
@@ -64,20 +66,34 @@ def _install_directory(fields: KeyValues) -> str:
 def _installation(
     fields: KeyValues, library: Path, app_id: int, files: ReadableFiles
 ) -> AppInstallation:
-    recorded_id = _decimal_field(fields, "appid")
+    recorded_id = decimal_field(fields, "appid")
     if recorded_id != str(app_id):
         raise ValueError(f"appid={recorded_id!r}: expected {str(app_id)!r}")
-    install_path = library / "steamapps/common" / _install_directory(fields)
-    prefix = library / f"steamapps/compatdata/{app_id}/pfx"
-    build_id = _decimal_field(fields, "buildid") if "buildid" in fields else None
+    install_path = library / "steamapps/common" / install_directory(fields)
     return AppInstallation(
         library=library,
         install_path=install_path,
-        build_id=build_id,
+        build_id=build_id(fields),
         files_present=files.is_dir(install_path),
-        fully_installed=bool(int(_decimal_field(fields, "StateFlags")) & 4),
-        proton_prefix=prefix if files.is_dir(prefix) else None,
+        fully_installed=steam_marks_installed(fields),
+        proton_prefix=proton_prefix(library, app_id, files),
     )
+
+
+def build_id(fields: KeyValues) -> str | None:
+    """Read the optional build; e.g. ``build_id(fields) == '1234'``."""
+    return decimal_field(fields, "buildid") if "buildid" in fields else None
+
+
+def steam_marks_installed(fields: KeyValues) -> bool:
+    """Check StateFlags bit 4; e.g. ``steam_marks_installed({'StateFlags': '4'})``."""
+    return bool(int(decimal_field(fields, "StateFlags")) & 4)
+
+
+def proton_prefix(library: Path, app_id: int, files: ReadableFiles) -> Path | None:
+    """Find a Wine prefix; e.g. ``proton_prefix(Path('/steam'), 3489700, files)``."""
+    prefix = library / f"steamapps/compatdata/{app_id}/pfx"
+    return prefix if files.is_dir(prefix) else None
 
 
 def _read_installation(

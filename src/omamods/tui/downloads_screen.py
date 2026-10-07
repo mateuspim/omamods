@@ -101,6 +101,7 @@ class DownloadsScreen(Screen[None]):
     def on_mount(self) -> None:
         self.sub_title = "Downloads"
         table = self.query_one("#queue", DataTable)
+        table.border_title = "Download queue"
         table.add_columns(
             "State", "Mod", "File", "Progress", "Speed", "ETA", "Last data", "Error"
         )

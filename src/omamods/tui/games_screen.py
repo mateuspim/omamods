@@ -1,30 +1,33 @@
-"""The home screen: pick a game, and set up the API key and nxm links."""
+"""The home screen: every detected game, its folder, and the setup checklist."""
 
+from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Footer, Header, OptionList, Static
-from textual.widgets.option_list import Option
+from textual.widgets.option_list import OptionDoesNotExist
 
+from omamods.game_shelf import MOD_READY, GameShelf, ShelfEntry
+from omamods.pak_games import pak_overlay_game
+from omamods.tui.dialogs import InfoDialog
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
+from omamods.tui.shelf_view import entry_detail, setup_summary, shelf_options
 
-
-def home_status(service: ModsService) -> str:
-    """Summarise setup for the home screen; e.g. ``home_status(service)``."""
-    key = "set" if service.has_api_key() else "missing - press K or :key <key>"
-    return (
-        f"Nexus API key: {key}\n"
-        "Non-Premium downloads use the site's 'Mod Manager Download' button; "
-        "press n once so those clicks land in OmaMods' staging folder.\n"
-        "Vim keys: j/k move, gg/G top/bottom, h/l panes, : commands (:help), / search."
-    )
+WELCOME = (
+    "Pick a game on the left.\n\n"
+    "Vim keys: j/k move, gg/G top/bottom, / search, : commands (:help)."
+)
 
 
 class GamesScreen(Screen[None]):
     """Choose a game; e.g. ``app.push_screen(GamesScreen(service))``."""
 
     BINDINGS = [
+        Binding("o", "open_folder", "Open folder"),
+        Binding("r", "rescan", "Rescan"),
+        Binding("w", "show_warnings", "Warnings", show=False),
         Binding("K", "app.prompt_api_key", "API key"),
         Binding("n", "app.register_nxm", "Handle nxm links"),
         Binding("q", "app.quit", "Quit"),
@@ -33,19 +36,132 @@ class GamesScreen(Screen[None]):
     def __init__(self, service: ModsService) -> None:
         super().__init__()
         self.service = service
+        self.shelf: GameShelf | None = None
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield OptionList(
-            *(Option(g.name, id=g.game_id) for g in self.service.games()), id="games"
-        )
-        yield Static(home_status(self.service), id="home-status", markup=False)
+        with Horizontal(id="home"):
+            yield OptionList(id="games")
+            with VerticalScroll(id="game-card", can_focus=False):
+                yield Static(WELCOME, id="game-info", markup=False)
+        yield Static(id="setup")
         yield Footer()
 
+    def on_mount(self) -> None:
+        self.query_one("#games").border_title = "Games"
+        self.query_one("#game-card").border_title = "Details"
+        self.query_one("#setup").border_title = "Setup"
+        self.action_rescan()
+
+    def action_rescan(self) -> None:
+        """Look for games again, e.g. after installing one in Steam."""
+        self.query_one("#games", OptionList).loading = True
+        self.refresh_status()
+        self._scan()
+
+    @work(thread=True, exclusive=True, group="shelf")
+    def _scan(self) -> None:
+        try:
+            shelf = self.service.shelf()
+        except (OSError, ValueError) as error:
+            self.app.call_from_thread(self._scan_failed, error)
+            return
+        self.app.call_from_thread(self.show_shelf, shelf)
+
+    def _scan_failed(self, error: Exception) -> None:
+        self.query_one("#games", OptionList).loading = False
+        self.notify(f"Game scan failed: {error}", severity="error", timeout=10)
+
+    def show_shelf(self, shelf: GameShelf) -> None:
+        """List a scan's games, keeping the cursor; e.g. ``screen.show_shelf(s)``."""
+        games = self.query_one("#games", OptionList)
+        current = self.selected_entry()
+        self.shelf = shelf
+        games.clear_options()
+        games.add_options(shelf_options(shelf))
+        games.loading = False
+        games.action_first()
+        if current is not None:
+            self._highlight(current.key)
+        installed = sum(1 for entry in shelf.entries if entry.install)
+        self.sub_title = (
+            f"{installed} installed · {len(shelf.libraries)} Steam libraries"
+        )
+        self.refresh_status()
+
+    def _highlight(self, key: str) -> None:
+        games = self.query_one("#games", OptionList)
+        try:
+            games.highlighted = games.get_option_index(key)
+        except OptionDoesNotExist:
+            return
+
+    def entry(self, key: str | None) -> ShelfEntry | None:
+        """Find a listed game by option ID; e.g. ``screen.entry('cronos')``."""
+        if self.shelf is None or key is None:
+            return None
+        return next((e for e in self.shelf.entries if e.key == key), None)
+
+    def selected_entry(self) -> ShelfEntry | None:
+        """Return the highlighted game; e.g. ``screen.selected_entry().name``."""
+        games = self.query_one("#games", OptionList)
+        option = games.highlighted_option
+        return self.entry(option.id if option else None)
+
+    def on_option_list_option_highlighted(
+        self, event: OptionList.OptionHighlighted
+    ) -> None:
+        entry = self.entry(event.option.id)
+        if entry is not None:
+            card = entry_detail(entry, self._staged_count(entry))
+            self.query_one("#game-info", Static).update(card)
+
+    def _staged_count(self, entry: ShelfEntry) -> int | None:
+        if entry.section != MOD_READY:
+            return None
+        try:
+            return len(self.service.staged_mods(pak_overlay_game(entry.key)))
+        except (OSError, ValueError):
+            return None
+
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        game = self.service.games()[event.option_index]
-        self.app.push_screen(ModsScreen(self.service, game))
+        self.action_open_game()
+
+    def action_open_game(self) -> None:
+        """Manage the highlighted game's mods, when OmaMods can install them."""
+        entry = self.selected_entry()
+        if entry is None:
+            return
+        if entry.section != MOD_READY:
+            self.notify(f"{entry.name}: installing mods is not supported yet.")
+            return
+        self.app.push_screen(ModsScreen(self.service, pak_overlay_game(entry.key)))
+
+    def action_open_folder(self) -> None:
+        """Open the highlighted game's install folder in the file manager."""
+        entry = self.selected_entry()
+        install = entry.install if entry else None
+        if install is None:
+            self.notify("This game is not installed, so it has no folder yet.")
+            return
+        self.service.open_folder(install.install_path)
+
+    def action_show_warnings(self) -> None:
+        warnings = self.shelf.warnings if self.shelf else ()
+        text = "\n\n".join(warnings) or "No discovery warnings."
+        self.app.push_screen(InfoDialog("Discovery warnings", text))
+
+    def search(self, text: str) -> None:
+        """Jump to a game whose name contains text; e.g. ``screen.search('blade')``."""
+        needle = text.casefold()
+        entries = self.shelf.entries if self.shelf else ()
+        match = next((e for e in entries if needle in e.name.casefold()), None)
+        if match is None:
+            self.notify(f"No game matches {text!r}.", severity="warning")
+            return
+        self._highlight(match.key)
 
     def refresh_status(self) -> None:
         """Re-render setup state, e.g. after saving a key."""
-        self.query_one("#home-status", Static).update(home_status(self.service))
+        summary = setup_summary(self.shelf, self.service.has_api_key())
+        self.query_one("#setup", Static).update(summary)

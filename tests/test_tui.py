@@ -1,25 +1,31 @@
 """Drive the TUI headlessly against fake Nexus, archives, and host programs."""
 
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
 import tempfile
 import unittest
 
 from PIL import Image as PilImage
-from textual.widgets import DataTable, Input, OptionList
+from rich.console import Console
+from textual.widgets import DataTable, Input, OptionList, Static
 
 from omamods.cdn_download import RetryPolicy
+from omamods.game_shelf import GameShelf, build_shelf
+from omamods.installed_games import InstalledGame, InstalledScan
+from omamods.manifests import GameManifest
 from omamods.nexus_config import UserSettings
 from omamods.pak_games import PakOverlayGame
 from omamods.tui.app import OmaModsApp
 from omamods.tui.dialogs import ConfirmDialog, InfoDialog
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.downloads_screen import DownloadsScreen
+from omamods.tui.games_screen import GamesScreen
 from omamods.tui.service import ModsService, TuiHost
 from tests.fakes import (
     FakeArchiveReader,
     FakeCommandRunner,
     FakeConfigFiles,
+    FakeShelfScanner,
     FakeSleep,
     FakeHyprland,
     FakeLauncher,
@@ -45,7 +51,33 @@ class FakePaksLocator:
         return self.paks
 
 
-class TuiTests(unittest.IsolatedAsyncioTestCase):
+def manifest(game_id: str, name: str, app_id: int) -> GameManifest:
+    return GameManifest(
+        game_id, name, "discovery", ("steam",), "direct-overlay", (), app_id
+    )
+
+
+def home_shelf(root: Path) -> GameShelf:
+    """Two installed mod-ready games, an uninstalled catalog game, and a GOG game."""
+    catalog = (
+        manifest("cronos", "Cronos: The New Dawn", 2101960),
+        manifest("stellar-blade", "Stellar Blade", 3489700),
+        manifest("dawnwalker", "The Blood of Dawnwalker", 3751260),
+    )
+    games = (
+        InstalledGame("Steam", "2101960", "Cronos", root / "Cronos", True),
+        InstalledGame(
+            "Steam", "3489700", "Stellar Blade™", root / "SB", True, 5 * 10**9
+        ),
+        InstalledGame("GOG", "1207", "Hades", root / "Hades", True),
+    )
+    mod_ready = frozenset({"cronos", "stellar-blade"})
+    return build_shelf(catalog, mod_ready, InstalledScan(games, ()), (root,))
+
+
+class TuiFixture(unittest.IsolatedAsyncioTestCase):
+    """Shared host fakes; holds no tests so subclasses don't rerun each other's."""
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
@@ -57,6 +89,7 @@ class TuiTests(unittest.IsolatedAsyncioTestCase):
         self.site = FakeNexusSite()
         self.site.picture = png_bytes()
         self.launcher = FakeLauncher()
+        self.scanner = FakeShelfScanner(home_shelf(self.root))
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -76,12 +109,18 @@ class TuiTests(unittest.IsolatedAsyncioTestCase):
             FakePaksLocator(self.paks),
             Path("/bin/omamods"),
             self.root / "applications",
+            self.scanner,
             "brave" if hyprland else None,
             RetryPolicy(sleep=FakeSleep()),
         )
         return OmaModsApp(ModsService(host))
 
+    async def _wait_for_shelf(self, app: OmaModsApp, pilot) -> None:
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+
     async def _open_stellar_blade_and_add(self, app: OmaModsApp, pilot) -> None:
+        await self._wait_for_shelf(app, pilot)
         await pilot.press("down", "enter", "a")
         app.screen.query_one(Input).value = URL
         await pilot.press("enter")
@@ -91,6 +130,8 @@ class TuiTests(unittest.IsolatedAsyncioTestCase):
         await app.workers.wait_for_complete()
         await pilot.pause()
 
+
+class TuiTests(TuiFixture):
     async def test_add_download_and_install(self) -> None:
         app = self._app({"Black/s.pak": b"pak"})
         async with app.run_test(size=(140, 45)) as pilot:
@@ -238,15 +279,18 @@ class TuiTests(unittest.IsolatedAsyncioTestCase):
     async def test_vim_motions_and_game_command(self) -> None:
         app = self._app({})
         async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
             games = app.screen.query_one("#games", OptionList)
+            # Index 0 is the "MOD-READY" heading, which the cursor skips.
+            self.assertEqual(games.highlighted, 1)
             await pilot.press("j")
-            self.assertEqual(games.highlighted, 1)
+            self.assertEqual(games.highlighted, 2)
             await pilot.press("k")
-            self.assertEqual(games.highlighted, 0)
-            await pilot.press("G")
             self.assertEqual(games.highlighted, 1)
+            await pilot.press("G")
+            self.assertEqual(games.highlighted_option.id, "gog:1207")
             await pilot.press("g", "g")
-            self.assertEqual(games.highlighted, 0)
+            self.assertEqual(games.highlighted, 1)
             await self._command(app, pilot, "game sb")
             self.assertIsInstance(app.screen, ModsScreen)
             self.assertEqual(app.screen.game.game_id, "stellar-blade")
@@ -303,6 +347,7 @@ class TuiTests(unittest.IsolatedAsyncioTestCase):
             archive.parent.mkdir(parents=True)
             archive.write_bytes(b"z")
         async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
             await pilot.press("down", "enter")
             await pilot.pause()
             mods = app.screen.query_one("#mods", OptionList)
@@ -325,6 +370,85 @@ class TuiTests(unittest.IsolatedAsyncioTestCase):
             await pilot.press("enter")
             await pilot.pause()
             self.assertIn('api_key = "newkey"', self.config_files.contents[self.config])
+
+
+class FailingShelfScanner:
+    """Raise like an unreadable games catalog would."""
+
+    def __call__(self) -> GameShelf:
+        raise ValueError("games directory 'games': expected an existing directory")
+
+
+class HomeScreenTests(TuiFixture):
+    def _card_text(self, app: OmaModsApp) -> str:
+        console = Console(width=100, record=True, color_system=None, file=StringIO())
+        console.print(app.screen.query_one("#game-info", Static).content)
+        return console.export_text()
+
+    async def test_card_shows_highlighted_game_folder(self) -> None:
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            await pilot.press("down")
+            await pilot.pause()
+            card = self._card_text(app)
+            self.assertIn(str(self.root / "SB"), card)
+            self.assertIn("5.0 GB", card)
+            self.assertIn("0 mod(s) staged", card)
+            self.assertIn("3 installed", app.screen.sub_title)
+
+    async def test_o_opens_the_install_folder(self) -> None:
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            await pilot.press("o")
+            self.assertEqual(
+                self.launcher.launched[-1], ("xdg-open", str(self.root / "Cronos"))
+            )
+
+    async def test_unsupported_game_stays_home_with_a_notice(self) -> None:
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            await pilot.press("G", "enter")
+            await pilot.pause()
+            self.assertIsInstance(app.screen, GamesScreen)
+            messages = [str(n.message) for n in app._notifications]
+            self.assertTrue(any("Hades: installing mods" in m for m in messages))
+
+    async def test_search_and_rescan_keep_the_selection(self) -> None:
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            screen = app.screen
+            screen.search("BLOOD")
+            self.assertEqual(screen.selected_entry().key, "dawnwalker")
+            await pilot.press("r")
+            await self._wait_for_shelf(app, pilot)
+            self.assertEqual(self.scanner.scans, 2)
+            self.assertEqual(screen.selected_entry().key, "dawnwalker")
+            screen.search("zzz")
+            self.assertEqual(screen.selected_entry().key, "dawnwalker")
+
+    async def test_w_lists_warnings(self) -> None:
+        self.scanner.shelf = GameShelf(self.scanner.shelf.entries, (), ("bad vdf",))
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            setup = str(app.screen.query_one("#setup", Static).render())
+            self.assertIn("1 warning(s)", setup)
+            await pilot.press("w")
+            self.assertIsInstance(app.screen, InfoDialog)
+            self.assertEqual(app.screen.details, "bad vdf")
+
+    async def test_scan_failure_is_reported(self) -> None:
+        self.scanner = FailingShelfScanner()
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            messages = [str(n.message) for n in app._notifications]
+            self.assertTrue(any("Game scan failed" in m for m in messages))
+            self.assertFalse(app.screen.query_one("#games", OptionList).loading)
 
 
 if __name__ == "__main__":

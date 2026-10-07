@@ -17,7 +17,10 @@ from omamods.nexus_cli import (
 from omamods.nexus_config import UserSettings, load_user_config
 from omamods.nexus_workflow import game_paks
 from omamods.nxm_handler import handle_nxm_click
-from omamods.pak_games import PakOverlayGame
+from omamods.game_shelf import GameShelf, ShelfSources, scan_shelf
+from omamods.heroic_games import default_heroic_roots
+from omamods.manifests import GameManifest, load_catalog
+from omamods.pak_games import PAK_OVERLAY_GAMES, PakOverlayGame
 from omamods.tui.service import ModsService, TuiHost
 
 
@@ -47,6 +50,33 @@ class SteamPaksLocator:
         return game_paks(game, settings, inspection)
 
 
+class HostShelfScanner:
+    """Scan Steam and Heroic for the home screen; e.g. ``scanner().entries``."""
+
+    def __init__(
+        self, args: Namespace, sources: CatalogSources, runtime: NexusRuntime
+    ) -> None:
+        self.args = args
+        self.sources = sources
+        self.runtime = runtime
+
+    def _catalog(self) -> tuple[GameManifest, ...]:
+        sources = self.sources
+        return load_catalog(self.args.games_dir, sources.files, sources.decoder)
+
+    def __call__(self) -> GameShelf:
+        args, runtime = self.args, self.runtime
+        config_home = runtime.environment.get("XDG_CONFIG_HOME")
+        shelf_sources = ShelfSources(
+            self._catalog,
+            tuple(args.steam_root) if args.steam_root else self.sources.steam_roots,
+            default_heroic_roots(runtime.home, config_home),
+            self.sources.files,
+            frozenset(PAK_OVERLAY_GAMES),
+        )
+        return scan_shelf(shelf_sources)
+
+
 def data_dirs(environment: Mapping[str, str], home: Path) -> tuple[Path, ...]:
     """List XDG data folders in lookup order; e.g. ``data_dirs(os.environ, home)``."""
     user = Path(environment.get("XDG_DATA_HOME") or home / ".local/share")
@@ -73,6 +103,7 @@ def tui_host(
         SteamPaksLocator(args, sources),
         omamods_executable(sys.argv[0]),
         applications,
+        HostShelfScanner(args, sources, runtime),
         chromium_browser(runtime.runner, data_dirs(runtime.environment, runtime.home)),
     )
 

@@ -4,6 +4,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from omamods.game_shelf import GameShelf, ShelfScanner
 from omamods.download_queue import QUEUED, DownloadStatus
 from omamods.mod_fetch import (
     BrowserDownloadRequired,
@@ -65,6 +66,7 @@ class TuiHost:
     locate_paks: PaksLocator
     executable: Path
     applications: Path
+    scan_shelf: ShelfScanner
     browser: str | None = None
     retry: RetryPolicy = RetryPolicy()
 
@@ -95,6 +97,10 @@ class ModsService:
     def games(self) -> tuple[PakOverlayGame, ...]:
         """List supported games; for example, ``service.games()``."""
         return tuple(PAK_OVERLAY_GAMES.values())
+
+    def shelf(self) -> GameShelf:
+        """Find catalog and installed games; e.g. ``service.shelf().entries``."""
+        return self.host.scan_shelf()
 
     def has_api_key(self) -> bool:
         """Report whether Nexus calls can work; e.g. ``service.has_api_key()``."""
@@ -218,6 +224,10 @@ class ModsService:
     def open_url(self, url: str) -> None:
         """Open the browser; for example, ``service.open_url(url)``."""
         self.host.launcher.launch(("xdg-open", url))
+
+    def open_folder(self, folder: Path) -> None:
+        """Show a game folder in the file manager; e.g. ``service.open_folder(p)``."""
+        self.host.launcher.launch(("xdg-open", str(folder)))
 
     def open_nexus(self, url: str) -> bool:
         """Open a closable Nexus window; e.g. ``service.open_nexus(url)``."""

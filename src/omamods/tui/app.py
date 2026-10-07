@@ -21,28 +21,10 @@ from omamods.tui.downloads_screen import DownloadsScreen
 from omamods.tui.games_screen import GamesScreen
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
+from omamods.tui.styles import APP_CSS, DEFAULT_THEME
 from omamods.tui.vim import ChordTracker, run_motion
 
 BROWSER_POLL_SECONDS = 2.0
-APP_CSS = """
-#queue { height: 1fr; }
-#queue-help { color: $text-muted; padding: 0 1; }
-#mods { width: 34; border: round $primary; }
-#detail { border: round $primary; padding: 0 1; }
-#picture { height: 20; }
-#picture Image { width: auto; height: 100%; }
-#details { margin: 1 0; }
-#files { height: auto; max-height: 14; }
-#status, #home-status { color: $text-muted; padding: 0 1; }
-#command-line { dock: bottom; border: tall $primary; }
-.command-screen { align: left bottom; }
-.placeholder { color: $text-muted; content-align: center middle; height: 100%; }
-.dialog { width: 70; height: auto; border: thick $primary; background: $surface; padding: 1 2; }
-.dialog.wide { width: 100; max-height: 90%; }
-.dialog-title { text-style: bold; margin-bottom: 1; }
-.hint { color: $text-muted; margin-top: 1; }
-ModalScreen { align: center middle; }
-"""
 
 
 def one_argument(args: tuple[str, ...], usage: str) -> str:
@@ -75,6 +57,7 @@ class OmaModsApp(App[None]):
         super().__init__()
         self.service = service
         self.chord = ChordTracker()
+        self.theme = DEFAULT_THEME
 
     def on_mount(self) -> None:
         self.push_screen(GamesScreen(self.service))

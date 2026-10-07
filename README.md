@@ -66,7 +66,24 @@ uv tool install --editable --reinstall . # after dependency changes
 uv tool uninstall omamods
 ```
 
-1. Press `k` once and paste your personal Nexus API key
+The home screen scans for games each time it opens (press `r` to rescan) and
+lists them in three groups:
+
+- **Mod-ready**: catalog games OmaMods can install mods for (Cronos, Stellar
+  Blade). Enter opens their mods.
+- **In the catalog**: games with a manifest but no installer yet.
+- **Your other games**: every other game Steam has installed, in any library
+  `libraryfolders.vdf` lists, plus Epic, GOG, Amazon, and sideloaded games
+  from Heroic Games Launcher (native or Flatpak). Proton, the Steam Linux
+  Runtime, and Steamworks redistributables are hidden.
+
+The detail panel shows the game's folder, library, size, Steam app ID, build,
+and Proton prefix. `o` opens the folder in your file manager, `/` searches by
+name, and `w` lists records that could not be read. Catalog games match Steam
+installs by app ID, never by title. The theme defaults to Tokyo Night; pick
+another with `Ctrl+P` → *Change theme*.
+
+1. Press `K` once and paste your personal Nexus API key
    (nexusmods.com/users/myaccount?tab=api). It is saved to the private config.
 2. Press `n` once so the site's **Mod Manager Download** button hands files
    to OmaMods (registers `omamods-nxm.desktop` as the `nxm://` handler with
