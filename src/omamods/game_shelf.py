@@ -27,6 +27,8 @@ class ShelfEntry:
     manifest: GameManifest | None = None
     pak_game: PakOverlayGame | None = None
     unreal: UnrealLayout | None = None
+    # The base pak an RE Engine game's mods patch, set even without a Nexus match.
+    patch_chain: str | None = None
 
     @property
     def install(self) -> InstalledGame | None:

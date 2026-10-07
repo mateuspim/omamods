@@ -16,6 +16,8 @@ from omamods.cdn_download import (
 from omamods.nexus_api import NexusFile, NexusTransport
 from omamods.pak_archive import ASSET_SUFFIXES, ArchiveReader, PlannedAsset
 from omamods.pak_games import PakOverlayGame
+from omamods.re_pak_archive import write_packed_pak
+from omamods.re_patch_chain import is_empty_patch, patch_number
 
 PARTIAL_SUFFIX = ".partial"
 
@@ -26,6 +28,9 @@ class InstalledAsset:
 
     relative_path: str
     sha256: str
+    # The install overwrote an empty RE Engine patch; revert puts a 0-byte
+    # file back instead of deleting, so Steam's file list still matches.
+    replaced_empty: bool = False
 
 
 def _digest(path: Path) -> str:
@@ -123,7 +128,7 @@ def _preflight(paks: Path, assets: tuple[PlannedAsset, ...], record: Path) -> No
         )
     for asset in assets:
         target = _safe_target(paks, asset.target)
-        if target.exists():
+        if target.exists() and not (asset.replaces_empty and is_empty_patch(target)):
             raise ValueError(
                 f"asset target={str(target)!r}: expected an unowned path; the file "
                 "already exists, so revert the mod that installed it first"
@@ -135,11 +140,16 @@ def _write_asset(
 ) -> InstalledAsset:
     target = _safe_target(paks, asset.target)
     target.parent.mkdir(parents=True, exist_ok=True)
+    if asset.replaces_empty:
+        target.unlink(missing_ok=True)  # Preflight checked that it holds no files.
     created = False
     try:
         with target.open("xb") as stream:
             created = True
-            reader.copy_member(archive, asset.member, stream)
+            if asset.packed:
+                write_packed_pak(archive, asset, stream, reader)
+            else:
+                reader.copy_member(archive, asset.member, stream)
     except BaseException:
         if created:
             target.unlink()
@@ -147,7 +157,9 @@ def _write_asset(
     if not target.stat().st_size:
         target.unlink()
         raise ValueError(f"asset member={asset.member!r}: expected nonempty content")
-    return InstalledAsset(asset.target.as_posix(), _digest(target))
+    return InstalledAsset(
+        asset.target.as_posix(), _digest(target), asset.replaces_empty
+    )
 
 
 def _write_state(
@@ -194,12 +206,20 @@ def install_pak_archive(
     except BaseException:
         for path in created:
             path.unlink(missing_ok=True)
+        _restore_empty_patches(paks, planned)
         raise
     return tuple(installed)
 
 
+def _restore_empty_patches(paks: Path, planned: tuple[PlannedAsset, ...]) -> None:
+    for asset in planned:
+        target = paks / asset.target
+        if asset.replaces_empty and not target.exists():
+            target.touch()
+
+
 def _recorded_assets(
-    record: Path, mods_dirname: str
+    record: Path, game: PakOverlayGame
 ) -> tuple[Path, tuple[InstalledAsset, ...]]:
     try:
         state = json.loads(record.read_text(encoding="utf-8"))
@@ -218,11 +238,16 @@ def _recorded_assets(
             f"install state={str(record)!r}: expected unique owned asset paths"
         )
     for asset in assets:
-        _validate_owned_asset(asset, mods_dirname)
+        _validate_owned_path(asset, game)
+        _validate_digest(asset)
     return paks, assets
 
 
-def _validate_owned_asset(asset: InstalledAsset, mods_dirname: str) -> None:
+def _validate_owned_path(asset: InstalledAsset, game: PakOverlayGame) -> None:
+    if game.patch_chain is not None:
+        _validate_owned_patch(asset, game.patch_chain)
+        return
+    mods_dirname = game.mods_dirname
     relative = Path(asset.relative_path)
     if (
         relative.is_absolute()
@@ -234,6 +259,16 @@ def _validate_owned_asset(asset: InstalledAsset, mods_dirname: str) -> None:
         raise ValueError(
             f"owned asset={asset.relative_path!r}: expected a path beneath {mods_dirname}/"
         )
+
+
+def _validate_owned_patch(asset: InstalledAsset, chain: str) -> None:
+    if patch_number(chain, asset.relative_path) is None:
+        raise ValueError(
+            f"owned asset={asset.relative_path!r}: expected {chain}.patch_NNN.pak"
+        )
+
+
+def _validate_digest(asset: InstalledAsset) -> None:
     if len(asset.sha256) != 64 or any(
         c not in "0123456789abcdef" for c in asset.sha256
     ):
@@ -243,15 +278,20 @@ def _validate_owned_asset(asset: InstalledAsset, mods_dirname: str) -> None:
 
 
 def revert_pak_mod(record: Path, game: PakOverlayGame) -> tuple[Path, ...]:
-    """Remove unchanged owned files; for example, ``revert_pak_mod(record, game)``."""
-    paks, assets = _recorded_assets(record, game.mods_dirname)
+    """Remove unchanged owned files; for example, ``revert_pak_mod(record, game)``.
+
+    RE Engine callers then run ``fill_patch_gaps`` on every removed patch.
+    """
+    paks, assets = _recorded_assets(record, game)
     targets = tuple(_safe_target(paks, Path(asset.relative_path)) for asset in assets)
     for target, asset in zip(targets, assets, strict=True):
         if target.exists() and _digest(target) != asset.sha256:
             raise ValueError(
                 f"asset target={str(target)!r}: expected original SHA-256; file changed"
             )
-    for target in targets:
+    for target, asset in zip(targets, assets, strict=True):
         target.unlink(missing_ok=True)
+        if asset.replaced_empty:
+            target.touch()
     record.unlink()
     return targets

@@ -25,7 +25,7 @@ from omamods.nexus_config import UserSettings
 from omamods.nexus_games import NexusGameDirectory
 from omamods.nexus_workflow import scanned_game_paks
 from omamods.pak_detection import (
-    promote_unreal_games,
+    promote_pak_games,
     scanned_pak_game,
     scanned_pak_games,
 )
@@ -94,7 +94,7 @@ class LayoutTests(unittest.TestCase):
 class PromotionTests(unittest.TestCase):
     def _promote(self, *entries: ShelfEntry) -> GameShelf:
         shelf = GameShelf(entries, (), ())
-        return promote_unreal_games(shelf, remnant_files(), DIRECTORY)
+        return promote_pak_games(shelf, remnant_files(), DIRECTORY)
 
     def test_matched_unreal_game_becomes_mod_ready(self) -> None:
         entry = self._promote(library(installed("Remnant II"))).entries[0]

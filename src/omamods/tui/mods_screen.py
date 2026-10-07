@@ -1,6 +1,7 @@
 """One game's staging folder: browse mods, stage files, install, and revert."""
 
 import asyncio
+from pathlib import Path
 from collections.abc import Callable
 from typing import TypeVar
 
@@ -22,7 +23,7 @@ from omamods.nexus_api import NexusFile, describe_nexus_file
 from omamods.pak_games import PakOverlayGame
 from omamods.staging import StagedMod
 from omamods.tui.mods_commands import MODS_COMMANDS, run_mods_command
-from omamods.tui.dialogs import ChoiceDialog, ConfirmDialog, FilePicker, TextPrompt
+from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPicker
 from omamods.tui.preview import PicturePreview
 from omamods.tui.service import ModsService
 
@@ -250,29 +251,41 @@ class ModsScreen(Screen[None]):
         else:
             self.download_files(self.current.mod_id, (file,))
 
-    async def _plan_file(self, mod: StagedMod, file: NexusFile) -> FilePlan | None:
-        archive = mod.archives[file.file_id]
+    async def _chosen_variants(
+        self, file: NexusFile, archive: Path
+    ) -> tuple[str | None, ...] | None:
         variants = self._attempt(lambda: self.service.variants(self.game, archive))
-        if variants is None:
+        if not variants:
+            return None if variants is None else (None,)
+        title = f"{file.file_name} has variants; pick which to install"
+        return await self.app.push_screen_wait(VariantPicker(title, variants))
+
+    async def _plan_file(
+        self, mod: StagedMod, file: NexusFile
+    ) -> tuple[FilePlan, ...] | None:
+        archive = mod.archives[file.file_id]
+        options = await self._chosen_variants(file, archive)
+        if options is None:
             return None
-        option = None
-        if variants:
-            title = f"{file.file_name} has variants; pick one"
-            option = await self.app.push_screen_wait(ChoiceDialog(title, variants))
-            if option is None:
+        plans: list[FilePlan] = []
+        for option in options:
+            assets = self._attempt(
+                lambda: self.service.plan(self.game, archive, option)
+            )
+            if assets is None:
                 return None
-        assets = self._attempt(lambda: self.service.plan(self.game, archive, option))
-        return None if assets is None else FilePlan(file, option, assets)
+            plans.append(FilePlan(file, option, assets))
+        return tuple(plans)
 
     async def _plan_files(
         self, mod: StagedMod, files: tuple[NexusFile, ...]
     ) -> tuple[FilePlan, ...] | None:
         plans: list[FilePlan] = []
         for file in files:
-            plan = await self._plan_file(mod, file)
-            if plan is None:
+            planned = await self._plan_file(mod, file)
+            if planned is None:
                 return None
-            plans.append(plan)
+            plans.extend(planned)
         return tuple(plans)
 
     @work
@@ -303,7 +316,8 @@ class ModsScreen(Screen[None]):
             )
             if count is None:
                 return
-            self.notify(f"Installed {count} files from {plan.file.file_name}")
+            variant = f" ({plan.option})" if plan.option else ""
+            self.notify(f"Installed {count} files from {plan.file.file_name}{variant}")
 
     def action_uninstall_mod(self) -> None:
         if self.current is None:

@@ -5,7 +5,7 @@ from textual.binding import Binding
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.suggester import SuggestFromList
-from textual.widgets import Input, Label, OptionList, SelectionList, Static
+from textual.widgets import Input, Label, SelectionList, Static
 
 from omamods.mod_plan import preselected_download
 from omamods.nexus_api import NexusFile
@@ -77,23 +77,31 @@ class FilePicker(ModalScreen[tuple[NexusFile, ...] | None]):
         self.dismiss(None)
 
 
-class ChoiceDialog(ModalScreen[str | None]):
-    """Pick one entry, e.g. which variant folder of an archive to install."""
+class VariantPicker(ModalScreen[tuple[str, ...] | None]):
+    """Choose which variant folders of an archive to install; all start ticked."""
 
-    BINDINGS = [Binding("escape", "cancel", "Cancel")]
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("enter", "confirm", "Install selected", priority=True),
+    ]
 
-    def __init__(self, title: str, choices: tuple[str, ...]) -> None:
+    def __init__(self, title: str, variants: tuple[str, ...]) -> None:
         super().__init__()
         self.title_text = title
-        self.choices = choices
+        self.variants = variants
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog"):
             yield Label(self.title_text, classes="dialog-title")
-            yield OptionList(*self.choices)
+            yield SelectionList[str](*((v, v, True) for v in self.variants))
+            yield Static(
+                "Space toggles, Enter installs selected, Esc cancels", classes="hint"
+            )
 
-    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        self.dismiss(self.choices[event.option_index])
+    def action_confirm(self) -> None:
+        chosen = set(self.query_one(SelectionList).selected)
+        picked = tuple(v for v in self.variants if v in chosen)
+        self.dismiss(picked or None)
 
     def action_cancel(self) -> None:
         self.dismiss(None)

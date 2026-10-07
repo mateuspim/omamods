@@ -9,6 +9,7 @@ from textual.widgets.option_list import Option
 
 from omamods.game_shelf import CATALOG, LIBRARY, MOD_READY, GameShelf, ShelfEntry
 from omamods.installed_games import InstalledGame
+from omamods.pak_games import PakOverlayGame
 
 SECTION_TITLES: dict[str, str] = {
     MOD_READY: "MOD-READY",
@@ -113,15 +114,18 @@ def _status_line(entry: ShelfEntry) -> Text:
 def section_badge(entry: ShelfEntry) -> str:
     """Label the entry's support; e.g. ``section_badge(e) == 'Mod-ready'``."""
     game = entry.pak_game
-    if game is not None and game.install_root is not None:
-        return "Mod-ready (auto-detected Unreal game)"
-    return SECTION_BADGES[entry.section]
+    if game is None or game.install_root is None:
+        return SECTION_BADGES[entry.section]
+    engine = "Unreal" if game.patch_chain is None else "RE Engine"
+    return f"Mod-ready (auto-detected {engine} game)"
 
 
 def _scanned_game_notes(entry: ShelfEntry) -> Text:
     game = entry.pak_game
     if game is None or game.install_root is None:
         return Text()
+    if game.patch_chain is not None:
+        return _patch_chain_notes(game.install_root, game)
     folder = game.install_root / game.paks_subpath / game.mods_dirname
     text = Text(f"\nMods go to {folder} (Nexus: {game.nexus_domain}).", style="dim")
     if game.signed:
@@ -133,21 +137,41 @@ def _scanned_game_notes(entry: ShelfEntry) -> Text:
     return text
 
 
+def _patch_chain_notes(root: Path, game: PakOverlayGame) -> Text:
+    text = Text(
+        f"\nPak mods become the next {game.patch_chain}.patch_NNN.pak in {root} "
+        f"(Nexus: {game.nexus_domain}).",
+        style="dim",
+    )
+    return text.append(
+        "\n⚠ A game update can add an official patch with the same number; "
+        "reinstall mods after updating. Loose natives/ files are packed into one "
+        "patch; REFramework and DLL mods are refused.",
+        style="yellow",
+    )
+
+
 def _mod_support(entry: ShelfEntry, staged_mods: int | None) -> Text:
     if entry.section == MOD_READY:
         staged = "" if staged_mods is None else f" · {staged_mods} mod(s) staged"
         text = Text(f"Enter manages this game's mods{staged}.", style="green")
         return text.append_text(_scanned_game_notes(entry))
     if entry.unreal is not None:
-        return Text(
-            f"Unreal Engine game, but no Nexus game page matched {entry.name!r}. "
-            "Matching needs a Nexus API key (K) once; then r rescans.",
-            style="yellow",
-        )
+        return _unmatched_note("Unreal Engine", entry.name)
+    if entry.patch_chain is not None:
+        return _unmatched_note("RE Engine", entry.name)
     if entry.section == CATALOG:
         adapter = entry.manifest.adapter if entry.manifest else "undecided"
         return Text(f"Adapter planned: {adapter}. Installing is not supported yet.")
     return Text("Not in the OmaMods catalog yet; o opens its folder.", style="dim")
+
+
+def _unmatched_note(engine: str, name: str) -> Text:
+    return Text(
+        f"{engine} game, but no Nexus game page matched {name!r}. "
+        "Matching needs a Nexus API key (K) once; then r rescans.",
+        style="yellow",
+    )
 
 
 def _notes(entry: ShelfEntry) -> Text:

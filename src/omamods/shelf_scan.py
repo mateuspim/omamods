@@ -1,4 +1,4 @@
-"""Scan Steam and Heroic, then promote Unreal games OmaMods can mod."""
+"""Scan Steam and Heroic, then promote Unreal and RE Engine games OmaMods can mod."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -10,7 +10,7 @@ from omamods.heroic_games import list_heroic_games
 from omamods.installed_games import InstalledScan, combine_scans
 from omamods.manifests import GameManifest
 from omamods.nexus_games import NexusGameDirectory
-from omamods.pak_detection import promote_unreal_games
+from omamods.pak_detection import promote_pak_games
 from omamods.pak_games import PakGameCatalog
 from omamods.steam_installed import list_steam_games
 from omamods.steam_libraries import discover_libraries
@@ -37,4 +37,4 @@ def scan_shelf(sources: ShelfSources) -> GameShelf:
     found = combine_scans(InstalledScan((), libraries.warnings), steam, heroic)
     catalog = sources.catalog()
     shelf = build_shelf(catalog, sources.pak_games, found, libraries.libraries)
-    return promote_unreal_games(shelf, files, sources.nexus_games())
+    return promote_pak_games(shelf, files, sources.nexus_games())

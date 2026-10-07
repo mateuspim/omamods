@@ -1,4 +1,7 @@
-"""Describe games whose self-contained Unreal asset mods share one installer."""
+"""Describe games whose self-contained pak mods share one installer.
+
+Unreal games overlay a mods folder; RE Engine games load numbered patch paks.
+"""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +25,9 @@ class PakOverlayGame:
     install_root: Path | None = None
     # Shipped .sig files mean the game may refuse unsigned mod paks.
     signed: bool = False
+    # RE Engine games load mods as numbered patches of this base pak, e.g.
+    # re_chunk_000.pak.patch_009.pak, instead of from a mods folder.
+    patch_chain: str | None = None
 
 
 PAK_OVERLAY_GAMES: dict[str, PakOverlayGame] = {

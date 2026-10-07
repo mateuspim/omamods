@@ -34,12 +34,8 @@ from omamods.browser_queue import STAY, BrowserQueue
 from omamods.browser_windows import NexusWindows
 from omamods.host_programs import CommandRunner, Launcher
 from omamods.nxm_handler import NxmRegistration, register_nxm_handler
-from omamods.pak_archive import (
-    ArchiveReader,
-    PlannedAsset,
-    plan_pak_assets,
-    variant_folders,
-)
+from omamods.asset_plans import game_variants, plan_game_assets
+from omamods.pak_archive import ArchiveReader, PlannedAsset
 from omamods.detected_games import load_detected_games, save_detected_games
 from omamods.pak_detection import scanned_pak_games
 from omamods.pak_games import PakGameCatalog, PakOverlayGame
@@ -276,13 +272,13 @@ class ModsService:
 
     def variants(self, game: PakOverlayGame, archive: Path) -> tuple[str, ...]:
         """List variant folders; e.g. ``service.variants(sb, archive)``."""
-        return variant_folders(self.host.reader.members(archive), game)
+        return game_variants(self.host.reader.members(archive), game)
 
     def plan(
         self, game: PakOverlayGame, archive: Path, option: str | None
     ) -> tuple[PlannedAsset, ...]:
         """Preview targets; e.g. ``service.plan(sb, archive, 'Black')``."""
-        return plan_pak_assets(self.host.reader.members(archive), game, option)
+        return plan_game_assets(self.host.reader.members(archive), game, option)
 
     def install(
         self, game: PakOverlayGame, mod_id: int, file_id: int, option: str | None

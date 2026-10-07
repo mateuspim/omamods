@@ -45,7 +45,8 @@ def conflicting_targets(plans: tuple[FilePlan, ...]) -> tuple[str, ...]:
     owners: dict[str, str] = {}
     conflicts: list[str] = []
     for plan in plans:
-        for asset in plan.assets:
+        # Each RE Engine patch gets its own new slot, so it never collides.
+        for asset in (a for a in plan.assets if not a.next_patch):
             target = asset.target.as_posix()
             if target in owners:
                 conflicts.append(
@@ -61,5 +62,15 @@ def describe_plans(plans: tuple[FilePlan, ...]) -> str:
     for plan in plans:
         variant = f" (variant {plan.option})" if plan.option else ""
         lines.append(f"{plan.file.file_name}{variant}")
-        lines.extend(f"  Paks/{asset.target.as_posix()}" for asset in plan.assets)
+        lines.extend(_target_line(asset) for asset in plan.assets)
     return "\n".join(lines)
+
+
+def _target_line(asset: PlannedAsset) -> str:
+    if asset.packed:
+        return (
+            f"  next free patch_NNN.pak <- {len(asset.packed)} natives/ files, packed"
+        )
+    if asset.next_patch:
+        return f"  next free patch_NNN.pak <- {asset.target.as_posix()}"
+    return f"  Paks/{asset.target.as_posix()}"

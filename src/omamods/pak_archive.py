@@ -20,6 +20,14 @@ class PlannedAsset:
 
     member: str
     target: Path
+    # True when the install renames the file to the next free patch number of
+    # an RE Engine game; until then the target holds the archive's file name.
+    next_patch: bool = False
+    # Loose (archive member, natives/... path) pairs packed into this one pak.
+    packed: tuple[tuple[str, str], ...] = ()
+    # True when the target is an empty RE Engine patch (Capcom's 0-byte ones
+    # or a placeholder) that the install may overwrite and revert restores.
+    replaces_empty: bool = False
 
 
 class ArchiveReader(Protocol):
@@ -60,7 +68,8 @@ class BsdtarArchiveReader:
             raise ValueError(f"archive member={member!r}: expected a readable file")
 
 
-def _member_path(member: str) -> PurePosixPath:
+def archive_member_path(member: str) -> PurePosixPath:
+    """Refuse unsafe names; e.g. ``archive_member_path('Mods/a.pak')``."""
     if not member or "\\" in member or "\0" in member or member.startswith("/"):
         raise ValueError(f"archive member={member!r}: expected a relative POSIX path")
     if any(part in ("..", ".") for part in member.split("/")):
@@ -68,7 +77,8 @@ def _member_path(member: str) -> PurePosixPath:
     return PurePosixPath(member)
 
 
-def _reject_loader(member: str, path: PurePosixPath) -> None:
+def reject_loader(member: str, path: PurePosixPath) -> None:
+    """Refuse script loaders; e.g. ``reject_loader(name, PurePosixPath(name))``."""
     # Installing only the paks of a loader-dependent mod yields a broken game
     # state, so refuse the whole archive (e.g. Stellar Blade mod 524).
     directories = {part.lower() for part in path.parts}
@@ -82,14 +92,15 @@ def _reject_loader(member: str, path: PurePosixPath) -> None:
 def _asset_members(members: tuple[str, ...]) -> tuple[ArchiveAsset, ...]:
     assets: list[ArchiveAsset] = []
     for member in members:
-        path = _member_path(member)
-        _reject_loader(member, path)
+        path = archive_member_path(member)
+        reject_loader(member, path)
         if path.suffix.lower() in ASSET_SUFFIXES:
             assets.append((member, path))
     return tuple(assets)
 
 
-def _variant_folders(assets: tuple[ArchiveAsset, ...]) -> list[str]:
+def asset_folders(assets: tuple[ArchiveAsset, ...]) -> list[str]:
+    """List folders holding assets; e.g. ``asset_folders(assets) == ['.']``."""
     return sorted({path.parent.as_posix() for _, path in assets})
 
 
@@ -97,15 +108,16 @@ def _in_option(path: PurePosixPath, option: str) -> bool:
     return option in path.parent.parts or path.parent.as_posix() == option
 
 
-def _select_option(
+def select_variant(
     assets: tuple[ArchiveAsset, ...], option: str | None
 ) -> tuple[ArchiveAsset, ...]:
+    """Keep one variant folder; e.g. ``select_variant(assets, 'Black')``."""
     if option is None:
         return assets
     chosen = tuple(asset for asset in assets if _in_option(asset[1], option))
     if not chosen:
         raise ValueError(
-            f"option={option!r}: expected a folder from {_variant_folders(assets)!r}"
+            f"option={option!r}: expected a folder from {asset_folders(assets)!r}"
         )
     return chosen
 
@@ -163,7 +175,7 @@ def _flat_assets(
 def _folder_assets(
     assets: tuple[ArchiveAsset, ...], game: PakOverlayGame
 ) -> tuple[PlannedAsset, ...]:
-    folders = _variant_folders(assets)
+    folders = asset_folders(assets)
     if folders == ["."]:
         return _flat_assets(assets, game)
     if len(folders) > 1:
@@ -195,7 +207,7 @@ def plan_pak_assets(
     members: tuple[str, ...], game: PakOverlayGame, option: str | None
 ) -> tuple[PlannedAsset, ...]:
     """Constrain paths; e.g. ``plan_pak_assets(('Mods/a.pak',), cronos, None)``."""
-    assets = _select_option(_asset_members(members), option)
+    assets = select_variant(_asset_members(members), option)
     if not assets:
         raise ValueError(
             f"{game.name} archive members={list(members)!r}: expected .pak assets"
@@ -210,5 +222,5 @@ def variant_folders(members: tuple[str, ...], game: PakOverlayGame) -> tuple[str
     assets = _asset_members(members)
     if _anchored_assets(assets, game):
         return ()
-    folders = _variant_folders(assets)
+    folders = asset_folders(assets)
     return tuple(folders) if len(folders) > 1 else ()

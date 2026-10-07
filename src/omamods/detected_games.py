@@ -1,4 +1,4 @@
-"""Remember scanned Unreal games so the nxm handler, a separate process, knows them."""
+"""Remember scanned pak games so the nxm handler, a separate process, knows them."""
 
 import json
 import os
@@ -7,6 +7,7 @@ import tempfile
 
 from omamods.nexus_games import DOMAIN_PATTERN
 from omamods.pak_games import PakOverlayGame
+from omamods.re_engine_layout import PATCH_CHAINS
 
 DETECTED_GAMES_FILE = "detected_games.json"
 
@@ -21,6 +22,7 @@ def _game_record(game: PakOverlayGame) -> dict[str, object]:
         "flat_suffix_sets": [sorted(group) for group in game.flat_suffix_sets],
         "install_root": str(game.install_root),
         "signed": game.signed,
+        "patch_chain": game.patch_chain,
     }
 
 
@@ -77,6 +79,25 @@ def _plain_name(record: dict[str, object], key: str) -> str:
     return value
 
 
+def _patch_chain(record: dict[str, object]) -> str | None:
+    # The chain names files written at the game root, so only known names pass.
+    value = record.get("patch_chain")
+    if value is None:
+        return None
+    if isinstance(value, str) and value in PATCH_CHAINS:
+        return value
+    raise ValueError(f"patch_chain={value!r}: expected null or one of {PATCH_CHAINS!r}")
+
+
+def _mods_dirname(record: dict[str, object], chain: str | None) -> str:
+    if chain is None:
+        return _plain_name(record, "mods_dirname")
+    value = record.get("mods_dirname")
+    if value != "":
+        raise ValueError(f"RE Engine mods_dirname={value!r}: expected ''")
+    return ""
+
+
 def _absolute_root(record: dict[str, object]) -> Path:
     root = Path(_text_field(record, "install_root"))
     if not root.is_absolute():
@@ -88,15 +109,17 @@ def parse_detected_game(record: object) -> PakOverlayGame:
     """Validate one saved game; e.g. ``parse_detected_game({'game_id': ...})``."""
     if not isinstance(record, dict):
         raise ValueError(f"detected game={record!r}: expected an object")
+    chain = _patch_chain(record)
     return PakOverlayGame(
         game_id=_safe_id(record, "game_id"),
         name=_text_field(record, "name"),
         nexus_domain=_domain(record),
         paks_subpath=_relative_subpath(record),
-        mods_dirname=_plain_name(record, "mods_dirname"),
+        mods_dirname=_mods_dirname(record, chain),
         flat_suffix_sets=_suffix_sets(record),
         install_root=_absolute_root(record),
         signed=record.get("signed") is True,
+        patch_chain=chain,
     )
 
 

@@ -70,7 +70,7 @@ The home screen scans for games each time it opens (press `r` to rescan) and
 lists them in three groups:
 
 - **Mod-ready**: catalog games OmaMods can install mods for (Cronos, Stellar
-  Blade). Enter opens their mods.
+  Blade), plus detected Unreal and RE Engine games. Enter opens their mods.
 - **In the catalog**: games with a manifest but no installer yet.
 - **Your other games**: every other game Steam has installed, in any library
   `libraryfolders.vdf` lists, plus Epic, GOG, Amazon, and sideloaded games
@@ -94,6 +94,38 @@ stay in their group with a note. The scan's results are saved to
 `<storage>/detected_games.json` so the `nxm` handler, which runs as its own
 process, can stage downloads for them.
 
+### Auto-detected RE Engine games
+
+Capcom's RE Engine games (Resident Evil 2, 3, 4, 7, and Village, Devil May
+Cry 5, Monster Hunter Rise and Wilds, Dragon's Dogma 2, Street Fighter 6, ...)
+are recognised by the `re_chunk_000.pak` in their folder and become
+**Mod-ready** the same way. The RE Engine remakes share their Steam titles with
+the originals, so Resident Evil 2, 3, 4 (2023), and 7 are matched to their
+Nexus pages by Steam app ID instead of by title.
+
+These games load mods as numbered patches of the base pak, starting at
+`patch_001` and stopping at the first missing or 0-byte patch. Each `.pak`
+in a mod archive therefore takes the lowest missing or empty
+`re_chunk_000.pak.patch_NNN.pak`. RE7 ships 0-byte `patch_002` to `patch_008`
+and no `patch_001`, so its mods become `patch_001`, `patch_002`, and so on;
+uninstalling puts Capcom's 0-byte files back. Games that ship a `sub_000` pak use
+`re_chunk_000.pak.sub_000.pak.patch_NNN.pak` instead, such as Monster Hunter
+Wilds. Fluffy Mod Manager archives work too: as
+Fluffy does, their loose `natives/` files are packed into one new patch pak
+(uncompressed KPKA 4.0, so it can be larger than the download). `modinfo.ini`
+and pictures are ignored, and each folder holding a `natives/` folder or
+`.pak` files is offered as a variant; each variant installed becomes its own
+patch. Packing needs a version 4 base pak;
+older builds such as RE7's non-RT branch are refused. Mods installed later
+override earlier ones that change the same files. Uninstalling a mod that
+sits below another leaves an empty patch in its place, because the chain must
+not have gaps. REFramework scripts and
+DLL loaders are refused.
+
+A game update can add an official patch with a number a mod already uses and
+overwrite it. OmaMods then refuses to uninstall the changed file; reinstall
+your mods after a game update.
+
 The detail panel shows the game's folder, library, size, Steam app ID, build,
 and Proton prefix. `o` opens the folder in your file manager, `/` searches by
 name, and `w` lists records that could not be read. Catalog games match Steam
@@ -112,8 +144,10 @@ another with `Ctrl+P` → *Change theme*.
    details (`mod.json`) and main picture.
 4. Press `i` to install the mod: all staged MAIN, UPDATE, MISCELLANEOUS, and
    hand-downloaded files at once. OPTIONAL files are left out because they are
-   often alternatives. You pick a variant for any archive that has several,
-   files that would write the same game file are refused with both names, and
+   often alternatives. For any archive with several variant folders, a list
+   shows them all ticked: Space unticks, Enter installs every ticked variant.
+   Each variant is recorded separately, and uninstalling the file removes all
+   of them. Files that would write the same game file are refused with both names, and
    the exact target paths are shown before anything is written.
 5. Press Enter on a file to install or uninstall just that file, e.g. to swap
    a main file for an optional one. `u` uninstalls the whole mod, `x` deletes

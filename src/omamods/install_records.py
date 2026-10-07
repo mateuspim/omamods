@@ -1,5 +1,6 @@
 """Locate ownership records so each staged file of a mod installs independently."""
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -15,10 +16,19 @@ def legacy_state_path(root: Path, game: PakOverlayGame, mod_id: int) -> Path:
 
 
 def file_state_path(
-    root: Path, game: PakOverlayGame, mod_id: int, file_id: int
+    root: Path, game: PakOverlayGame, mod_id: int, file_id: int, option: str | None
 ) -> Path:
-    """Name one file's record; e.g. ``file_state_path(root, sb, 1, 7)``."""
-    return root / "state" / game.game_id / str(mod_id) / f"{file_id}.json"
+    """Name one file's record, per variant; e.g. ``file_state_path(root, sb, 1, 7, None)``.
+
+    Each installed variant of a file gets its own record, so several variants
+    install side by side and uninstalling the file reverts all of them.
+    """
+    folder = root / "state" / game.game_id / str(mod_id)
+    if option is None:
+        return folder / f"{file_id}.json"
+    # Variant names are free text, so a digest keeps the record name safe.
+    digest = hashlib.sha256(option.encode("utf-8")).hexdigest()[:12]
+    return folder / f"{file_id}.{digest}.json"
 
 
 def mod_state_records(
@@ -32,8 +42,10 @@ def mod_state_records(
 
 def recorded_file_id(record: Path) -> int:
     """Read which Nexus file a record installed; e.g. ``recorded_file_id(path)``."""
-    if record.stem.isdecimal() and record.parent.name.isdecimal():
-        return int(record.stem)
+    # Variant records are named <file_id>.<digest>.json.
+    file_part = record.stem.split(".")[0]
+    if file_part.isdecimal() and record.parent.name.isdecimal():
+        return int(file_part)
     try:
         file_id = json.loads(record.read_text(encoding="utf-8"))["file_id"]
     except (KeyError, TypeError, ValueError) as error:

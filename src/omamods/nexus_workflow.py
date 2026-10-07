@@ -17,13 +17,19 @@ from omamods.install_records import (
 )
 from omamods.mod_fetch import stage_file
 from omamods.nexus_config import RequestedMod, UserSettings
-from omamods.pak_archive import ArchiveReader, plan_pak_assets
+from omamods.asset_plans import plan_game_assets
+from omamods.pak_archive import ArchiveReader
 from omamods.pak_games import PakOverlayGame
 from omamods.pak_storage import (
     archive_path,
     cache_downloaded_archive,
     install_pak_archive,
     revert_pak_mod,
+)
+from omamods.re_patch_chain import (
+    fill_patch_gaps,
+    number_patches,
+    require_packable_chain,
 )
 from omamods.steam_apps import GameInspection
 
@@ -99,8 +105,13 @@ def _install_cached(
     local: LocalArchiveRequest,
     reader: ArchiveReader,
 ) -> int:
-    planned = plan_pak_assets(reader.members(archive), game, local.option)
-    record = file_state_path(settings.storage_root, game, local.mod_id, local.file_id)
+    planned = plan_game_assets(reader.members(archive), game, local.option)
+    if game.patch_chain is not None:
+        if any(asset.packed for asset in planned):
+            require_packable_chain(paks, game.patch_chain)
+        planned = number_patches(planned, paks, game.patch_chain)
+    root = settings.storage_root
+    record = file_state_path(root, game, local.mod_id, local.file_id, local.option)
     installed = install_pak_archive(
         archive, paks, record, local.file_id, reader, planned
     )
@@ -195,6 +206,19 @@ def sync_pak_mods(
     return tuple(results)
 
 
+def _revert_records(records: tuple[Path, ...], game: PakOverlayGame) -> int:
+    removed: list[Path] = []
+    try:
+        for record in records:
+            removed.extend(revert_pak_mod(record, game))
+    finally:
+        # Once for all records, so reverting several variants leaves no stray
+        # placeholder, and even when a later record refuses to revert.
+        if game.patch_chain is not None:
+            fill_patch_gaps(tuple(removed), game.patch_chain)
+    return len(removed)
+
+
 def revert_mod_files(
     game: PakOverlayGame, storage_root: Path, mod_id: int, file_id: int | None
 ) -> int:
@@ -210,4 +234,4 @@ def revert_mod_files(
             f"{game.name} mod={mod_id} file={file_id!r}: expected install state in "
             f"{str(folder / f'{mod_id}.json')!r} or {str(folder / str(mod_id))!r}"
         )
-    return sum(len(revert_pak_mod(record, game)) for record in records)
+    return _revert_records(records, game)

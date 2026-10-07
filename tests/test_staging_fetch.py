@@ -118,7 +118,7 @@ class RemoveStagedTests(TemporaryRoot):
         archive = self.root / "archives/stellar-blade/1/7/Black.zip"
         archive.parent.mkdir(parents=True)
         archive.write_bytes(b"z")
-        record = file_state_path(self.root, SB, 1, 7)
+        record = file_state_path(self.root, SB, 1, 7, None)
         record.parent.mkdir(parents=True)
         record.write_text("{}")
         with self.assertRaisesRegex(ValueError, "uninstall it first"):
@@ -156,7 +156,7 @@ class InstallRecordTests(TemporaryRoot):
         legacy = legacy_state_path(self.root, SB, 1)
         legacy.parent.mkdir(parents=True)
         legacy.write_text('{"file_id": 0}')
-        per_file = file_state_path(self.root, SB, 1, 7)
+        per_file = file_state_path(self.root, SB, 1, 7, None)
         per_file.parent.mkdir()
         per_file.write_text("{}")
         self.assertEqual(installed_file_ids(self.root, SB, 1), {0, 7})
