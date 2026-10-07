@@ -289,6 +289,12 @@ class ModsService:
 
     def fetch_missing_picture(self, game: PakOverlayGame, mod: StagedMod) -> Path:
         """Download a mod's picture if Nexus lists one; e.g. ``service.fetch_missing_picture(sb, mod)``."""
+        if mod.info is None:
+            # Staging page details also saves the picture.
+            url = self.mod_page_url(game, mod.mod_id)
+            mod = self.fetch_mod(game, url)
+        if mod.picture is not None:
+            return mod.picture
         if mod.info is None or mod.info.picture_url is None:
             raise ValueError(
                 f"{mod.title}: expected a picture URL in its Nexus details"

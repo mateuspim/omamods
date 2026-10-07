@@ -148,10 +148,15 @@ class ModsScreen(Screen[None]):
 
     def _backfill_picture(self, mod: StagedMod) -> None:
         # Mods staged before pictures worked (or while offline) fetch theirs once.
-        lacks = mod.picture is None and mod.info and mod.info.picture_url
-        if lacks and mod.mod_id not in self.picture_attempts:
-            self.picture_attempts.add(mod.mod_id)
-            self._picture_worker(mod)
+        if mod.picture is not None or mod.mod_id in self.picture_attempts:
+            return
+        if mod.info is not None and mod.info.picture_url is None:
+            return
+        # Hand-staged mods (`omamods nexus install`) have no page details yet.
+        if mod.info is None and not self.service.has_api_key():
+            return
+        self.picture_attempts.add(mod.mod_id)
+        self._picture_worker(mod)
 
     @work(thread=True)
     def _picture_worker(self, mod: StagedMod) -> None:

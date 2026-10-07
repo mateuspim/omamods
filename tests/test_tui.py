@@ -371,12 +371,40 @@ class TuiTests(TuiFixture):
             await pilot.pause()
             self.assertEqual(screen.current.picture.name, "picture.png")
 
+    def _stage_by_hand(self, mod_id: int, name: str) -> None:
+        archive = self.root / f"store/archives/stellar-blade/{mod_id}/0/{name}.zip"
+        archive.parent.mkdir(parents=True)
+        archive.write_bytes(b"z")
+
+    async def test_hand_staged_mod_fetches_details_and_picture(self) -> None:
+        # Regression: `omamods nexus install` stages no mod.json, so no picture.
+        self._stage_by_hand(1, "Black")
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            await pilot.press("down", "enter")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            self.assertIsNotNone(app.screen.current.info)
+            self.assertEqual(app.screen.current.picture.name, "picture.png")
+
+    async def test_hand_staged_mod_without_key_stays_offline(self) -> None:
+        self.config_files.contents.clear()
+        self._stage_by_hand(1, "Black")
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            await pilot.press("down", "enter")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            self.assertIsNone(app.screen.current.info)
+            self.assertEqual(app._notifications.__len__(), 0)
+
     async def test_slash_search_and_n(self) -> None:
+        self.config_files.contents.clear()  # Keep hand-staged titles offline.
         app = self._app({})
         for mod_id, name in ((2, "Hair Pack"), (3, "Blue Suit"), (4, "Hair Long")):
-            archive = self.root / f"store/archives/stellar-blade/{mod_id}/0/{name}.zip"
-            archive.parent.mkdir(parents=True)
-            archive.write_bytes(b"z")
+            self._stage_by_hand(mod_id, name)
         async with app.run_test(size=(140, 45)) as pilot:
             await self._wait_for_shelf(app, pilot)
             await pilot.press("down", "enter")
