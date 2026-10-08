@@ -169,7 +169,9 @@ LazyVim picker: only names containing every typed word stay, with the words
 highlighted, and the panel title shows the filter and its count. Enter keeps the
 filter, Esc in the prompt puts back the previous one, and Esc on the list clears
 it while staying on the highlighted entry (a second Esc leaves the mods screen).
-On the mods screen `n`/`N` cycle through the matches. `:` opens a command line (Tab or the
+On the mods screen `n`/`N` cycle through the matches. The `:` and `/` lines sit on the bottom row
+like vim's, and `/` shows the live match count there. In the mods list, `●`
+marks mods with an installed file and `○` mods that are only staged. `:` opens a command line (Tab or the
 right arrow accepts the suggestion); commands accept unique prefixes like vim,
 so `:inst` is `:install`. `:help` lists the commands for the current screen.
 

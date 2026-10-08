@@ -9,7 +9,7 @@ from textual.widgets.option_list import OptionDoesNotExist
 
 from omamods.game_shelf import GameShelf, ShelfEntry
 from omamods.tui.dialogs import InfoDialog
-from omamods.tui.list_filter import search_title
+from omamods.tui.list_filter import no_match_option, search_title
 from omamods.tui.list_search import SearchableScreen
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
@@ -32,7 +32,7 @@ class GamesScreen(SearchableScreen):
         Binding("K", "app.prompt_api_key", "API key"),
         Binding("n", "app.register_nxm", "Handle nxm links"),
         Binding("q", "app.quit", "Quit"),
-        Binding("escape", "clear_search", "Clear filter", show=False),
+        Binding("escape", "clear_search", "Clear filter"),
     ]
     SEARCH_LIST_ID = "games"
 
@@ -94,6 +94,8 @@ class GamesScreen(SearchableScreen):
         options = shelf_options(self.shelf, self.search_query) if self.shelf else []
         games.clear_options()
         games.add_options(options)
+        if self.search_query and not options:
+            games.add_option(no_match_option(self.search_query))
         games.action_first()
         if self.selected_key is not None and not jump_to_first:
             self._highlight(self.selected_key)

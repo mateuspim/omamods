@@ -2,14 +2,18 @@
 
 import unittest
 
+from omamods.staging import StagedMod
+from omamods.tui.command_bar import match_hint
 from omamods.tui.list_filter import (
     MATCH_STYLE,
     mark_matches,
     matches_query,
+    no_match_option,
     query_words,
     search_title,
 )
 from omamods.tui.list_search import wrapped_step
+from omamods.tui.mod_rows import INSTALLED_MARK, STAGED_MARK, mod_mark
 
 
 class ListFilterTests(unittest.TestCase):
@@ -36,6 +40,25 @@ class ListFilterTests(unittest.TestCase):
     def test_title_shows_query_and_counts(self) -> None:
         self.assertEqual(search_title("Mods", "", 3, 3), "Mods")
         self.assertEqual(search_title("Mods", "hair", 2, 9), "Mods · /hair (2/9)")
+
+    def test_no_match_option_names_the_query_and_cannot_be_picked(self) -> None:
+        option = no_match_option("zz")
+        self.assertTrue(option.disabled)
+        self.assertEqual(str(option.prompt), "No matches for /zz")
+
+    def test_match_hint_counts_matches(self) -> None:
+        self.assertTrue(match_hint(0).startswith("no matches"))
+        self.assertTrue(match_hint(1).startswith("1 match ·"))
+        self.assertTrue(match_hint(2).startswith("2 matches ·"))
+
+
+class ModRowTests(unittest.TestCase):
+    def _mod(self, installed: frozenset[int]) -> StagedMod:
+        return StagedMod(1, None, (), {}, None, installed)
+
+    def test_marks_mods_with_installed_files(self) -> None:
+        self.assertEqual(mod_mark(self._mod(frozenset({5}))), INSTALLED_MARK)
+        self.assertEqual(mod_mark(self._mod(frozenset())), STAGED_MARK)
 
 
 class WrappedStepTests(unittest.TestCase):

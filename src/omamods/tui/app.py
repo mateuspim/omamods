@@ -18,7 +18,8 @@ from omamods.tui.commands import (
     parse_command,
     resolve_command,
 )
-from omamods.tui.dialogs import CommandPrompt, InfoDialog, SearchPrompt, TextPrompt
+from omamods.tui.command_bar import CommandPrompt, SearchPrompt
+from omamods.tui.dialogs import InfoDialog, TextPrompt
 from omamods.tui.downloads_screen import DownloadsScreen
 from omamods.tui.games_screen import GamesScreen
 from omamods.tui.list_search import SearchableScreen

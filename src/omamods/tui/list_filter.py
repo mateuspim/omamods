@@ -1,8 +1,11 @@
 """Match list rows against a '/' query and mark the matching letters."""
 
 from rich.text import Text
+from textual.widgets.option_list import Option
 
-MATCH_STYLE = "bold reverse"
+# Underlined yellow stays readable on both plain and highlighted rows; reverse
+# video turned matches into blocks that hid the cursor row's colour.
+MATCH_STYLE = "bold underline yellow"
 
 
 def query_words(query: str) -> tuple[str, ...]:
@@ -27,6 +30,13 @@ def mark_matches(name: str, query: str) -> Text:
             text.stylize(MATCH_STYLE, start, start + len(word))
             start = folded.find(word, start + len(word))
     return text
+
+
+def no_match_option(query: str) -> Option:
+    """Fill an emptied list with a hint; e.g. ``rows.add_option(no_match_option('zz'))``."""
+    # Kept short: the 34-column mods list wrapped a longer hint onto two rows.
+    text = Text.assemble(("No matches for ", "italic"), (f"/{query}", "bold"))
+    return Option(text, disabled=True)
 
 
 def search_title(title: str, query: str, shown: int, total: int) -> str:

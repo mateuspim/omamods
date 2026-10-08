@@ -61,7 +61,7 @@ def entry_prompt(entry: ShelfEntry, query: str = "") -> Table:
 
 def section_heading(section: str, count: int) -> Option:
     """Make an unselectable group title; e.g. ``section_heading(MOD_READY, 2)``."""
-    label = Text(f"{SECTION_TITLES[section]} · {count}", style="bold underline")
+    label = Text.assemble((SECTION_TITLES[section], "bold"), (f"  {count}", "dim"))
     return Option(label, id=f"{SECTION_PREFIX}{section}", disabled=True)
 
 

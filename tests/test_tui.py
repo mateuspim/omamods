@@ -582,6 +582,21 @@ class HomeScreenTests(TuiFixture):
             self.assertEqual(games.option_count, total)
             self.assertEqual(screen.selected_entry().key, "dawnwalker")
 
+    async def test_unmatched_typing_shows_a_hint_row(self) -> None:
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            games = app.screen.query_one("#games", OptionList)
+            await pilot.press("slash", "z", "z")
+            await pilot.pause()
+            self.assertEqual(games.option_count, 1)
+            self.assertIn(
+                "No matches for /zz", str(games.get_option_at_index(0).prompt)
+            )
+            self.assertIn(
+                "no matches", str(app.screen.query_one("#command-hint").render())
+            )
+
     async def test_w_lists_warnings(self) -> None:
         self.scanner.shelf = GameShelf(self.scanner.shelf.entries, (), ("bad vdf",))
         app = self._app({})

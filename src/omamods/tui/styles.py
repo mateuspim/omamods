@@ -22,15 +22,19 @@ Footer { background: $panel; }
 
 #home { height: 1fr; }
 #games { width: 44%; min-width: 36; height: 1fr; padding: 0 1; }
-#games > .option-list--option-highlighted { background: $accent 25%; text-style: none; }
-#games:focus > .option-list--option-highlighted { background: $accent 40%; }
-#games > .option-list--option-disabled { color: $secondary; }
+#games > .option-list--option-highlighted,
+#mods > .option-list--option-highlighted { background: $accent 25%; text-style: none; }
+#games:focus > .option-list--option-highlighted,
+#mods:focus > .option-list--option-highlighted { background: $accent 40%; }
+#games > .option-list--option-disabled,
+#mods > .option-list--option-disabled { color: $secondary; }
 #game-card { width: 1fr; padding: 1 2; }
 #setup { height: 3; padding: 0 1; }
 
 #queue { height: 1fr; border: round $panel-lighten-2; }
 #queue-help { color: $text-muted; padding: 0 1; }
-#mods { width: 34; }
+/* 1fr: an auto-height list left an unstyled gap under a short or filtered list. */
+#mods { width: 34; height: 1fr; padding: 0 1; }
 #detail { padding: 0 1; }
 #picture { height: 20; }
 #picture Image { width: auto; height: 100%; }
@@ -53,9 +57,16 @@ Footer { background: $panel; }
 #downloads-table { height: 1fr; }
 #downloads-bar { height: auto; }
 .downloads-full #mods-body { display: none; }
-#command-line { dock: bottom; border: tall $accent; }
 /* Like vim, the : and / lines leave the list fully visible behind them. */
 .command-screen { align: left bottom; background: transparent; }
+/* One row over the footer, like vim's command line, instead of a bordered box. */
+#command-bar { dock: bottom; height: 1; background: $panel; }
+#command-prefix { width: auto; padding: 0 0 0 1; color: $accent; text-style: bold; }
+#command-line, #command-line:focus {
+    width: 1fr; height: 1; border: none; padding: 0; background: $panel;
+}
+#command-hint { width: auto; padding: 0 1; color: $text-muted; }
+#command-hint.no-matches { color: $error; }
 .placeholder { color: $text-muted; content-align: center middle; height: 100%; }
 .dialog {
     width: 70; height: auto; padding: 1 2;

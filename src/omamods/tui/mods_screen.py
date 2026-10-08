@@ -24,7 +24,8 @@ from omamods.staging import StagedMod
 from omamods.tui.ayaka_actions import AyakaScreen
 from omamods.tui.mods_commands import MODS_COMMANDS, run_mods_command
 from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPicker
-from omamods.tui.list_filter import mark_matches, matches_query, search_title
+from omamods.tui.list_filter import matches_query, no_match_option, search_title
+from omamods.tui.mod_rows import mod_prompt
 from omamods.tui.list_search import SearchableScreen
 from omamods.tui.downloads_panel import (
     FULL_QUEUE,
@@ -168,8 +169,10 @@ class ModsScreen(SearchableScreen, AyakaScreen):
         mod_list = self.query_one("#mods", OptionList)
         mod_list.clear_options()
         mod_list.add_options(
-            Option(mark_matches(m.title, query), id=mod_key(m)) for m in self.shown
+            Option(mod_prompt(m, query), id=mod_key(m)) for m in self.shown
         )
+        if query and not self.shown:
+            mod_list.add_option(no_match_option(query))
         mod_list.border_title = search_title(
             "Mods", query, len(self.shown), len(self.mods)
         )

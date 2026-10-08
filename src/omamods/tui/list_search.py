@@ -23,6 +23,8 @@ class SearchableScreen(Screen[None]):
     def filter_list(self, query: str) -> int:
         """Show only rows matching query; e.g. ``screen.filter_list('hair') == 2``."""
         self.search_query = query
+        # Esc's "Clear filter" shows in the footer only while a filter is on.
+        self.refresh_bindings()
         # A new query lands on its first match; clearing it keeps the row you found.
         return self.rebuild_list(jump_to_first=bool(query))
 
@@ -31,6 +33,12 @@ class SearchableScreen(Screen[None]):
         if self.filter_list(text) == 0 and text:
             self.notify(f"E486: Pattern not found: {text}", severity="warning")
             self.filter_list("")
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        """Hide 'Clear filter' while nothing is filtered; Textual calls this."""
+        if action == "clear_search":
+            return bool(self.search_query)
+        return True
 
     def action_clear_search(self) -> None:
         """Show every row again, staying on the highlighted one."""
