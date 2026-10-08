@@ -180,6 +180,7 @@ so `:inst` is `:install`. `:help` lists the commands for the current screen.
 | `:queue`, `:retry`, `:clear` | the download queue |
 | `:dl [min\|game\|full]` | size the mods screen's downloads panel |
 | `:stop` | stop waiting for an AyakaMods download |
+| `:ayaka-login <xf_user>` | save your AyakaMods login to download directly |
 | `:key <api-key>`, `:nxm` | setup |
 
 ### Downloads panel
@@ -253,9 +254,25 @@ needed: OmaMods reads the name, author, version, picture, and game from the
 page, and refuses a mod made for another game. `:add` from any screen opens
 the game the page names.
 
-AyakaMods only serves files to a logged-in browser and has no mod-manager
-link like Nexus' `nxm://`, so OmaMods opens the mod page (in its own app
-window with a Chromium-family browser, as for Nexus) and watches your
+AyakaMods only serves files to a logged-in user and has no mod-manager link
+like Nexus' `nxm://`. To download like Nexus, save your login once:
+
+1. Log in on ayakamods.com with **Stay logged in** ticked.
+2. Open DevTools (`F12`) > **Application** > **Cookies** >
+   `https://ayakamods.com` and copy the value of `xf_user` (it looks like
+   `347376%2CAbC...`).
+3. In OmaMods, run `:ayaka-login <value>`. It is kept in the private config as
+   `[ayaka] login_cookie`, like the Nexus key, and is sent only to
+   ayakamods.com, never to a host a download redirects to.
+
+Then adding a mod (or `d` on one) downloads it straight into staging, with
+progress, retries, and resume in the downloads panel. A mod with several files
+opens the file picker first. Treat the cookie like a password: it logs in as
+you until you log out of AyakaMods in the browser, which also ends it.
+
+Without a saved login, or when it has expired, or when a mod is hosted on
+another site (Mega, Drive, ...), OmaMods opens the mod page instead (in its own
+app window with a Chromium-family browser, as for Nexus) and watches your
 downloads folder (`xdg-user-dir DOWNLOAD`, else `~/Downloads`). Download the
 file there as usual. Once the browser has finished writing it, the archive is
 moved into staging, the window closes, and `i` installs it like any other
@@ -263,12 +280,11 @@ mod. Files already in the folder are ignored, and partial `.crdownload` and
 `.part` files are waited out. If your browser asks where to save, pick that
 folder.
 
-OmaMods waits for one AyakaMods download at a time; adding another mod
+OmaMods waits for one browser download at a time; adding another mod
 replaces the wait, and `:stop` ends it. Anything else that finishes
 downloading into the folder while it waits is taken as that mod's file, so
-`x` deletes it from staging if it was not. `d` on an AyakaMods mod opens its
-page again to fetch another file (an optional one, say). The Nexus
-requirement check does not apply to AyakaMods mods.
+`x` deletes it from staging if it was not. The Nexus requirement check does
+not apply to AyakaMods mods.
 
 AyakaMods mods keep their own staging and install records under
 `<storage-root>/ayaka/`, because the two sites number their mods

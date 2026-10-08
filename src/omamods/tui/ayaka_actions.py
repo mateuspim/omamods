@@ -1,25 +1,37 @@
 """AyakaMods actions for a game's mods screen.
 
-Split from mods_screen.py, which is near the 500-line limit. AyakaMods has no
-mod-manager download link, so adding a mod opens its page in the browser and
-the screen takes the file once the browser has saved it.
+Split from mods_screen.py, which is near the 500-line limit. With the user's
+login cookie, files download straight into staging like Nexus files. Without
+it (or once it expires) the mod page opens in the browser, and the screen
+takes the file once the browser has saved it.
 """
 
 from textual import work
 
+from omamods.ayaka_download import AyakaHostedElsewhere, AyakaLoginRequired, AyakaOffer
+from omamods.ayaka_staging import AYAKA_FILE_CATEGORY
+from omamods.nexus_api import NexusFile
 from omamods.staging import StagedMod
+from omamods.tui.dialogs import FilePicker
 from omamods.tui.requirement_actions import RequirementScreen
 
 
+def offer_file(offer: AyakaOffer, index: int) -> NexusFile:
+    """Show an offer in the file picker; e.g. ``offer_file(offer, 0)``."""
+    # Pickers key rows by file ID; a page's only file has no attachment ID.
+    file_id = offer.attachment_id if offer.attachment_id is not None else index
+    return NexusFile(file_id, offer.label, AYAKA_FILE_CATEGORY, 0, offer.label)
+
+
 class AyakaScreen(RequirementScreen):
-    """Base for ModsScreen: add AyakaMods mods and pick up their downloads."""
+    """Base for ModsScreen: add AyakaMods mods and download their files."""
 
     def reload(self) -> None:
         """Re-read staging; ModsScreen provides it."""
         raise NotImplementedError(f"screen={self!r}: expected reload")
 
     def fetch_ayaka(self, url: str) -> None:
-        """Stage a page and open it to download; e.g. ``screen.fetch_ayaka(url)``."""
+        """Stage a page, then download its files; e.g. ``screen.fetch_ayaka(url)``."""
         self.notify("Fetching mod details from AyakaMods...")
         self._ayaka_worker(url)
 
@@ -29,7 +41,54 @@ class AyakaScreen(RequirementScreen):
         if mod is None:
             return
         self.app.call_from_thread(self.reload)
-        self.watch_ayaka(mod)
+        self._fetch_ayaka_files(mod)
+
+    def download_ayaka(self, mod: StagedMod) -> None:
+        """Download (or open the page for) a mod's files; e.g. ``screen.download_ayaka(m)``."""
+        self._offers_worker(mod)
+
+    @work(thread=True)
+    def _offers_worker(self, mod: StagedMod) -> None:
+        self._fetch_ayaka_files(mod)
+
+    def _fetch_ayaka_files(self, mod: StagedMod) -> None:
+        if not self.service.ayaka.login_cookie():
+            self.watch_ayaka(mod)
+            return
+        try:
+            offers = self.service.ayaka.offers(mod)
+        except (AyakaLoginRequired, AyakaHostedElsewhere) as reason:
+            self.notify(f"{reason}; opening the page instead.", severity="warning")
+            self.watch_ayaka(mod)
+            return
+        except (OSError, ValueError) as error:
+            self.notify(str(error), severity="error", timeout=10)
+            return
+        self.app.call_from_thread(self._pick_offers, mod, offers)
+
+    def _pick_offers(self, mod: StagedMod, offers: tuple[AyakaOffer, ...]) -> None:
+        if len(offers) == 1:
+            self._download_offers(mod, offers)
+            return
+        files = tuple(offer_file(offer, i) for i, offer in enumerate(offers))
+        by_id = dict(zip((f.file_id for f in files), offers))
+        picker = FilePicker(f"{mod.title}: choose files to download", files)
+        self.app.push_screen(
+            picker,
+            lambda chosen: chosen
+            and self._download_offers(mod, tuple(by_id[f.file_id] for f in chosen)),
+        )
+
+    @work(thread=True)
+    def _download_offers(self, mod: StagedMod, offers: tuple[AyakaOffer, ...]) -> None:
+        self.notify(f"Downloading {len(offers)} file(s) from AyakaMods...")
+        for offer in offers:
+            path = self._attempt(
+                lambda: self.service.ayaka.download(self.game, mod.mod_id, offer)
+            )
+            if path is not None:
+                self.notify(f"{mod.title}: {path.name} downloaded; press i to install")
+        self.app.call_from_thread(self.reload)
 
     def watch_ayaka(self, mod: StagedMod) -> None:
         """Open the mod page and wait for a file; e.g. ``screen.watch_ayaka(mod)``."""

@@ -3,7 +3,7 @@
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from omamods.cdn_download import NexusHttpError, RetryPolicy
+from omamods.cdn_download import NexusHttpError, ResumableTransport, RetryPolicy
 from omamods.download_queue import (
     DOWNLOADING,
     WAITING_FOR_BROWSER,
@@ -134,7 +134,7 @@ def stage_file(
     except BaseException as error:
         log.finish(status, _reason(error))
         raise
-    return _tracked_download(log, status, destination, uri, api.transport, file, retry)
+    return tracked_download(log, status, destination, uri, api.transport, file, retry)
 
 
 def download_log(root: Path) -> DownloadLog:
@@ -157,15 +157,16 @@ def _download_uri(
         raise BrowserDownloadRequired(files_tab_url(page, file.file_id)) from error
 
 
-def _tracked_download(
+def tracked_download(
     log: DownloadLog,
     status: DownloadStatus,
     destination: Path,
     uri: str,
-    transport: NexusTransport,
+    transport: ResumableTransport,
     file: NexusFile,
     retry: RetryPolicy,
 ) -> Path:
+    """Download into staging, updating the queue; e.g. ``tracked_download(log, s, path, uri, http, file, retry)``."""
     recorder = ProgressRecorder(log, status)
     try:
         noting = replace(retry, on_retry=recorder.note_retry)

@@ -80,7 +80,7 @@ def copy_with_progress(
     return received
 
 
-def _copy_response(
+def copy_response(
     response: BinaryIO,
     status: int,
     length: str | None,
@@ -88,6 +88,7 @@ def _copy_response(
     progress: ProgressCallback | None,
     resume_from: int,
 ) -> None:
+    """Copy a reply, restarting if a Range was ignored; e.g. ``copy_response(r, 200, '9', f, None, 0)``."""
     if resume_from and status != 206:
         # The server ignored the Range header and sent the whole file again.
         destination.seek(0)
@@ -108,7 +109,7 @@ def stream_download(
     try:
         with request.urlopen(download_request(url, resume_from), timeout=60) as reply:
             length = reply.headers.get("Content-Length")
-            _copy_response(
+            copy_response(
                 reply, reply.status, length, destination, progress, resume_from
             )
     except error.HTTPError as failure:

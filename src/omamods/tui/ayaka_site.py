@@ -1,13 +1,23 @@
-"""AyakaMods for the TUI: add a mod, open its page, and take the browser's file.
+"""AyakaMods for the TUI: add a mod and download its files.
 
-The site needs a logged-in browser to download, so OmaMods opens the mod page,
-watches the downloads folder, and moves the finished archive into staging.
+The site serves files only to a logged-in user. With the user's login
+cookie OmaMods downloads them itself, like Nexus files; without it, it
+opens the mod page, watches the downloads folder, and moves the finished
+archive into staging.
 """
 
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from omamods.ayaka_config import load_login_cookie, save_login_cookie
+from omamods.ayaka_download import (
+    AyakaLoginRequired,
+    AyakaOffer,
+    AyakaSession,
+    list_offers,
+)
+from omamods.ayaka_fetch import stage_ayaka_offer
 from omamods.ayaka_pages import (
     AyakaPage,
     AyakaPageTransport,
@@ -23,8 +33,10 @@ from omamods.ayaka_staging import (
 )
 from omamods.ayaka_wait import AyakaWaits
 from omamods.browser_windows import ayaka_window_class
+from omamods.mod_fetch import download_log
 from omamods.pak_games import PakOverlayGame
-from omamods.staging import AYAKA_SITE, StagedMod, list_staged_mods, load_staged_mod
+from omamods.mod_sites import AYAKA_SITE
+from omamods.staging import StagedMod, list_staged_mods, load_staged_mod
 
 if TYPE_CHECKING:
     from omamods.tui.service import ModsService
@@ -122,3 +134,52 @@ class AyakaSite:
         return tuple(
             f"{title}: {file.file_name} arrived; press i to install" for file in files
         )
+
+    def login_cookie(self) -> str:
+        """Read the saved xf_user cookie, or ''; e.g. ``service.ayaka.login_cookie()``."""
+        host = self.service.host
+        return load_login_cookie(host.config_path, host.config_files)
+
+    def save_login(self, cookie: str) -> None:
+        """Store the browser's xf_user cookie; e.g. ``service.ayaka.save_login(value)``."""
+        host = self.service.host
+        save_login_cookie(
+            host.config_path, host.fallback_root, cookie, host.config_files
+        )
+
+    def _session(self) -> AyakaSession:
+        cookie = self.login_cookie()
+        if not cookie:
+            raise AyakaLoginRequired(
+                "AyakaMods login cookie: expected one; save it with :ayaka-login"
+            )
+        opener = self.service.host.ayaka_session
+        if opener is None:
+            raise ValueError("AyakaMods session: expected a session opener in TuiHost")
+        return opener(cookie)
+
+    def offers(self, mod: StagedMod) -> tuple[AyakaOffer, ...]:
+        """List a mod's files as the logged-in user; e.g. ``service.ayaka.offers(mod)``."""
+        return list_offers(self._session(), AyakaPage(mod.mod_id))
+
+    def download(self, game: PakOverlayGame, mod_id: int, offer: AyakaOffer) -> Path:
+        """Download one file into staging; e.g. ``service.ayaka.download(co, 7311, o)``."""
+        service = self.service
+        log = download_log(service.settings.storage_root)
+        return stage_ayaka_offer(
+            self._session(), self.root(), game, mod_id, offer, log, service.host.retry
+        )
+
+    def retry(self, game: PakOverlayGame, mod_id: int, file_id: int) -> Path:
+        """Download a queue entry again; e.g. ``service.ayaka.retry(co, 7311, 7)``."""
+        offers = self.offers(self.staged_mod(game, mod_id))
+        # A page's only file has no attachment ID; any entry of that mod is it.
+        offer = next((o for o in offers if o.attachment_id == file_id), None)
+        if offer is None and len(offers) == 1:
+            offer = offers[0]
+        if offer is None:
+            raise ValueError(
+                f"AyakaMods mod {mod_id} file={file_id}: expected it among "
+                f"{[o.label for o in offers]!r}"
+            )
+        return self.download(game, mod_id, offer)

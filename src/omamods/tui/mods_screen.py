@@ -19,7 +19,8 @@ from omamods.mod_plan import (
 from omamods.ayaka_pages import is_ayaka_url
 from omamods.nexus_api import NexusFile, describe_nexus_file
 from omamods.pak_games import PakOverlayGame
-from omamods.staging import AYAKA_SITE, NEXUS_SITE, StagedMod
+from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE
+from omamods.staging import StagedMod
 from omamods.tui.ayaka_actions import AyakaScreen
 from omamods.tui.mods_commands import MODS_COMMANDS, run_mods_command
 from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPicker
@@ -256,7 +257,7 @@ class ModsScreen(AyakaScreen):
 
     def action_download(self) -> None:
         if self.current is not None and self.current.site == AYAKA_SITE:
-            self.watch_ayaka(self.current)  # Another file from the same page.
+            self.download_ayaka(self.current)  # Its files, or its page.
             return
         file = self._selected_file()
         if file is not None and self.current is not None:

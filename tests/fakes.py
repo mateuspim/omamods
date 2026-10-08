@@ -11,6 +11,7 @@ from omamods.cdn_download import (
     TransientDownloadError,
     copy_with_progress,
 )
+from omamods.ayaka_download import AyakaReply
 from omamods.game_shelf import GameShelf
 from omamods.nexus_config import UserSettings
 
@@ -460,3 +461,49 @@ class FakeAyakaPages:
         if url not in self.pages:
             raise ValueError(f"AyakaMods HTTP 404 for {url!r}: expected a page")
         return self.pages[url]
+
+
+class FakeAyakaSession:
+    """Answer download URLs like a logged-in AyakaMods; e.g. ``FakeAyakaSession()``."""
+
+    def __init__(self) -> None:
+        self.replies: dict[str, AyakaReply] = {}
+        self.bodies: dict[str, bytes] = {}
+        self.probes: list[str] = []
+        self.downloads: list[str] = []
+        self.cookies: list[str] = []
+
+    def serve_file(self, url: str, name: str, body: bytes) -> None:
+        """Answer ``url`` with a file; e.g. ``fake.serve_file(u, 'a.zip', b'zip')``."""
+        self.replies[url] = AyakaReply(url, name, len(body), "")
+        self.bodies[url] = body
+
+    def serve_page(self, url: str, page_html: str, final_url: str = "") -> None:
+        """Answer ``url`` with HTML, maybe after a redirect; e.g. ``fake.serve_page(u, h)``."""
+        self.replies[url] = AyakaReply(final_url or url, None, None, page_html)
+
+    def opener(self, cookie: str) -> "FakeAyakaSession":
+        """Stand in for ``UrlAyakaSession``; e.g. ``TuiHost(..., ayaka_session=fake.opener)``."""
+        self.cookies.append(cookie)
+        return self
+
+    def probe(self, url: str) -> AyakaReply:
+        """Return the stored reply; e.g. ``fake.probe(url)``."""
+        self.probes.append(url)
+        if url not in self.replies:
+            raise ValueError(f"AyakaMods HTTP 404 for {url!r}: expected a reply")
+        return self.replies[url]
+
+    def download(
+        self,
+        url: str,
+        destination: BytesIO,
+        progress: ProgressCallback | None = None,
+        resume_from: int = 0,
+    ) -> None:
+        """Write the stored body; e.g. ``fake.download(url, stream)``."""
+        self.downloads.append(url)
+        body = self.bodies[url]
+        copy_with_progress(
+            BytesIO(body[resume_from:]), destination, len(body), progress, resume_from
+        )

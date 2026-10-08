@@ -27,6 +27,7 @@ from omamods.tui.service import ModsService, TuiHost
 from tests.fakes import (
     FakeArchiveReader,
     FakeAyakaPages,
+    FakeAyakaSession,
     FakeCommandRunner,
     FakeConfigFiles,
     FakeShelfScanner,
@@ -102,6 +103,7 @@ class TuiFixture(unittest.IsolatedAsyncioTestCase):
         members: dict[str, bytes],
         hyprland: FakeHyprland | None = None,
         ayaka_pages: FakeAyakaPages | None = None,
+        ayaka_session: FakeAyakaSession | None = None,
     ) -> OmaModsApp:
         host = TuiHost(
             self.config,
@@ -119,6 +121,7 @@ class TuiFixture(unittest.IsolatedAsyncioTestCase):
             "brave" if hyprland else None,
             RetryPolicy(sleep=FakeSleep()),
             ayaka_pages=ayaka_pages,
+            ayaka_session=ayaka_session.opener if ayaka_session else None,
             downloads=self.root / "Downloads",
         )
         return OmaModsApp(ModsService(host))

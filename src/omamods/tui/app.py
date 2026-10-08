@@ -149,6 +149,9 @@ class OmaModsApp(App[None]):
             "key": lambda args: self.save_api_key(one_argument(args, ":key <api-key>")),
             "nxm": lambda args: self.action_register_nxm(),
             "add": lambda args: self.add_mod(one_argument(args, ":add <url>")),
+            "ayaka-login": lambda args: self.save_ayaka_login(
+                one_argument(args, ":ayaka-login <xf_user>")
+            ),
         }
 
     def _quit_screen(self) -> None:
@@ -189,6 +192,14 @@ class OmaModsApp(App[None]):
             self.notify(str(error), severity="error", timeout=10)
             return
         self.call_from_thread(self._fetch_into, game, url)
+
+    def save_ayaka_login(self, cookie: str) -> None:
+        """Store the AyakaMods cookie; e.g. ``app.save_ayaka_login('1%2Cab')``."""
+        self.service.ayaka.save_login(cookie)
+        self.notify(
+            "Saved your AyakaMods login; its files now download directly. "
+            "Logging out of AyakaMods in the browser ends it."
+        )
 
     def action_prompt_api_key(self) -> None:
         prompt = TextPrompt(

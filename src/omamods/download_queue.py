@@ -12,6 +12,7 @@ import time
 import uuid
 from typing import Callable
 
+from omamods.mod_sites import NEXUS_SITE
 from omamods.cdn_download import RetryPolicy
 from omamods.nexus_api import NexusFile
 
@@ -46,11 +47,15 @@ class DownloadStatus:
     progressed: float
     attempt: str = ""
     error: str = ""
+    # Older status files have no site; they were all Nexus downloads.
+    site: str = NEXUS_SITE
 
     @property
     def key(self) -> str:
         """Name the status file; for example, ``status.key``."""
-        return f"{self.game_id}-{self.mod_id}-{self.file_id}"
+        key = f"{self.game_id}-{self.mod_id}-{self.file_id}"
+        # Ayaka and Nexus number mods independently, so their keys must differ.
+        return key if self.site == NEXUS_SITE else f"{self.site}-{key}"
 
 
 def shown_state(status: DownloadStatus, now: float) -> str:
@@ -92,7 +97,12 @@ class DownloadLog:
         return True
 
     def begin(
-        self, game_id: str, mod_id: int, file: NexusFile, state: str
+        self,
+        game_id: str,
+        mod_id: int,
+        file: NexusFile,
+        state: str,
+        site: str = NEXUS_SITE,
     ) -> DownloadStatus:
         """Record a new attempt; e.g. ``log.begin('stellar-blade', 1, file, QUEUED)``."""
         now = self.clock()
@@ -110,6 +120,7 @@ class DownloadLog:
             now,
             now,
             uuid.uuid4().hex,
+            site=site,
         )
         self.write(status)
         return status

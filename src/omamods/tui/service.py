@@ -4,6 +4,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from omamods.ayaka_download import AyakaSession
 from omamods.ayaka_pages import AyakaPage, AyakaPageTransport
 from omamods.ayaka_pages import mod_page_url as ayaka_page_url
 from omamods.game_shelf import GameShelf, ShelfScanner
@@ -44,9 +45,8 @@ from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.tui.ayaka_site import AyakaSite
 from omamods.tui.requirement_flow import RequirementFlow
 from omamods.variant_choices import exclusive_variants, nested_archives
+from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE
 from omamods.staging import (
-    AYAKA_SITE,
-    NEXUS_SITE,
     StagedMod,
     list_staged_mods,
     load_staged_mod,
@@ -84,6 +84,8 @@ class TuiHost:
     retry: RetryPolicy = RetryPolicy()
     read_launch_options: LaunchOptionsReader = no_launch_options
     ayaka_pages: AyakaPageTransport | None = None
+    # Opens a logged-in session from the saved xf_user cookie.
+    ayaka_session: Callable[[str], AyakaSession] | None = None
     # Where the browser saves files, watched for AyakaMods downloads.
     downloads: Path | None = None
 
@@ -271,6 +273,9 @@ class ModsService:
     def retry(self, status: DownloadStatus) -> bool:
         """Fetch a queue entry again; True when staged. E.g. ``service.retry(s)``."""
         game = self.catalog.get(status.game_id)
+        if status.site == AYAKA_SITE:
+            self.ayaka.retry(game, status.mod_id, status.file_id)
+            return True
         mod = self.staged_mod(game, status.mod_id)
         file = next((f for f in mod.files if f.file_id == status.file_id), None)
         if file is None:

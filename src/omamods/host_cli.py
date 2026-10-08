@@ -7,6 +7,7 @@ import sys
 import time
 from typing import Mapping, TextIO
 
+from omamods.ayaka_download import UrlAyakaSession
 from omamods.ayaka_pages import UrlAyakaPageTransport
 from omamods.download_watch import downloads_folder
 from omamods.browser_windows import chromium_browser
@@ -143,6 +144,7 @@ def tui_host(
         chromium_browser(runtime.runner, data_dirs(runtime.environment, runtime.home)),
         read_launch_options=SteamLaunchOptionsReader(args, sources),
         ayaka_pages=UrlAyakaPageTransport(),
+        ayaka_session=UrlAyakaSession,
         downloads=downloads_folder(runtime.runner, runtime.home),
     )
 

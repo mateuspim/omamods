@@ -14,12 +14,11 @@ from pathlib import Path, PurePosixPath
 from urllib import parse
 
 from omamods.install_records import installed_file_ids
+from omamods.mod_sites import NEXUS_SITE
 from omamods.nexus_api import NexusFile, NexusModInfo
 from omamods.pak_games import PakOverlayGame
 
 PICTURE_SUFFIXES = frozenset({".gif", ".jpeg", ".jpg", ".png", ".webp"})
-NEXUS_SITE = "nexus"
-AYAKA_SITE = "ayaka"
 
 
 @dataclass(frozen=True)

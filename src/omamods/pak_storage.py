@@ -10,10 +10,11 @@ import tempfile
 
 from omamods.cdn_download import (
     ProgressCallback,
+    ResumableTransport,
     RetryPolicy,
     download_with_retries,
 )
-from omamods.nexus_api import NexusFile, NexusTransport
+from omamods.nexus_api import NexusFile
 from omamods.pak_archive import ASSET_SUFFIXES, ArchiveReader, PlannedAsset
 from omamods.pak_games import PakOverlayGame
 from omamods.red_archive import is_red_game_path, is_removable_red_folder
@@ -54,7 +55,7 @@ def download_archive(
     destination: Path,
     file: NexusFile,
     uri: str,
-    transport: NexusTransport,
+    transport: ResumableTransport,
     progress: ProgressCallback | None = None,
     retry: RetryPolicy = RetryPolicy(),
 ) -> Path:

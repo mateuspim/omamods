@@ -9,7 +9,7 @@ from omamods.cdn_download import (
     NexusHttpError,
     RetryPolicy,
     TransientDownloadError,
-    _copy_response,
+    copy_response,
     download_with_retries,
     is_transient,
 )
@@ -79,13 +79,13 @@ class ResumeTests(unittest.TestCase):
     def test_ignored_range_restarts_from_zero(self) -> None:
         stream = BytesIO(b"012")
         stream.seek(3)
-        _copy_response(BytesIO(BODY), 200, str(len(BODY)), stream, None, 3)
+        copy_response(BytesIO(BODY), 200, str(len(BODY)), stream, None, 3)
         self.assertEqual(stream.getvalue(), BODY)
 
     def test_partial_content_appends_with_full_total(self) -> None:
         stream, seen = BytesIO(b"012"), []
         stream.seek(3)
-        _copy_response(
+        copy_response(
             BytesIO(BODY[3:]), 206, "13", stream, lambda r, t: seen.append((r, t)), 3
         )
         self.assertEqual((stream.getvalue(), seen[-1]), (BODY, (16, 16)))

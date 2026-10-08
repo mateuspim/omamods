@@ -12,7 +12,8 @@ from textual.screen import Screen
 
 from omamods.nexus_api import NexusFile
 from omamods.pak_games import PakOverlayGame
-from omamods.staging import NEXUS_SITE, StagedMod
+from omamods.mod_sites import NEXUS_SITE
+from omamods.staging import StagedMod
 from omamods.tui.launch_options_dialog import LaunchOptionsDialog
 from omamods.tui.requirements_dialog import RequirementsDialog
 from omamods.tui.service import ModsService
