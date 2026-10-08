@@ -215,11 +215,12 @@ minimise; `hyprctl dispatch togglespecialworkspace omamods` peeks at it). As
 each file arrives, the TUI opens the next file's popup in a fresh window, and
 closes it once every file you chose has arrived. If a download fails, the
 popup comes back so you can click again. To float
-and centre that window, add an Omarchy window rule to
+and centre that window (and AyakaMods' page window), add Omarchy window rules to
 `~/.config/hypr/hyprland.lua`:
 
 ```lua
 o.window("^brave-www\\.nexusmods\\.com__.*", { float = true, center = true, size = { 1280, 860 } })
+o.window("^brave-ayakamods\\.com__.*", { float = true, center = true, size = { 1280, 860 } })
 ```
 
 Use your browser's class prefix (`chromium-`, `vivaldi-`, ...) instead of
