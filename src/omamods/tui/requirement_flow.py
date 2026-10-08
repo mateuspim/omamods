@@ -26,6 +26,7 @@ from omamods.red_frameworks import (
     frameworks_on_disk,
 )
 from omamods.launch_options_advice import LaunchOptionsAdvice, launch_options_advice
+from omamods.proton_runtime import BytesReader, msvc_runtime_version, steam_prefix
 from omamods.requirement_chain import ChainStep, RequirementChain
 from omamods.requirement_chain_store import (
     SavedChain,
@@ -126,9 +127,15 @@ class ServiceChainHost:
 class RequirementFlow:
     """Plan and drive requirement installs; e.g. ``RequirementFlow(service)``."""
 
-    def __init__(self, service: ModsService, exists: PathProbe = Path.exists) -> None:
+    def __init__(
+        self,
+        service: ModsService,
+        exists: PathProbe = Path.exists,
+        read_bytes: BytesReader = Path.read_bytes,
+    ) -> None:
         self.service = service
         self.exists = exists
+        self.read_bytes = read_bytes
         self.chain: RequirementChain | None = None
         self.chain_host: ServiceChainHost | None = None
         # Ticks come from a timer; a slow install must not run twice at once.
@@ -200,8 +207,11 @@ class RequirementFlow:
             return None
         host = ServiceChainHost(self.service, game, self.exists)
         wanted = planned | host.frameworks_present()
-        options = self.service.host.read_launch_options(game.steam_app_id)
-        return launch_options_advice(options, wanted)
+        app_id = game.steam_app_id
+        options = self.service.host.read_launch_options(app_id)
+        root = self.service.host.locate_paks(game, self.service.settings)
+        runtime = msvc_runtime_version(steam_prefix(root, app_id), self.read_bytes)
+        return launch_options_advice(options, wanted, runtime, app_id)
 
     def start(self, plan: RequirementPlan) -> RequirementChain:
         """Begin installing; e.g. ``flow.start(plan)``."""

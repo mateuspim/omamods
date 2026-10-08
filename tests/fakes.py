@@ -3,6 +3,7 @@
 from io import BytesIO
 import json
 from pathlib import Path
+import struct
 
 from omamods.cdn_download import (
     NexusHttpError,
@@ -427,3 +428,20 @@ class FakeModArchives:
     def copy_member(self, archive: Path, member: str, destination: BytesIO) -> None:
         """Write one member; e.g. ``fake.copy_member(path, name, stream)``."""
         destination.write(self._members(archive)[member])
+
+
+def version_resource(major: int, minor: int, build: int, revision: int) -> bytes:
+    header = struct.pack("<II", 0xFEEF04BD, 0x00010000)
+    return header + struct.pack("<II", major << 16 | minor, build << 16 | revision)
+
+
+class FakeDllFiles:
+    """Serve DLL bytes by path; a missing path raises like a missing prefix."""
+
+    def __init__(self, files: dict[Path, bytes]) -> None:
+        self.files = files
+
+    def __call__(self, path: Path) -> bytes:
+        if path not in self.files:
+            raise FileNotFoundError(f"{path}: expected an existing DLL")
+        return self.files[path]

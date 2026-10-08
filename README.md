@@ -275,12 +275,20 @@ add, for example:
 WINEDLLOVERRIDES="version,winmm=n,b" %command%
 ```
 
-OmaMods reads the launch options but does not change them. Opening
-Cyberpunk's mods warns when RED4ext or CET is installed without the override;
-`L` there shows what Steam has now next to the full line to paste (your other
-options kept, the override merged in), and `c` copies it with `wl-copy` (and the
-terminal's clipboard). The requirements dialog shows the same lines and also
-copies with `c`. A `modlist.txt` in
+RED4ext 1.30 and CET 1.37 also need the Visual C++ runtime 14.40 or newer in
+the game's Proton prefix; with the game's own 2020 redistributable (14.28) CET
+fails with "Unable to load cyber_engine_tweaks.asi, Error: 998". OmaMods reads
+`msvcp140.dll`'s version from `steamapps/compatdata/<app id>/pfx` and, when it is
+older, suggests `protontricks 1091500 -q vcrun2022` (run it with the game
+closed).
+
+OmaMods reads the launch options and the prefix but changes neither. Opening
+Cyberpunk's mods warns when RED4ext or CET is installed without the override or
+with an old runtime; `L` there shows what Steam has now next to the full line
+to paste (your other options kept, the override merged in) and the
+protontricks command. `c` copies the line and `p` the command, with `wl-copy`
+and the terminal's clipboard. The requirements dialog shows the same and
+copies with the same keys. A `modlist.txt` in
 `archive/pc/mod` overrides the archives' name order; OmaMods does not edit it.
 See the [Cyberpunk 2077 adapter](games/cyberpunk-2077/README.md).
 

@@ -19,8 +19,8 @@ from omamods.tui.service import ModsService
 
 Result = TypeVar("Result")
 LAUNCH_WARNING = (
-    "Steam's launch options lack the DLL overrides RED4ext/CET need; "
-    "press L to see and copy the line to paste."
+    "Steam or the Proton prefix is missing what RED4ext/CET need; "
+    "press L to see the fix and copy it."
 )
 
 
@@ -87,7 +87,7 @@ class RequirementScreen(Screen[None]):
         if plan is None:
             return
         if not plan.needs_work:
-            if plan.missing_dlls:
+            if plan.launch_advice is not None and plan.launch_advice.needed:
                 self.notify(LAUNCH_WARNING, severity="warning", timeout=20)
             self.install_now(mod, files)
             return

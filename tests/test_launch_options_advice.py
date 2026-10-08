@@ -7,7 +7,7 @@ from omamods.launch_options_advice import (
     merged_launch_options,
 )
 from omamods.red_frameworks import CET_MOD_ID, RED4EXT_MOD_ID
-from omamods.tui.launch_options_dialog import launch_options_text
+from omamods.tui.launch_options_dialog import launch_options_text, setup_hint
 
 BOTH = ("version", "winmm")
 HDR = "PROTON_ENABLE_WAYLAND=1 PROTON_ENABLE_HDR=1 %command%"
@@ -72,7 +72,20 @@ class DialogTextTests(unittest.TestCase):
     def test_fixed_line_says_nothing_to_add(self) -> None:
         fixed = f'WINEDLLOVERRIDES="winmm=n,b" {HDR}'
         advice = launch_options_advice((fixed,), frozenset({RED4EXT_MOD_ID}))
-        self.assertIn("Nothing to add.", launch_options_text(advice).plain)
+        self.assertIn("launch options are fine", launch_options_text(advice).plain)
+
+    def test_runtime_section_highlights_the_command(self) -> None:
+        ids = frozenset({RED4EXT_MOD_ID})
+        advice = launch_options_advice((HDR,), ids, (14, 28, 29334, 0), "1091500")
+        text = launch_options_text(advice)
+        self.assertIn("Visual C++ runtime 14.28.29334", text.plain)
+        start = text.plain.index("protontricks 1091500 -q vcrun2022")
+        self.assertIn("bold green", [s.style for s in text.spans if s.start == start])
+        self.assertEqual(
+            setup_hint(advice),
+            "c copies the launch options, p copies the protontricks command, "
+            "Esc closes",
+        )
 
 
 if __name__ == "__main__":

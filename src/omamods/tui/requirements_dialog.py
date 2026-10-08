@@ -15,6 +15,7 @@ from textual.widgets import Label, Static
 from omamods.tui.launch_options_dialog import (
     TextCopier,
     copy_launch_line,
+    copy_runtime_fix,
     launch_options_lines,
 )
 from omamods.requirement_chain import ChainStep
@@ -86,6 +87,7 @@ class RequirementsDialog(ModalScreen[bool]):
         Binding("y", "answer(True)", "Yes"),
         Binding("n,escape", "answer(False)", "No"),
         Binding("c", "copy_launch_line", "Copy launch options"),
+        Binding("p", "copy_runtime_fix", "Copy protontricks command"),
     ]
 
     def __init__(self, plan: RequirementPlan, copier: TextCopier) -> None:
@@ -103,12 +105,24 @@ class RequirementsDialog(ModalScreen[bool]):
                 yield Static(
                     requirement_notes(self.plan), classes="notes", markup=False
                 )
-            copy = ", c copies the launch options" if self.plan.missing_dlls else ""
-            yield Static(f"y installs all, n cancels{copy}, j/k scroll", classes="hint")
+            yield Static(self._hint(), classes="hint")
+
+    def _hint(self) -> str:
+        advice = self.plan.launch_advice
+        keys = ["y installs all", "n cancels"]
+        if advice is not None and advice.missing:
+            keys.append("c copies the launch options")
+        if advice is not None and advice.runtime_fix:
+            keys.append("p copies the protontricks command")
+        return ", ".join([*keys, "j/k scroll"])
 
     def action_copy_launch_line(self) -> None:
         if self.plan.launch_advice is not None:
             copy_launch_line(self, self.plan.launch_advice, self.copier)
+
+    def action_copy_runtime_fix(self) -> None:
+        if self.plan.launch_advice is not None:
+            copy_runtime_fix(self, self.plan.launch_advice, self.copier)
 
     def action_answer(self, accepted: bool) -> None:
         self.dismiss(accepted)

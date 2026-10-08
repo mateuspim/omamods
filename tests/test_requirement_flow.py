@@ -23,6 +23,7 @@ from omamods.tui.requirements_dialog import (
 )
 from omamods.tui.service import ModsService, TuiHost
 from tests.fakes import (
+    FakeDllFiles,
     FakeCommandRunner,
     FakeConfigFiles,
     FakeLauncher,
@@ -30,6 +31,7 @@ from tests.fakes import (
     FakeNexusSite,
     FakeShelfScanner,
     FakeSleep,
+    version_resource,
 )
 
 CYBERPUNK = PAK_OVERLAY_GAMES["cyberpunk-2077"]
@@ -347,6 +349,23 @@ class LaunchOptionsTests(FlowFixture):
             line = 'WINEDLLOVERRIDES="winmm=n,b" PROTON_ENABLE_HDR=1 %command%'
             self.assertIn(("wl-copy", "--", line), self.launcher.launched)
             self.assertEqual(app.clipboard, line)
+
+    async def test_old_prefix_runtime_warns_and_p_copies_the_fix(self) -> None:
+        self.options.options = ('WINEDLLOVERRIDES="winmm=n,b" %command%',)
+        dll = self.game_root.parent.parent / "compatdata/1091500/pfx"
+        dll = dll / "drive_c/windows/system32/msvcp140.dll"
+        old = version_resource(14, 28, 29334, 0)
+        self.service.requirements.read_bytes = FakeDllFiles({dll: old})
+        app = OmaModsApp(self.service)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await self._open_mods(app, pilot)
+            warnings = [n.message for n in app._notifications]
+            self.assertTrue(any("press L" in m for m in warnings))
+            await pilot.press("L")
+            await pilot.pause()
+            await pilot.press("p")
+            await pilot.pause()
+            self.assertEqual(app.clipboard, "protontricks 1091500 -q vcrun2022")
 
     async def test_fixed_steam_line_shows_no_warning(self) -> None:
         self.options.options = ('WINEDLLOVERRIDES="winmm=n,b" %command%',)
