@@ -172,7 +172,25 @@ so `:inst` is `:install`. `:help` lists the commands for the current screen.
 | `:download [file\|all]` | the selected file, one file, or every current file |
 | `:rm <file>` | delete a download from staging |
 | `:queue`, `:retry`, `:clear` | the download queue |
+| `:dl [min\|game\|full]` | size the mods screen's downloads panel |
 | `:key <api-key>`, `:nxm` | setup |
+
+### Downloads panel
+
+The mods screen keeps the download queue in a panel along its bottom edge.
+`D` grows it in three steps and then shrinks it back:
+
+1. **Minimized** (default): one summary line for every game's downloads, for
+   example `↓ Downloads: 1 downloading (ArchiveXL 45% · 1.2 MB/s) · 1 waiting
+   for browser · 3 done`. The name in brackets is this game's running download.
+2. **This game**: a short table of this game's queue under the mods and
+   details.
+3. **All games**: the whole queue fills the screen, hiding the mods.
+
+In either table, `r` retries the highlighted download and `c` clears done and
+failed ones; `l`/`h` move focus into and out of the table. `:dl full` (or
+`min`, `game`) jumps straight to a size. On other screens `D` still opens the
+separate queue screen, which `:queue` opens from anywhere.
 
 A `file` is its number in the **ID** column or a unique part of its name; when
 a name matches an old and a current version, the current one wins. The API-key

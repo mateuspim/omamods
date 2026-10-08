@@ -25,7 +25,11 @@ MODS_COMMANDS = (
     CommandSpec("rm", ("x",), ":rm <file>", "delete a download from staging"),
     CommandSpec("web", ("w",), ":web", "open the mod's Nexus page"),
     CommandSpec("picture", ("o",), ":picture", "open the full picture in imv"),
+    CommandSpec(
+        "dl", (), ":dl [min|game|full]", "resize the downloads panel (D cycles)"
+    ),
 )
+PANEL_SIZES = {"min": "minimized", "game": "game", "full": "full"}
 # Files are given by the ID column or a unique part of their name.
 
 
@@ -87,6 +91,16 @@ def _remove(screen: "ModsScreen", args: tuple[str, ...]) -> None:
     screen.confirm_remove(_named_file(screen, args))
 
 
+def _resize_downloads(screen: "ModsScreen", args: tuple[str, ...]) -> None:
+    if not args:
+        screen.action_cycle_downloads()
+        return
+    size = PANEL_SIZES.get(" ".join(args).lower())
+    if size is None:
+        raise ValueError(f":dl size={' '.join(args)!r}: expected min, game, or full")
+    screen.show_downloads(size)
+
+
 HANDLERS: dict[str, Callable[["ModsScreen", tuple[str, ...]], None]] = {
     "install": _install,
     "uninstall": _uninstall,
@@ -94,6 +108,7 @@ HANDLERS: dict[str, Callable[["ModsScreen", tuple[str, ...]], None]] = {
     "rm": _remove,
     "web": lambda screen, args: screen.action_open_page(),
     "picture": lambda screen, args: screen.action_open_picture(),
+    "dl": _resize_downloads,
 }
 
 

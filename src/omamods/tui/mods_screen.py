@@ -21,6 +21,12 @@ from omamods.pak_games import PakOverlayGame
 from omamods.staging import StagedMod
 from omamods.tui.mods_commands import MODS_COMMANDS, run_mods_command
 from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPicker
+from omamods.tui.downloads_panel import (
+    FULL_QUEUE,
+    MINIMIZED,
+    DownloadsPanel,
+    next_panel_mode,
+)
 from omamods.tui.preview import PicturePreview
 from omamods.tui.requirement_actions import RequirementScreen
 from omamods.tui.service import ModsService
@@ -68,6 +74,8 @@ class ModsScreen(RequirementScreen):
         Binding("o", "open_picture", "Full picture"),
         Binding("w", "open_page", "Web page"),
         Binding("L", "launch_options", "Launch options", show=False),
+        # Overrides the app's D (open the queue screen): grows the panel instead.
+        Binding("D", "cycle_downloads", "Downloads size"),
         Binding("escape", "app.pop_screen", "Back"),
         Binding("n", "next_match(1)", "Next match", show=False),
         Binding("N", "next_match(-1)", "Previous match", show=False),
@@ -87,7 +95,7 @@ class ModsScreen(RequirementScreen):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        with Horizontal():
+        with Horizontal(id="mods-body"):
             yield OptionList(id="mods")
             # Not focusable, so h/l (and Tab) go straight from the mod list to
             # the file table instead of stopping on this pane first.
@@ -95,6 +103,7 @@ class ModsScreen(RequirementScreen):
                 yield PicturePreview(id="picture")
                 yield Static(id="details", markup=False)
                 yield DataTable(id="files", cursor_type="row")
+        yield DownloadsPanel(self.service, self.game)
         yield Static(id="status", markup=False)
         yield Footer()
 
@@ -114,6 +123,21 @@ class ModsScreen(RequirementScreen):
         self.set_interval(REFRESH_SECONDS, self.reload)
         if self.game.redengine:
             self._warn_launch_options()
+        panel = self.query_one(DownloadsPanel)
+        self.set_interval(REFRESH_SECONDS, panel.refresh_queue)
+
+    def action_cycle_downloads(self) -> None:
+        self.show_downloads(next_panel_mode(self.query_one(DownloadsPanel).mode))
+
+    def show_downloads(self, mode: str) -> None:
+        """Size the downloads panel; for example, ``screen.show_downloads('full')``."""
+        self.query_one(DownloadsPanel).set_mode(mode)
+        # Full hides the mods, so focus must leave them (and come back after).
+        self.set_class(mode == FULL_QUEUE, "downloads-full")
+        if mode == MINIMIZED:
+            self.query_one("#mods", OptionList).focus()
+        elif mode == FULL_QUEUE:
+            self.query_one("#downloads-table", DataTable).focus()
 
     def reload(self) -> None:
         """Pick up downloads finished elsewhere, e.g. by an nxm click."""

@@ -37,6 +37,22 @@ Footer { background: $panel; }
 #details { margin: 1 0; }
 #files { height: auto; max-height: 14; }
 #status { color: $text-muted; padding: 0 1; }
+#mods-body { height: 1fr; }
+#downloads-panel {
+    border: round $panel-lighten-2;
+    border-title-color: $text-muted;
+    border-title-style: bold;
+    background: $surface;
+    padding: 0 1;
+    height: auto;
+}
+#downloads-panel:focus-within { border: round $accent; border-title-color: $accent; }
+#downloads-panel.minimized #downloads-table { display: none; }
+#downloads-panel.game { height: 10; }
+#downloads-panel.full { height: 1fr; }
+#downloads-table { height: 1fr; }
+#downloads-bar { height: auto; }
+.downloads-full #mods-body { display: none; }
 #command-line { dock: bottom; border: tall $accent; }
 .command-screen { align: left bottom; }
 .placeholder { color: $text-muted; content-align: center middle; height: 100%; }

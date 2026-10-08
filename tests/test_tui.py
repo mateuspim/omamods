@@ -304,8 +304,8 @@ class TuiTests(TuiFixture):
         app = self._app({})
         async with app.run_test(size=(160, 45)) as pilot:
             await self._open_stellar_blade_and_add(app, pilot)
-            await pilot.press("D")
-            await pilot.pause()
+            # On the mods screen D grows the downloads panel; :queue opens this.
+            await self._command(app, pilot, "queue")
             self.assertIsInstance(app.screen, DownloadsScreen)
             queue = app.screen.query_one("#queue", DataTable)
             states = [queue.get_row_at(i)[0] for i in range(queue.row_count)]

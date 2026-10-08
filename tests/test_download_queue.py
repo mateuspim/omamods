@@ -30,7 +30,7 @@ from omamods.nexus_api import (
     NexusPage,
 )
 from omamods.pak_games import PAK_OVERLAY_GAMES
-from omamods.tui.downloads_screen import eta_text, human_bytes, progress_text
+from omamods.tui.download_rows import eta_text, human_bytes, progress_text
 from tests.fakes import FakeNexusSite, FakeSleep
 
 FILE = NexusFile(7, "Black.zip", "MAIN", 0, size_kb=4)
