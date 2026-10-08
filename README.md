@@ -180,7 +180,7 @@ so `:inst` is `:install`. `:help` lists the commands for the current screen.
 | `:queue`, `:retry`, `:clear` | the download queue |
 | `:dl [min\|game\|full]` | size the mods screen's downloads panel |
 | `:stop` | stop waiting for an AyakaMods download |
-| `:ayaka-login <xf_user>` | save your AyakaMods login to download directly |
+| `:ayaka-login [xf_user]` | save your AyakaMods login (guided without a value) |
 | `:key <api-key>`, `:nxm` | setup |
 
 ### Downloads panel
@@ -255,15 +255,23 @@ page, and refuses a mod made for another game. `:add` from any screen opens
 the game the page names.
 
 AyakaMods only serves files to a logged-in user and has no mod-manager link
-like Nexus' `nxm://`. To download like Nexus, save your login once:
+like Nexus' `nxm://`. To download like Nexus, OmaMods needs your login once.
+The first time you add or download an AyakaMods mod without one (or once it
+expires), OmaMods opens the AyakaMods login page in your browser and a prompt
+in the terminal:
 
 1. Log in on ayakamods.com with **Stay logged in** ticked.
 2. Open DevTools (`F12`) > **Application** > **Cookies** >
    `https://ayakamods.com` and copy the value of `xf_user` (it looks like
    `347376%2CAbC...`).
-3. In OmaMods, run `:ayaka-login <value>`. It is kept in the private config as
-   `[ayaka] login_cookie`, like the Nexus key, and is sent only to
-   ayakamods.com, never to a host a download redirects to.
+3. Back in OmaMods the prompt has already filled it in from the clipboard
+   (`wl-paste`; anything not shaped like that cookie is ignored). Press Enter
+   and the download starts. Esc downloads through the browser instead.
+
+`:ayaka-login` opens the same prompt any time, and `:ayaka-login <value>` saves
+a value directly. The cookie is kept in the private config as
+`[ayaka] login_cookie`, like the Nexus key, and is sent only to ayakamods.com,
+never to a host a download redirects to.
 
 Then adding a mod (or `d` on one) downloads it straight into staging, with
 progress, retries, and resume in the downloads panel. A mod with several files

@@ -15,6 +15,7 @@ from omamods.cdn_download import USER_AGENT
 from omamods.nexus_api import NexusModInfo
 
 SITE_ROOT = "https://ayakamods.com"
+LOGIN_URL = f"{SITE_ROOT}/login/"
 SITE_HOSTS = frozenset({"ayakamods.com", "www.ayakamods.com"})
 LD_JSON_BLOCK = re.compile(
     r'<script type="application/ld\+json">(.*?)</script>', re.DOTALL

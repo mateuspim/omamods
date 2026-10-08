@@ -6,7 +6,9 @@ from textual.widgets import Input
 
 from omamods.tui.app import OmaModsApp
 from omamods.tui.mods_screen import ModsScreen, describe_mod
-from tests.fakes import FakeAyakaPages, FakeAyakaSession
+from omamods.ayaka_pages import LOGIN_URL
+from omamods.tui.login_dialog import LoginCookiePrompt
+from tests.fakes import FakeAyakaPages, FakeAyakaSession, FakeCommandRunner
 from tests.test_ayaka_pages import MOD_BLOCK, page_html
 from tests.test_tui import TuiFixture
 
@@ -37,6 +39,12 @@ class AyakaTuiFixture(TuiFixture):
         # A file picker may already sit on top of the mods screen.
         return next(s for s in app.screen_stack if isinstance(s, ModsScreen))
 
+    async def _choose_browser(self, app: OmaModsApp, pilot) -> None:
+        # Without a saved login the cookie prompt opens; Esc picks the browser.
+        self.assertIsInstance(app.screen, LoginCookiePrompt)
+        await pilot.press("escape")
+        await self._settle(app, pilot)
+
     async def _settle(self, app: OmaModsApp, pilot) -> None:
         # Downloads run in a worker that starts another; let both finish.
         for _ in range(3):
@@ -60,6 +68,7 @@ class AyakaTuiTests(AyakaTuiFixture):
         )
         async with app.run_test(size=(140, 45)) as pilot:
             screen = await self._add_ayaka_mod(app, pilot, AYAKA_URL)
+            await self._choose_browser(app, pilot)
             self.assertEqual(self.launcher.launched[-1], ("xdg-open", PAGE_URL))
             download = self._browser_saves("Outfit.zip")
             screen.take_ayaka_arrivals()  # Size seen once...
@@ -83,6 +92,7 @@ class AyakaTuiTests(AyakaTuiFixture):
         app = self._app({"a.pak": b"a"}, ayaka_pages=ayaka_pages("Stellar Blade"))
         async with app.run_test(size=(140, 45)) as pilot:
             screen = await self._add_ayaka_mod(app, pilot, AYAKA_URL)
+            await self._choose_browser(app, pilot)
             screen.take_ayaka_arrivals()
             screen.take_ayaka_arrivals()
             self.assertTrue(old.is_file())
@@ -102,10 +112,8 @@ class AyakaTuiTests(AyakaTuiFixture):
         async with app.run_test(size=(140, 45)) as pilot:
             await self._wait_for_shelf(app, pilot)
             app.run_command_line(f":add {AYAKA_URL}")
-            await app.workers.wait_for_complete()
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
+            await self._settle(app, pilot)
+            await self._choose_browser(app, pilot)
             self.assertIsInstance(app.screen, ModsScreen)
             self.assertEqual(app.screen.game.game_id, "stellar-blade")
             self.assertEqual(self.launcher.launched[-1], ("xdg-open", PAGE_URL))
@@ -179,13 +187,56 @@ class AyakaLoginTuiTests(AyakaTuiFixture):
             self.assertTrue(app.service.retry(status))
             self.assertEqual(red.read_bytes(), b"Red.zip")
 
-    async def test_an_expired_cookie_falls_back_to_the_browser(self) -> None:
+    async def test_an_expired_cookie_opens_the_login_prompt(self) -> None:
         self.session.serve_page(DOWNLOAD_URL, '<html data-logged-in="false"></html>')
         app = self._login_app({})
         async with app.run_test(size=(140, 45)) as pilot:
             await self._add_ayaka_mod(app, pilot, AYAKA_URL)
             await self._settle(app, pilot)
+            self.assertEqual(self.launcher.launched[-1], ("xdg-open", LOGIN_URL))
+            self.assertIn("expired", app.screen.reason)
+            await self._choose_browser(app, pilot)
             self.assertEqual(self.launcher.launched[-1], ("xdg-open", PAGE_URL))
+
+    async def test_a_copied_cookie_is_filled_in_saved_and_used(self) -> None:
+        del self.config_files.contents[self.config]
+        self.session.serve_file(DOWNLOAD_URL, "Outfit.zip", b"zip")
+        clipboard = FakeCommandRunner(output=COOKIE)
+        app = self._app(
+            {},
+            ayaka_pages=ayaka_pages("Stellar Blade"),
+            ayaka_session=self.session,
+            runner=clipboard,
+        )
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._add_ayaka_mod(app, pilot, AYAKA_URL)
+            await self._settle(app, pilot)
+            prompt = app.screen
+            assert isinstance(prompt, LoginCookiePrompt)
+            prompt.check_clipboard()  # The dialog's one-second timer.
+            self.assertIn(("wl-paste", "--no-newline"), clipboard.commands)
+            await pilot.press("enter")
+            await self._settle(app, pilot)
+            self.assertEqual(app.service.ayaka.login_cookie(), COOKIE)
+            staged = self.root / "store/ayaka/archives/stellar-blade/7322/1/Outfit.zip"
+            self.assertEqual(staged.read_bytes(), b"zip")
+
+    async def test_other_clipboard_text_is_ignored(self) -> None:
+        del self.config_files.contents[self.config]
+        clipboard = FakeCommandRunner(output="my bank password")
+        app = self._app(
+            {},
+            ayaka_pages=ayaka_pages("Stellar Blade"),
+            ayaka_session=self.session,
+            runner=clipboard,
+        )
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._add_ayaka_mod(app, pilot, AYAKA_URL)
+            await self._settle(app, pilot)
+            prompt = app.screen
+            assert isinstance(prompt, LoginCookiePrompt)
+            prompt.check_clipboard()
+            self.assertEqual(prompt.query_one(Input).value, "")
 
     async def test_login_command_saves_the_cookie(self) -> None:
         del self.config_files.contents[self.config]

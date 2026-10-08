@@ -104,6 +104,7 @@ class TuiFixture(unittest.IsolatedAsyncioTestCase):
         hyprland: FakeHyprland | None = None,
         ayaka_pages: FakeAyakaPages | None = None,
         ayaka_session: FakeAyakaSession | None = None,
+        runner: FakeCommandRunner | None = None,
     ) -> OmaModsApp:
         host = TuiHost(
             self.config,
@@ -112,7 +113,7 @@ class TuiFixture(unittest.IsolatedAsyncioTestCase):
             self.config_files,
             self.site,
             FakeArchiveReader(members),
-            hyprland or FakeCommandRunner(),
+            hyprland or runner or FakeCommandRunner(),
             self.launcher,
             FakePaksLocator(self.paks),
             Path("/bin/omamods"),

@@ -10,7 +10,11 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from omamods.ayaka_config import load_login_cookie, save_login_cookie
+from omamods.ayaka_config import (
+    load_login_cookie,
+    normalize_cookie,
+    save_login_cookie,
+)
 from omamods.ayaka_download import (
     AyakaLoginRequired,
     AyakaOffer,
@@ -19,6 +23,7 @@ from omamods.ayaka_download import (
 )
 from omamods.ayaka_fetch import stage_ayaka_offer
 from omamods.ayaka_pages import (
+    LOGIN_URL,
     AyakaPage,
     AyakaPageTransport,
     fetch_mod_details,
@@ -146,6 +151,20 @@ class AyakaSite:
         save_login_cookie(
             host.config_path, host.fallback_root, cookie, host.config_files
         )
+
+    def open_login(self) -> None:
+        """Open the site's login page in the browser; e.g. ``service.ayaka.open_login()``."""
+        self.service.open_url(LOGIN_URL)
+
+    def clipboard_cookie(self) -> str | None:
+        """Read a copied xf_user value, if any; e.g. ``service.ayaka.clipboard_cookie()``."""
+        code, text = self.service.host.runner.run(("wl-paste", "--no-newline"))
+        if code:
+            return None
+        try:
+            return normalize_cookie(text)
+        except ValueError:
+            return None  # Anything else on the clipboard is not ours to read.
 
     def _session(self) -> AyakaSession:
         cookie = self.login_cookie()

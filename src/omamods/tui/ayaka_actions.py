@@ -13,6 +13,7 @@ from omamods.ayaka_staging import AYAKA_FILE_CATEGORY
 from omamods.nexus_api import NexusFile
 from omamods.staging import StagedMod
 from omamods.tui.dialogs import FilePicker
+from omamods.tui.login_dialog import LoginCookiePrompt
 from omamods.tui.requirement_actions import RequirementScreen
 
 
@@ -53,11 +54,14 @@ class AyakaScreen(RequirementScreen):
 
     def _fetch_ayaka_files(self, mod: StagedMod) -> None:
         if not self.service.ayaka.login_cookie():
-            self.watch_ayaka(mod)
+            self.app.call_from_thread(self.ask_for_login, mod, "none saved yet")
             return
         try:
             offers = self.service.ayaka.offers(mod)
-        except (AyakaLoginRequired, AyakaHostedElsewhere) as reason:
+        except AyakaLoginRequired:
+            self.app.call_from_thread(self.ask_for_login, mod, "the saved one expired")
+            return
+        except AyakaHostedElsewhere as reason:
             self.notify(f"{reason}; opening the page instead.", severity="warning")
             self.watch_ayaka(mod)
             return
@@ -89,6 +93,31 @@ class AyakaScreen(RequirementScreen):
             if path is not None:
                 self.notify(f"{mod.title}: {path.name} downloaded; press i to install")
         self.app.call_from_thread(self.reload)
+
+    def ask_for_login(
+        self, mod: StagedMod | None, reason: str, open_page: bool = True
+    ) -> None:
+        """Open the login page and wait for the cookie; e.g. ``screen.ask_for_login(m, 'expired')``."""
+        if open_page:
+            self._attempt(self.service.ayaka.open_login)
+        prompt = LoginCookiePrompt(reason, self.service.ayaka.clipboard_cookie)
+        self.app.push_screen(prompt, lambda cookie: self._login_answered(mod, cookie))
+
+    def _login_answered(self, mod: StagedMod | None, cookie: str | None) -> None:
+        if cookie is None:
+            if mod is not None:
+                self.watch_ayaka(mod)
+            return
+        try:
+            self.service.ayaka.save_login(cookie)
+        except (OSError, ValueError) as error:
+            self.notify(str(error), severity="error", timeout=10)
+            # The page is already open; only the paste was wrong.
+            self.ask_for_login(mod, "that value was not the xf_user cookie", False)
+            return
+        self.notify("Saved your AyakaMods login.")
+        if mod is not None:
+            self.download_ayaka(mod)
 
     def watch_ayaka(self, mod: StagedMod) -> None:
         """Open the mod page and wait for a file; e.g. ``screen.watch_ayaka(mod)``."""

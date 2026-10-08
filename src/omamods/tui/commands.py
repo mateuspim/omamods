@@ -38,8 +38,8 @@ GLOBAL_COMMANDS = (
     CommandSpec(
         "ayaka-login",
         (),
-        ":ayaka-login <xf_user>",
-        "save your AyakaMods login cookie to download directly",
+        ":ayaka-login [xf_user]",
+        "save your AyakaMods login; without a value, guides you",
     ),
 )
 

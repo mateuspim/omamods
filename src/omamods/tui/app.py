@@ -21,6 +21,7 @@ from omamods.tui.commands import (
 from omamods.tui.dialogs import CommandPrompt, InfoDialog, TextPrompt
 from omamods.tui.downloads_screen import DownloadsScreen
 from omamods.tui.games_screen import GamesScreen
+from omamods.tui.login_dialog import LoginCookiePrompt
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
 from omamods.tui.styles import APP_CSS, DEFAULT_THEME
@@ -149,9 +150,7 @@ class OmaModsApp(App[None]):
             "key": lambda args: self.save_api_key(one_argument(args, ":key <api-key>")),
             "nxm": lambda args: self.action_register_nxm(),
             "add": lambda args: self.add_mod(one_argument(args, ":add <url>")),
-            "ayaka-login": lambda args: self.save_ayaka_login(
-                one_argument(args, ":ayaka-login <xf_user>")
-            ),
+            "ayaka-login": self._ayaka_login_command,
         }
 
     def _quit_screen(self) -> None:
@@ -192,6 +191,23 @@ class OmaModsApp(App[None]):
             self.notify(str(error), severity="error", timeout=10)
             return
         self.call_from_thread(self._fetch_into, game, url)
+
+    def _ayaka_login_command(self, args: tuple[str, ...]) -> None:
+        if args:
+            self.save_ayaka_login(one_argument(args, ":ayaka-login [xf_user]"))
+            return
+        self.service.ayaka.open_login()
+        reason = "save or renew it"
+        prompt = LoginCookiePrompt(reason, self.service.ayaka.clipboard_cookie)
+        self.push_screen(
+            prompt, lambda cookie: cookie and self._save_login_safely(cookie)
+        )
+
+    def _save_login_safely(self, cookie: str) -> None:
+        try:
+            self.save_ayaka_login(cookie)
+        except (OSError, ValueError) as error:
+            self.notify(str(error), severity="error", timeout=10)
 
     def save_ayaka_login(self, cookie: str) -> None:
         """Store the AyakaMods cookie; e.g. ``app.save_ayaka_login('1%2Cab')``."""
