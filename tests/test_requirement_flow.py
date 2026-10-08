@@ -12,6 +12,7 @@ from omamods.nexus_config import UserSettings
 from omamods.pak_games import PAK_OVERLAY_GAMES, PakOverlayGame
 from omamods.tui.app import OmaModsApp
 from rich.console import Console
+from omamods.tui.launch_options_dialog import LaunchOptionsDialog
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.requirement_flow import newest_main_file
 from omamods.tui.requirements_dialog import (
@@ -305,6 +306,55 @@ class ScreenTests(FlowFixture):
             await pilot.pause(0.2)
             self.assertEqual(len(self.site.queries), queries)
             self.assertEqual(self._dialogs(app), 0)
+
+
+class LaunchOptionsTests(FlowFixture):
+    def setUp(self) -> None:
+        super().setUp()
+        self.options.options = ("PROTON_ENABLE_HDR=1 %command%",)
+        (self.game_root / "red4ext").mkdir()
+        (self.game_root / "red4ext/RED4ext.dll").write_bytes(b"r4")
+
+    async def _open_mods(self, app: OmaModsApp, pilot) -> None:
+        await app.workers.wait_for_complete()
+        app.push_screen(ModsScreen(self.service, CYBERPUNK))
+        await pilot.pause()
+        await app.workers.wait_for_complete()
+
+    def test_flow_advice_merges_into_steam_line(self) -> None:
+        advice = self.service.requirements.launch_advice(CYBERPUNK)
+        self.assertEqual(
+            advice.suggested,
+            'WINEDLLOVERRIDES="winmm=n,b" PROTON_ENABLE_HDR=1 %command%',
+        )
+
+    def test_plan_notes_show_the_line_to_paste(self) -> None:
+        notes = requirement_notes(self._plan())
+        self.assertIn("Steam has now:", notes)
+        self.assertIn('WINEDLLOVERRIDES="winmm=n,b" PROTON_ENABLE_HDR=1', notes)
+
+    async def test_opening_mods_warns_and_l_copies_the_line(self) -> None:
+        app = OmaModsApp(self.service)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await self._open_mods(app, pilot)
+            warnings = [n.message for n in app._notifications]
+            self.assertTrue(any("press L" in m for m in warnings))
+            await pilot.press("L")
+            await pilot.pause()
+            self.assertIsInstance(app.screen, LaunchOptionsDialog)
+            await pilot.press("c")
+            await pilot.pause()
+            line = 'WINEDLLOVERRIDES="winmm=n,b" PROTON_ENABLE_HDR=1 %command%'
+            self.assertIn(("wl-copy", "--", line), self.launcher.launched)
+            self.assertEqual(app.clipboard, line)
+
+    async def test_fixed_steam_line_shows_no_warning(self) -> None:
+        self.options.options = ('WINEDLLOVERRIDES="winmm=n,b" %command%',)
+        app = OmaModsApp(self.service)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await self._open_mods(app, pilot)
+            warnings = [n.message for n in app._notifications]
+            self.assertFalse(any("press L" in m for m in warnings))
 
 
 if __name__ == "__main__":

@@ -12,7 +12,11 @@ from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Label, Static
 
-from omamods.red_frameworks import launch_options_hint
+from omamods.tui.launch_options_dialog import (
+    TextCopier,
+    copy_launch_line,
+    launch_options_lines,
+)
 from omamods.requirement_chain import ChainStep
 from omamods.tui.requirement_flow import RequirementPlan
 
@@ -65,8 +69,9 @@ def requirement_notes(plan: RequirementPlan) -> str:
         ("Off-site, install by hand", tree.external),
     ]
     lines = [f"{label}: {', '.join(names)}." for label, names in notes if names]
-    if plan.missing_dlls:
-        lines.append("⚠ " + launch_options_hint(plan.missing_dlls))
+    advice = plan.launch_advice
+    if advice is not None and advice.needed:
+        lines.append("⚠ " + launch_options_lines(advice).replace("\n\n", "\n"))
     lines.append(
         "Files download one at a time; without Premium, click 'Mod Manager "
         "Download' as each Nexus window opens. Each installs when it arrives."
@@ -80,11 +85,13 @@ class RequirementsDialog(ModalScreen[bool]):
     BINDINGS = [
         Binding("y", "answer(True)", "Yes"),
         Binding("n,escape", "answer(False)", "No"),
+        Binding("c", "copy_launch_line", "Copy launch options"),
     ]
 
-    def __init__(self, plan: RequirementPlan) -> None:
+    def __init__(self, plan: RequirementPlan, copier: TextCopier) -> None:
         super().__init__()
         self.plan = plan
+        self.copier = copier
 
     def compose(self) -> ComposeResult:
         count = len(self.plan.steps) + len(self.plan.unresolved)
@@ -96,7 +103,12 @@ class RequirementsDialog(ModalScreen[bool]):
                 yield Static(
                     requirement_notes(self.plan), classes="notes", markup=False
                 )
-            yield Static("y installs all, n cancels, j/k scroll", classes="hint")
+            copy = ", c copies the launch options" if self.plan.missing_dlls else ""
+            yield Static(f"y installs all, n cancels{copy}, j/k scroll", classes="hint")
+
+    def action_copy_launch_line(self) -> None:
+        if self.plan.launch_advice is not None:
+            copy_launch_line(self, self.plan.launch_advice, self.copier)
 
     def action_answer(self, accepted: bool) -> None:
         self.dismiss(accepted)

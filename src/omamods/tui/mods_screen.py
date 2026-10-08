@@ -2,14 +2,11 @@
 
 import asyncio
 from pathlib import Path
-from collections.abc import Callable
-from typing import TypeVar
 
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
-from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, OptionList, Static
 from textual.widgets.option_list import Option
 
@@ -25,11 +22,9 @@ from omamods.staging import StagedMod
 from omamods.tui.mods_commands import MODS_COMMANDS, run_mods_command
 from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPicker
 from omamods.tui.preview import PicturePreview
-from omamods.red_frameworks import launch_options_hint
-from omamods.tui.requirements_dialog import RequirementsDialog
+from omamods.tui.requirement_actions import RequirementScreen
 from omamods.tui.service import ModsService
 
-Result = TypeVar("Result")
 REFRESH_SECONDS = 3.0
 BROWSER_HINT = (
     "{name}: click 'Mod Manager Download' in the Nexus window; "
@@ -61,7 +56,7 @@ def file_cells(mod: StagedMod, file: NexusFile) -> tuple[str, ...]:
     )
 
 
-class ModsScreen(Screen[None]):
+class ModsScreen(RequirementScreen):
     """Show and change one game's mods; e.g. ``app.push_screen(ModsScreen(s, sb))``."""
 
     BINDINGS = [
@@ -72,6 +67,7 @@ class ModsScreen(Screen[None]):
         Binding("x", "remove_staged", "Remove download"),
         Binding("o", "open_picture", "Full picture"),
         Binding("w", "open_page", "Web page"),
+        Binding("L", "launch_options", "Launch options", show=False),
         Binding("escape", "app.pop_screen", "Back"),
         Binding("n", "next_match(1)", "Next match", show=False),
         Binding("N", "next_match(-1)", "Previous match", show=False),
@@ -116,6 +112,8 @@ class ModsScreen(Screen[None]):
         )
         self.reload()
         self.set_interval(REFRESH_SECONDS, self.reload)
+        if self.game.redengine:
+            self._warn_launch_options()
 
     def reload(self) -> None:
         """Pick up downloads finished elsewhere, e.g. by an nxm click."""
@@ -173,13 +171,6 @@ class ModsScreen(Screen[None]):
             )
             return
         self.app.call_from_thread(self.reload)
-
-    def _attempt(self, action: Callable[[], Result]) -> Result | None:
-        try:
-            return action()
-        except (OSError, ValueError) as error:
-            self.notify(str(error), severity="error", timeout=10)
-            return None
 
     def _selected_file(self) -> NexusFile | None:
         if self.current is None or not self.current.files:
@@ -243,61 +234,6 @@ class ModsScreen(Screen[None]):
             )
             return
         self.install_files(self.current, files)
-
-    def install_files(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
-        """Install staged files; e.g. ``screen.install_files(mod, (file,))``.
-
-        Every path (i, Enter, :install) checks Cyberpunk requirements first:
-        Enter on a staged mod used to install it with its requirements missing.
-        """
-        if self.game.redengine and self.service.has_api_key():
-            self._check_requirements(mod, files)
-            return
-        self.install_now(mod, files)
-
-    def _check_requirements(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
-        target = self.service.requirements.target_name
-        if target is not None:
-            self.notify(
-                f"Already installing {target} and its requirements; D shows downloads."
-            )
-            return
-        if self.checking_requirements:
-            self.notify("Already checking requirements; wait for the dialog.")
-            return
-        self.checking_requirements = True
-        self.notify("Checking the mod's requirements on Nexus...")
-        self.install_with_requirements(mod, files)
-
-    @work
-    async def install_with_requirements(
-        self, mod: StagedMod, files: tuple[NexusFile, ...]
-    ) -> None:
-        try:
-            await self._confirm_requirements(mod, files)
-        finally:
-            self.checking_requirements = False
-
-    async def _confirm_requirements(
-        self, mod: StagedMod, files: tuple[NexusFile, ...]
-    ) -> None:
-        flow = self.service.requirements
-        plan = await asyncio.to_thread(
-            self._attempt, lambda: flow.plan(self.game, mod, files)
-        )
-        if plan is None:
-            return
-        if not plan.needs_work:
-            if plan.missing_dlls:
-                hint = launch_options_hint(plan.missing_dlls)
-                self.notify(hint, severity="warning", timeout=20)
-            self.install_now(mod, files)
-            return
-        if not await self.app.push_screen_wait(RequirementsDialog(plan)):
-            return
-        if self._attempt(lambda: flow.start(plan)) is None:
-            return
-        self.notify("Installing requirements in order; D shows downloads.", timeout=10)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         file = self._selected_file()

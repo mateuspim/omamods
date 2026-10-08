@@ -269,6 +269,11 @@ class ModsService:
         """Open the browser; for example, ``service.open_url(url)``."""
         self.host.launcher.launch(("xdg-open", url))
 
+    def copy_to_clipboard(self, text: str) -> None:
+        """Put text on the Wayland clipboard; e.g. ``service.copy_to_clipboard(line)``."""
+        # Detached: wl-copy stays running to serve the paste, so waiting hangs.
+        self.host.launcher.launch(("wl-copy", "--", text))
+
     def open_folder(self, folder: Path) -> None:
         """Show a game folder in the file manager; e.g. ``service.open_folder(p)``."""
         self.host.launcher.launch(("xdg-open", str(folder)))

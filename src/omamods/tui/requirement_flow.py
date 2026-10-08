@@ -24,8 +24,8 @@ from omamods.pak_games import PakOverlayGame
 from omamods.red_frameworks import (
     PathProbe,
     frameworks_on_disk,
-    missing_proxy_dlls,
 )
+from omamods.launch_options_advice import LaunchOptionsAdvice, launch_options_advice
 from omamods.requirement_chain import ChainStep, RequirementChain
 from omamods.requirement_chain_store import (
     SavedChain,
@@ -51,9 +51,15 @@ class RequirementPlan:
     # Requirements with no MAIN file to pick; the person installs them.
     unresolved: tuple[str, ...]
     tree: RequirementTree
-    missing_dlls: tuple[str, ...]
+    # None for games without a Steam app ID to read launch options for.
+    launch_advice: LaunchOptionsAdvice | None
     # Steps whose files are already downloaded and only need installing.
     staged: frozenset[int] = frozenset()
+
+    @property
+    def missing_dlls(self) -> tuple[str, ...]:
+        """DLL overrides Steam lacks; e.g. ``plan.missing_dlls == ('winmm',)``."""
+        return self.launch_advice.missing if self.launch_advice else ()
 
     @property
     def needs_work(self) -> bool:
@@ -159,10 +165,10 @@ class RequirementFlow:
         present = tuple(r.name for r in tree.order if self._present(host, r))
         missing = tuple(r for r in tree.order if not self._present(host, r))
         steps, unresolved = self._steps(game, missing)
-        dlls = self._missing_dlls(game, host, tree)
+        advice = self.launch_advice(game, frozenset(r.mod_id for r in tree.order))
         staged = frozenset(s.mod_id for s in (*steps, target) if host.step_staged(s))
         return RequirementPlan(
-            game, target, steps, present, unresolved, tree, dlls, staged
+            game, target, steps, present, unresolved, tree, advice, staged
         )
 
     def _present(self, host: ServiceChainHost, requirement: NexusRequirement) -> bool:
@@ -183,14 +189,19 @@ class RequirementFlow:
             steps.append(ChainStep(requirement.mod_id, requirement.name, (main,)))
         return tuple(steps), tuple(unresolved)
 
-    def _missing_dlls(
-        self, game: PakOverlayGame, host: ServiceChainHost, tree: RequirementTree
-    ) -> tuple[str, ...]:
+    def launch_advice(
+        self, game: PakOverlayGame, planned: frozenset[int] = frozenset()
+    ) -> LaunchOptionsAdvice | None:
+        """Compare Steam's launch options with installed and planned frameworks.
+
+        Example: ``flow.launch_advice(cyberpunk).suggested``.
+        """
         if game.steam_app_id is None:
-            return ()
-        wanted = frozenset(r.mod_id for r in tree.order) | host.frameworks_present()
+            return None
+        host = ServiceChainHost(self.service, game, self.exists)
+        wanted = planned | host.frameworks_present()
         options = self.service.host.read_launch_options(game.steam_app_id)
-        return missing_proxy_dlls(wanted, options)
+        return launch_options_advice(options, wanted)
 
     def start(self, plan: RequirementPlan) -> RequirementChain:
         """Begin installing; e.g. ``flow.start(plan)``."""

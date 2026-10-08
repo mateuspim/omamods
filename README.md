@@ -257,7 +257,12 @@ add, for example:
 WINEDLLOVERRIDES="version,winmm=n,b" %command%
 ```
 
-OmaMods reads the launch options but does not change them. A `modlist.txt` in
+OmaMods reads the launch options but does not change them. Opening
+Cyberpunk's mods warns when RED4ext or CET is installed without the override;
+`L` there shows what Steam has now next to the full line to paste (your other
+options kept, the override merged in), and `c` copies it with `wl-copy` (and the
+terminal's clipboard). The requirements dialog shows the same lines and also
+copies with `c`. A `modlist.txt` in
 `archive/pc/mod` overrides the archives' name order; OmaMods does not edit it.
 See the [Cyberpunk 2077 adapter](games/cyberpunk-2077/README.md).
 
