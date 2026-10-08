@@ -80,7 +80,8 @@ def game_paks(
     paks = _install_root(game, settings, inspection) / game.paks_subpath
     if not paks.is_dir():
         raise ValueError(
-            f"{game.name} Paks={str(paks)!r}: expected an installed Content/Paks directory"
+            f"{game.name} mods root={str(paks)!r}: expected an installed "
+            f"{game.paks_subpath.as_posix()} directory"
         )
     return paks
 

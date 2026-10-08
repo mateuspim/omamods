@@ -144,6 +144,10 @@ class FakeNexusTransport:
             }
         return [{"URI": "https://cdn.example/mod.zip"}]
 
+    def post_json(self, url: str, api_key: str, body: object) -> object:
+        """Refuse; these tests never query GraphQL."""
+        raise AssertionError(f"url={url!r}: expected no GraphQL queries")
+
     def download(
         self,
         url: str,
@@ -187,6 +191,39 @@ class FakeNexusSite:
         self.requests: list[str] = []
         self.downloads: list[str] = []
         self.picture = b"picture"
+        # Mod ID -> required mod IDs, served like Nexus' v2 GraphQL API.
+        self.requirement_graph: dict[int, tuple[int, ...]] = {}
+        self.queries: list[tuple[int, ...]] = []
+
+    def post_json(self, url: str, api_key: str, body: object) -> object:
+        """Answer requirement queries; e.g. ``site.post_json(url, key, body)``."""
+        assert isinstance(body, dict)
+        ids = tuple(item["modId"] for item in body["variables"]["ids"])
+        self.queries.append(ids)
+        nodes = [self._requirement_node(mod_id) for mod_id in ids]
+        return {"data": {"legacyModsByDomain": {"nodes": nodes}}}
+
+    def _requirement_node(self, mod_id: int) -> dict[str, object]:
+        listed = [
+            {
+                "modId": str(needed),
+                "modName": f"Mod {needed}",
+                "gameId": "1",
+                "externalRequirement": False,
+                "url": "",
+                "notes": "",
+            }
+            for needed in self.requirement_graph.get(mod_id, ())
+        ]
+        return {
+            "modId": mod_id,
+            "name": f"Mod {mod_id}",
+            "gameId": 1,
+            "modRequirements": {
+                "nexusRequirements": {"nodes": listed},
+                "dlcRequirements": [],
+            },
+        }
 
     def get_json(self, url: str, api_key: str) -> object:
         """Route by endpoint; e.g. ``site.get_json(url, key)``."""
@@ -367,3 +404,26 @@ class FakeNexusGamesTransport:
     ) -> None:
         """Refuse; the game list never downloads archives."""
         raise AssertionError(f"url={url!r}: expected no downloads")
+
+    def post_json(self, url: str, api_key: str, body: object) -> object:
+        """Refuse; the game list never queries GraphQL."""
+        raise AssertionError(f"url={url!r}: expected no GraphQL queries")
+
+
+class FakeModArchives:
+    """Give each staged mod its own members, keyed by the mod ID in its path."""
+
+    def __init__(self, members_by_mod: dict[int, dict[str, bytes]]) -> None:
+        self.members_by_mod = members_by_mod
+
+    def _members(self, archive: Path) -> dict[str, bytes]:
+        # Staged archives live at archives/<game>/<mod_id>/<file_id>/<name>.
+        return self.members_by_mod[int(archive.parent.parent.name)]
+
+    def members(self, archive: Path) -> tuple[str, ...]:
+        """List that mod's members; e.g. ``fake.members(path)``."""
+        return tuple(self._members(archive))
+
+    def copy_member(self, archive: Path, member: str, destination: BytesIO) -> None:
+        """Write one member; e.g. ``fake.copy_member(path, name, stream)``."""
+        destination.write(self._members(archive)[member])

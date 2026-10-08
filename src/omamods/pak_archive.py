@@ -28,6 +28,9 @@ class PlannedAsset:
     # True when the target is an empty RE Engine patch (Capcom's 0-byte ones
     # or a placeholder) that the install may overwrite and revert restores.
     replaces_empty: bool = False
+    # An empty pak means a broken extraction, but Cyberpunk frameworks ship
+    # 0-byte marker files (ArchiveXL's r6/config/redsUserHints/ArchiveXL.toml).
+    allow_empty: bool = False
 
 
 class ArchiveReader(Protocol):

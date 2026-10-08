@@ -7,11 +7,10 @@ alternatives to each other, so "install mod" leaves them for the user to pick.
 
 from dataclasses import dataclass
 
-from omamods.nexus_api import NexusFile
+from omamods.nexus_api import STALE_CATEGORIES, NexusFile
 from omamods.pak_archive import PlannedAsset
 from omamods.staging import StagedMod
 
-STALE_CATEGORIES = frozenset({"OLD_VERSION", "ARCHIVED", "DELETED"})
 NOT_DEFAULT_INSTALL = STALE_CATEGORIES | {"OPTIONAL"}
 
 
@@ -56,21 +55,21 @@ def conflicting_targets(plans: tuple[FilePlan, ...]) -> tuple[str, ...]:
     return tuple(conflicts)
 
 
-def describe_plans(plans: tuple[FilePlan, ...]) -> str:
-    """List what will be written; for example, ``describe_plans(plans)``."""
+def describe_plans(plans: tuple[FilePlan, ...], folder: str = "Paks") -> str:
+    """List what will be written; for example, ``describe_plans(plans, 'Paks')``."""
     lines: list[str] = []
     for plan in plans:
         variant = f" (variant {plan.option})" if plan.option else ""
         lines.append(f"{plan.file.file_name}{variant}")
-        lines.extend(_target_line(asset) for asset in plan.assets)
+        lines.extend(_target_line(asset, folder) for asset in plan.assets)
     return "\n".join(lines)
 
 
-def _target_line(asset: PlannedAsset) -> str:
+def _target_line(asset: PlannedAsset, folder: str) -> str:
     if asset.packed:
         return (
             f"  next free patch_NNN.pak <- {len(asset.packed)} natives/ files, packed"
         )
     if asset.next_patch:
         return f"  next free patch_NNN.pak <- {asset.target.as_posix()}"
-    return f"  Paks/{asset.target.as_posix()}"
+    return f"  {folder}/{asset.target.as_posix()}"

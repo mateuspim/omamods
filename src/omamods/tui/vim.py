@@ -2,10 +2,11 @@
 
 from textual.widget import Widget
 
-# Each motion names the widget actions to try, in order (OptionList, DataTable).
+# Each motion names the widget actions to try, in order (OptionList, DataTable,
+# then scrolling panes such as the requirements dialog).
 MOTION_ACTIONS: dict[str, tuple[str, ...]] = {
-    "down": ("cursor_down",),
-    "up": ("cursor_up",),
+    "down": ("cursor_down", "scroll_down"),
+    "up": ("cursor_up", "scroll_up"),
     "top": ("first", "scroll_top"),
     "bottom": ("last", "scroll_bottom"),
     "page_down": ("page_down",),

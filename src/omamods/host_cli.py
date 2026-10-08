@@ -25,6 +25,7 @@ from omamods.heroic_games import default_heroic_roots
 from omamods.manifests import GameManifest, load_catalog
 from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.shelf_scan import ShelfSources, scan_shelf
+from omamods.steam_launch_options import steam_launch_options
 from omamods.tui.service import ModsService, TuiHost
 
 
@@ -54,6 +55,18 @@ class SteamPaksLocator:
             return scanned_game_paks(game)
         inspection = game_inspection(self.args, game, self.sources)
         return game_paks(game, settings, inspection)
+
+
+class SteamLaunchOptionsReader:
+    """Read a game's Steam launch options; e.g. ``reader('1091500')``."""
+
+    def __init__(self, args: Namespace, sources: CatalogSources) -> None:
+        self.args = args
+        self.sources = sources
+
+    def __call__(self, app_id: str) -> tuple[str, ...]:
+        roots = self.args.steam_root or self.sources.steam_roots
+        return steam_launch_options(tuple(roots), app_id, self.sources.files)
 
 
 class CachedNexusGames:
@@ -126,6 +139,7 @@ def tui_host(
         applications,
         HostShelfScanner(args, sources, runtime),
         chromium_browser(runtime.runner, data_dirs(runtime.environment, runtime.home)),
+        read_launch_options=SteamLaunchOptionsReader(args, sources),
     )
 
 

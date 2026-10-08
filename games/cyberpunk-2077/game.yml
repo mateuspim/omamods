@@ -3,8 +3,10 @@ name: Cyberpunk 2077
 status: discovery
 platforms:
   - steam
-adapter: external-manager
+adapter: direct-overlay
 steam_app_id: 1091500
 notes:
-  - REDmod is optional Steam DLC; check that it is installed and enabled before managing REDmods.
-  - REDmod and legacy mods use different destinations and deployment steps.
+  - Mods and frameworks install into the game folder; loose .archive files go to archive/pc/mod.
+  - "Press i on a mod to install its Nexus requirements first, in order."
+  - RED4ext and CET need WINEDLLOVERRIDES="version,winmm=n,b" in the Steam launch options.
+  - REDmod packages and FOMOD installers are refused for now.

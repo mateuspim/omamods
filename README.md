@@ -11,9 +11,9 @@ The Blood of Dawnwalker is the first game adapter. Its initial job is to prove
 the workflow: discover a Steam game, preserve mod archives outside a Distrobox,
 record a versioned profile, apply it safely, and restore the original state.
 The first write-capable adapter covers self-contained Unreal asset mods for
-Cronos and Stellar Blade. Discovery manifests also cover SILENT HILL 2,
-Divinity: Original Sin 2, and Cyberpunk 2077. Their adapter types describe
-proposed workflows, not working installers.
+Cronos and Stellar Blade; Cyberpunk 2077's `.archive` mods use the same
+installer. Discovery manifests also cover SILENT HILL 2 and Divinity: Original
+Sin 2. Their adapter types describe proposed workflows, not working installers.
 
 ## Project principles
 
@@ -70,7 +70,8 @@ The home screen scans for games each time it opens (press `r` to rescan) and
 lists them in three groups:
 
 - **Mod-ready**: catalog games OmaMods can install mods for (Cronos, Stellar
-  Blade), plus detected Unreal and RE Engine games. Enter opens their mods.
+  Blade, Cyberpunk 2077), plus detected Unreal and RE Engine games. Enter
+  opens their mods.
 - **In the catalog**: games with a manifest but no installer yet.
 - **Your other games**: every other game Steam has installed, in any library
   `libraryfolders.vdf` lists, plus Epic, GOG, Amazon, and sideloaded games
@@ -217,6 +218,48 @@ downloads running in the separate browser-handler process.
 
 Pictures render inline in Kitty, Ghostty, and foot; other terminals such as
 Alacritty show a coarse block preview, with `o` for full quality.
+
+## Cyberpunk 2077 Nexus mods
+
+Cyberpunk 2077 (Steam) mods and their frameworks (RED4ext, ArchiveXL,
+TweakXL, Codeware, redscript, Cyber Engine Tweaks) install into the game
+folder, as their pages ask. Files under `archive/`, `bin/`, `engine/`, `r6/`,
+or `red4ext/` keep their path, a wrapping folder such as `Cyberpunk 2077/` is
+dropped, and loose `.archive` and `.xl` files go to `archive/pc/mod`. Archives
+with several variant folders open the variant picker. REDmod packages
+(`mods/` at the top) and FOMOD installers are refused. As for every game,
+existing files are never overwritten, and uninstalling removes only files whose
+SHA-256 still matches, then any folders that emptied (never the game's own
+`archive/`, `bin/`, `engine/`, or `r6/`).
+
+### Requirements
+
+With an API key, `i` first asks Nexus (its v2 GraphQL API, which also lists
+requirements a mod's description leaves out) for the mod's whole requirement
+tree. Requirements that OmaMods installed, or whose files are already in the
+game folder, are skipped. If any are missing, a dialog lists them in install
+order with the file it picked (the newest MAIN file), plus DLC and off-site
+requirements you must check yourself. Confirming downloads them one at a time
+(without Premium, one Nexus window per click) and installs each as soon as it
+arrives, then installs the mod. A failed download or install stops the chain.
+Enter on a staged file and `:install` check requirements the same way. The
+running chain is saved to `<storage>/state/requirement_chain.json`, so closing
+the TUI midway is safe: on the next start it installs whatever arrived and
+reopens the next download. The dialog marks each row "downloaded" or "to
+download".
+
+RED4ext and Cyber Engine Tweaks load through `winmm.dll` and `version.dll`,
+which Proton ignores unless told otherwise. When the plan includes them and
+the game's Steam launch options lack the override, the dialog says what to
+add, for example:
+
+```text
+WINEDLLOVERRIDES="version,winmm=n,b" %command%
+```
+
+OmaMods reads the launch options but does not change them. A `modlist.txt` in
+`archive/pc/mod` overrides the archives' name order; OmaMods does not edit it.
+See the [Cyberpunk 2077 adapter](games/cyberpunk-2077/README.md).
 
 ## Cronos and Stellar Blade Nexus mods
 

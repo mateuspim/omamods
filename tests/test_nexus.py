@@ -136,6 +136,33 @@ class NexusTests(unittest.TestCase):
                 "[[mods]]\ngame='cronos'\nurl='x'\nfile_id=-1", Path("/tmp"), None
             )
 
+    def test_null_category_name_falls_back_to_category_id(self) -> None:
+        # Regression: RED4ext's deleted file 11722 broke mod 2380's whole listing.
+        files = parse_file_listing(
+            {
+                "files": [
+                    {
+                        "file_id": 1,
+                        "file_name": "a.zip",
+                        "category_name": None,
+                        "category_id": 6,
+                        "uploaded_timestamp": 1,
+                    },
+                    {"file_id": 2, "file_name": "b.zip", "category_name": "MAIN"},
+                ]
+            }
+        )
+        self.assertEqual([f.category for f in files], ["DELETED", "MAIN"])
+        # Regression: ArchiveXL's archived file 84351 has an empty file_name.
+        broken = {"file_id": 3, "file_name": "", "category_name": "ARCHIVED"}
+        self.assertEqual(parse_file_listing({"files": [broken]}), ())
+        with self.assertRaisesRegex(ValueError, "expected positive file_id"):
+            parse_file_listing({"files": [broken | {"category_name": "MAIN"}]})
+        with self.assertRaisesRegex(ValueError, "expected category_name"):
+            parse_file_listing(
+                {"files": [{"file_id": 1, "file_name": "a.zip", "category_id": 99}]}
+            )
+
     def test_nexus_url_and_file_selection(self) -> None:
         page = parse_nexus_page("https://www.nexusmods.com/cronosthenewdawn/mods/38")
         self.assertEqual((page.domain, page.mod_id), ("cronosthenewdawn", 38))

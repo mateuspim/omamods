@@ -32,6 +32,7 @@ from omamods.pak_detection import (
 from omamods.pak_games import (
     IOSTORE_SUFFIXES,
     PAK_SUFFIXES,
+    PAK_OVERLAY_GAMES,
     PakGameCatalog,
     pak_overlay_game,
 )
@@ -152,7 +153,7 @@ class CatalogTests(unittest.TestCase):
     def test_includes_scanned_games(self) -> None:
         catalog = PakGameCatalog((remnant_game(),))
         self.assertEqual(catalog.for_domain("remnant2").game_id, "remnant2")
-        self.assertEqual(len(catalog.all()), 3)
+        self.assertEqual(len(catalog.all()), len(PAK_OVERLAY_GAMES) + 1)
 
     def test_built_ins_win_over_a_scan(self) -> None:
         clash = replace(remnant_game(), game_id="cronos")

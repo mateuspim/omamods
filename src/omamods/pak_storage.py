@@ -16,6 +16,7 @@ from omamods.cdn_download import (
 from omamods.nexus_api import NexusFile, NexusTransport
 from omamods.pak_archive import ASSET_SUFFIXES, ArchiveReader, PlannedAsset
 from omamods.pak_games import PakOverlayGame
+from omamods.red_archive import is_red_game_path, is_removable_red_folder
 from omamods.re_pak_archive import write_packed_pak
 from omamods.re_patch_chain import is_empty_patch, patch_number
 
@@ -154,7 +155,7 @@ def _write_asset(
         if created:
             target.unlink()
         raise
-    if not target.stat().st_size:
+    if not asset.allow_empty and not target.stat().st_size:
         target.unlink()
         raise ValueError(f"asset member={asset.member!r}: expected nonempty content")
     return InstalledAsset(
@@ -196,19 +197,39 @@ def install_pak_archive(
     """Install owned files; e.g. ``install_pak_archive(zip, paks, state, 12, reader, plan)``."""
     _preflight(paks, planned, record)
     created: list[Path] = []
+    folders: list[Path] = []
     installed: list[InstalledAsset] = []
     try:
         for asset in planned:
             target = paks / asset.target
+            folders.extend(_missing_folders(paks, target))
             installed.append(_write_asset(archive, paks, asset, reader))
             created.append(target)
         _write_state(record, paks, archive, file_id, tuple(installed))
     except BaseException:
         for path in created:
             path.unlink(missing_ok=True)
+        _remove_new_folders(folders)
         _restore_empty_patches(paks, planned)
         raise
     return tuple(installed)
+
+
+def _missing_folders(paks: Path, target: Path) -> list[Path]:
+    # Deepest first, so a rollback can remove them in this order.
+    missing: list[Path] = []
+    folder = target.parent
+    while folder != paks and not folder.exists():
+        missing.append(folder)
+        folder = folder.parent
+    return missing
+
+
+def _remove_new_folders(folders: list[Path]) -> None:
+    # A failed install left r6/config/redsUserHints/ behind (ArchiveXL 1.27.4).
+    for folder in sorted(set(folders), key=lambda f: len(f.parts), reverse=True):
+        if folder.is_dir() and not any(folder.iterdir()):
+            folder.rmdir()
 
 
 def _restore_empty_patches(paks: Path, planned: tuple[PlannedAsset, ...]) -> None:
@@ -247,6 +268,9 @@ def _validate_owned_path(asset: InstalledAsset, game: PakOverlayGame) -> None:
     if game.patch_chain is not None:
         _validate_owned_patch(asset, game.patch_chain)
         return
+    if game.redengine:
+        _validate_owned_game_path(asset)
+        return
     mods_dirname = game.mods_dirname
     relative = Path(asset.relative_path)
     if (
@@ -258,6 +282,14 @@ def _validate_owned_path(asset: InstalledAsset, game: PakOverlayGame) -> None:
     ):
         raise ValueError(
             f"owned asset={asset.relative_path!r}: expected a path beneath {mods_dirname}/"
+        )
+
+
+def _validate_owned_game_path(asset: InstalledAsset) -> None:
+    if not is_red_game_path(asset.relative_path):
+        raise ValueError(
+            f"owned asset={asset.relative_path!r}: expected a path beneath a "
+            "game folder such as bin/ or archive/"
         )
 
 
@@ -293,5 +325,17 @@ def revert_pak_mod(record: Path, game: PakOverlayGame) -> tuple[Path, ...]:
         target.unlink(missing_ok=True)
         if asset.replaced_empty:
             target.touch()
+    if game.redengine:
+        _prune_empty_folders(paks, targets)
     record.unlink()
     return targets
+
+
+def _prune_empty_folders(root: Path, targets: tuple[Path, ...]) -> None:
+    # Framework folders such as red4ext/plugins/ArchiveXL would otherwise stay
+    # behind empty; the game's own top-level folders are never removed.
+    for target in targets:
+        folder = target.parent
+        while is_removable_red_folder(root, folder):
+            folder.rmdir()
+            folder = folder.parent

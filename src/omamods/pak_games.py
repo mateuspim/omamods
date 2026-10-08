@@ -1,6 +1,7 @@
 """Describe games whose self-contained pak mods share one installer.
 
-Unreal games overlay a mods folder; RE Engine games load numbered patch paks.
+Unreal games overlay a mods folder; RE Engine games load numbered patch paks;
+REDengine games take files anywhere in the game folder.
 """
 
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from pathlib import Path
 
 PAK_SUFFIXES = frozenset({".pak"})
 IOSTORE_SUFFIXES = frozenset({".pak", ".ucas", ".utoc"})
+REDENGINE_SUFFIXES = frozenset({".archive"})
 
 
 @dataclass(frozen=True)
@@ -28,6 +30,15 @@ class PakOverlayGame:
     # RE Engine games load mods as numbered patches of this base pak, e.g.
     # re_chunk_000.pak.patch_009.pak, instead of from a mods folder.
     patch_chain: str | None = None
+    # REDengine games (Cyberpunk 2077) install mods and their frameworks
+    # relative to the game folder; paks_subpath is then ".".
+    redengine: bool = False
+    # Built-in games that read Steam settings, such as launch options.
+    steam_app_id: str | None = None
+
+    def folder_label(self) -> str:
+        """Name the install folder in plans; e.g. ``cyberpunk.folder_label()``."""
+        return "<game>" if self.redengine else "Paks"
 
 
 PAK_OVERLAY_GAMES: dict[str, PakOverlayGame] = {
@@ -48,6 +59,17 @@ PAK_OVERLAY_GAMES: dict[str, PakOverlayGame] = {
         mods_dirname="~mods",
         # Stellar Blade mod 1 ships a lone .pak; others ship a triplet.
         flat_suffix_sets=(PAK_SUFFIXES, IOSTORE_SUFFIXES),
+    ),
+    "cyberpunk-2077": PakOverlayGame(
+        game_id="cyberpunk-2077",
+        name="Cyberpunk 2077",
+        nexus_domain="cyberpunk2077",
+        paks_subpath=Path("."),
+        # Loose .archive files land here; other files keep their game path.
+        mods_dirname="archive/pc/mod",
+        flat_suffix_sets=(REDENGINE_SUFFIXES,),
+        redengine=True,
+        steam_app_id="1091500",
     ),
 }
 

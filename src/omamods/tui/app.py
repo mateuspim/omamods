@@ -3,6 +3,7 @@
 import time
 from collections.abc import Callable
 
+from textual import work
 from textual.app import App
 from textual.binding import Binding
 
@@ -61,6 +62,27 @@ class OmaModsApp(App[None]):
     def on_mount(self) -> None:
         self.push_screen(GamesScreen(self.service))
         self.set_interval(BROWSER_POLL_SECONDS, self.advance_browser_downloads)
+        self.set_interval(BROWSER_POLL_SECONDS, self.tick_requirements)
+
+    def tick_requirements(self) -> None:
+        """Install requirement downloads as they arrive; runs on a timer."""
+        if self.service.requirements.has_work:
+            self.advance_requirements()
+
+    @work(thread=True, group="requirements")
+    def advance_requirements(self) -> None:
+        # Installs copy whole archives, so they stay off the UI thread.
+        try:
+            messages = self.service.requirements.advance()
+        except (OSError, ValueError) as error:
+            self.notify(
+                f"Stopped installing requirements: {error}",
+                severity="error",
+                timeout=15,
+            )
+            return
+        for message in messages:
+            self.notify(message, timeout=8)
 
     def advance_browser_downloads(self) -> None:
         """Step Nexus windows through queued files; runs on a timer on every screen."""

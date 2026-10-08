@@ -76,6 +76,10 @@ class NexusTransport(Protocol):
         """Read metadata; for example, ``transport.get_json(url, key)``."""
         ...
 
+    def post_json(self, url: str, api_key: str, body: object) -> object:
+        """Send a query; for example, ``transport.post_json(url, key, {'query': q})``."""
+        ...
+
     def download(
         self,
         url: str,
@@ -87,21 +91,31 @@ class NexusTransport(Protocol):
         ...
 
 
+def _api_headers(api_key: str) -> dict[str, str]:
+    return {
+        "apikey": api_key,
+        "Application-Name": "OmaMods",
+        "Application-Version": VERSION,
+        "User-Agent": USER_AGENT,
+    }
+
+
 class UrlNexusTransport:
     """Use HTTPS and identify this personal-use client to the Nexus API."""
 
     def get_json(self, url: str, api_key: str) -> object:
         """Fetch JSON with a private key; for example, ``client.get_json(url, key)``."""
-        headers = {
-            "apikey": api_key,
-            "Application-Name": "OmaMods",
-            "Application-Version": VERSION,
-            "User-Agent": USER_AGENT,
-        }
+        return self._json(request.Request(url, headers=_api_headers(api_key)))
+
+    def post_json(self, url: str, api_key: str, body: object) -> object:
+        """Post JSON, e.g. a GraphQL query; ``client.post_json(url, key, body)``."""
+        headers = _api_headers(api_key) | {"Content-Type": "application/json"}
+        payload = json.dumps(body).encode("utf-8")
+        return self._json(request.Request(url, payload, headers, method="POST"))
+
+    def _json(self, outgoing: request.Request) -> object:
         try:
-            with request.urlopen(
-                request.Request(url, headers=headers), timeout=30
-            ) as response:
+            with request.urlopen(outgoing, timeout=30) as response:
                 return json.load(response)
         except error.HTTPError as failure:
             raise NexusHttpError(failure.code, "a successful API response") from failure
@@ -180,9 +194,35 @@ def _nexus_file(value: object) -> NexusFile:
     )
 
 
+# Nexus sends category_name null for some files, e.g. RED4ext's deleted
+# 1.0.0 (mod 2380, file 11722); category_id still says which it is.
+CATEGORY_NAMES_BY_ID: dict[int, str] = {
+    1: "MAIN",
+    2: "UPDATE",
+    3: "OPTIONAL",
+    4: "OLD_VERSION",
+    5: "MISCELLANEOUS",
+    6: "DELETED",
+    7: "ARCHIVED",
+}
+
+
+STALE_CATEGORIES = frozenset({"OLD_VERSION", "ARCHIVED", "DELETED"})
+
+
+def _category(value: dict[str, object]) -> object:
+    name = value.get("category_name")
+    if name is not None:
+        return name
+    category_id = value.get("category_id")
+    if type(category_id) is int:
+        return CATEGORY_NAMES_BY_ID.get(category_id)
+    return None
+
+
 def _base_file(value: dict[str, object]) -> NexusFile:
     file_id, name = value.get("file_id"), value.get("file_name")
-    category, uploaded = value.get("category_name"), value.get("uploaded_timestamp", 0)
+    category, uploaded = _category(value), value.get("uploaded_timestamp", 0)
     if (
         type(file_id) is not int
         or file_id <= 0
@@ -236,7 +276,18 @@ def parse_file_listing(value: object) -> tuple[NexusFile, ...]:
     """Validate metadata; for example, ``parse_file_listing({'files': []})``."""
     if not isinstance(value, dict) or not isinstance(value.get("files"), list):
         raise ValueError(f"Nexus response={value!r}: expected a files array")
-    return tuple(_nexus_file(entry) for entry in value["files"])
+    return tuple(f for f in map(_listed_file, value["files"]) if f is not None)
+
+
+def _listed_file(entry: object) -> NexusFile | None:
+    try:
+        return _nexus_file(entry)
+    except ValueError:
+        # Nexus keeps broken records of retired files, such as ArchiveXL's
+        # archived 1.16.5 with an empty file_name (mod 4198, file 84351).
+        if isinstance(entry, dict) and _category(entry) in STALE_CATEGORIES:
+            return None
+        raise
 
 
 def select_file(files: tuple[NexusFile, ...], requested_id: int | None) -> NexusFile:

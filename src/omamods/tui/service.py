@@ -39,6 +39,7 @@ from omamods.pak_archive import ArchiveReader, PlannedAsset
 from omamods.detected_games import load_detected_games, save_detected_games
 from omamods.pak_detection import scanned_pak_games
 from omamods.pak_games import PakGameCatalog, PakOverlayGame
+from omamods.tui.requirement_flow import RequirementFlow
 from omamods.staging import (
     StagedMod,
     list_staged_mods,
@@ -48,6 +49,13 @@ from omamods.staging import (
 )
 
 PaksLocator = Callable[[PakOverlayGame, UserSettings], Path]
+# Maps a Steam app ID to every local user's launch options for it.
+LaunchOptionsReader = Callable[[str], tuple[str, ...]]
+
+
+def no_launch_options(app_id: str) -> tuple[str, ...]:
+    """Stand in when Steam is not searched; e.g. ``no_launch_options('1091500')``."""
+    return ()
 
 
 @dataclass(frozen=True)
@@ -68,6 +76,7 @@ class TuiHost:
     scan_shelf: ShelfScanner
     browser: str | None = None
     retry: RetryPolicy = RetryPolicy()
+    read_launch_options: LaunchOptionsReader = no_launch_options
 
 
 class ModsService:
@@ -81,6 +90,7 @@ class ModsService:
         self.hidden_windows = HiddenWindows()
         # Until the first scan, reuse the last one so queued downloads resolve.
         self.catalog = PakGameCatalog(load_detected_games(self.settings.storage_root))
+        self.requirements = RequirementFlow(self)
 
     def _load_settings(self) -> UserSettings:
         host = self.host
@@ -133,21 +143,26 @@ class ModsService:
         """Reload one mod; for example, ``service.staged_mod(sb, 1)``."""
         return load_staged_mod(self.settings.storage_root, game, mod_id)
 
-    def _api(self) -> NexusApi:
+    def nexus_api(self) -> NexusApi:
+        """Call Nexus with the saved key; for example, ``service.nexus_api().files(p)``."""
         if not self.settings.api_key:
-            raise ValueError("Nexus API key: expected one; press k to add it")
+            raise ValueError("Nexus API key: expected one; press K to add it")
         return NexusApi(self.host.transport, self.settings.api_key)
 
     def fetch_mod(self, game: PakOverlayGame, url: str) -> StagedMod:
         """Stage page details; e.g. ``service.fetch_mod(sb, 'https://...')``."""
         page = parse_nexus_page(url.strip())
-        return stage_mod_details(self._api(), game, page, self.settings.storage_root)
+        return stage_mod_details(
+            self.nexus_api(), game, page, self.settings.storage_root
+        )
 
     def download(self, game: PakOverlayGame, mod_id: int, file: NexusFile) -> Path:
         """Stage one archive; e.g. ``service.download(sb, 1, file)``."""
         page = NexusPage(game.nexus_domain, mod_id)
         root = self.settings.storage_root
-        return stage_file(self._api(), game, page, file, root, None, self.host.retry)
+        return stage_file(
+            self.nexus_api(), game, page, file, root, None, self.host.retry
+        )
 
     def fetch_file(self, game: PakOverlayGame, mod_id: int, file: NexusFile) -> bool:
         """Download, or hand off to the site; True when staged. E.g. ``fetch_file(sb, 1, f)``."""

@@ -25,6 +25,8 @@ from omamods.staging import StagedMod
 from omamods.tui.mods_commands import MODS_COMMANDS, run_mods_command
 from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPicker
 from omamods.tui.preview import PicturePreview
+from omamods.red_frameworks import launch_options_hint
+from omamods.tui.requirements_dialog import RequirementsDialog
 from omamods.tui.service import ModsService
 
 Result = TypeVar("Result")
@@ -84,6 +86,8 @@ class ModsScreen(Screen[None]):
         self.current: StagedMod | None = None
         self.search_text = ""
         self.picture_attempts: set[int] = set()
+        # Set from the first i until its dialog closes, so repeats are ignored.
+        self.checking_requirements = False
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -240,6 +244,61 @@ class ModsScreen(Screen[None]):
             return
         self.install_files(self.current, files)
 
+    def install_files(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
+        """Install staged files; e.g. ``screen.install_files(mod, (file,))``.
+
+        Every path (i, Enter, :install) checks Cyberpunk requirements first:
+        Enter on a staged mod used to install it with its requirements missing.
+        """
+        if self.game.redengine and self.service.has_api_key():
+            self._check_requirements(mod, files)
+            return
+        self.install_now(mod, files)
+
+    def _check_requirements(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
+        target = self.service.requirements.target_name
+        if target is not None:
+            self.notify(
+                f"Already installing {target} and its requirements; D shows downloads."
+            )
+            return
+        if self.checking_requirements:
+            self.notify("Already checking requirements; wait for the dialog.")
+            return
+        self.checking_requirements = True
+        self.notify("Checking the mod's requirements on Nexus...")
+        self.install_with_requirements(mod, files)
+
+    @work
+    async def install_with_requirements(
+        self, mod: StagedMod, files: tuple[NexusFile, ...]
+    ) -> None:
+        try:
+            await self._confirm_requirements(mod, files)
+        finally:
+            self.checking_requirements = False
+
+    async def _confirm_requirements(
+        self, mod: StagedMod, files: tuple[NexusFile, ...]
+    ) -> None:
+        flow = self.service.requirements
+        plan = await asyncio.to_thread(
+            self._attempt, lambda: flow.plan(self.game, mod, files)
+        )
+        if plan is None:
+            return
+        if not plan.needs_work:
+            if plan.missing_dlls:
+                hint = launch_options_hint(plan.missing_dlls)
+                self.notify(hint, severity="warning", timeout=20)
+            self.install_now(mod, files)
+            return
+        if not await self.app.push_screen_wait(RequirementsDialog(plan)):
+            return
+        if self._attempt(lambda: flow.start(plan)) is None:
+            return
+        self.notify("Installing requirements in order; D shows downloads.", timeout=10)
+
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         file = self._selected_file()
         if file is None or self.current is None:
@@ -289,7 +348,7 @@ class ModsScreen(Screen[None]):
         return tuple(plans)
 
     @work
-    async def install_files(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
+    async def install_now(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
         plans = await self._plan_files(mod, files)
         if plans is None:
             return
@@ -303,7 +362,9 @@ class ModsScreen(Screen[None]):
             )
             return
         title = f"Install {len(plans)} file(s) of {mod.title}?"
-        if await self.app.push_screen_wait(ConfirmDialog(title, describe_plans(plans))):
+        if await self.app.push_screen_wait(
+            ConfirmDialog(title, describe_plans(plans, self.game.folder_label()))
+        ):
             await asyncio.to_thread(self._install_plans, mod.mod_id, plans)
             self.reload()
 
