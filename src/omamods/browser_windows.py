@@ -55,6 +55,11 @@ def ayaka_window_class(mod_id: int) -> re.Pattern[str]:
     return re.compile(rf"ayakamods\.com__mods_{mod_id}(_|-|$)")
 
 
+def ayaka_login_window_class() -> re.Pattern[str]:
+    """Match the AyakaMods login page's app window; e.g. ``ayaka_login_window_class()``."""
+    return re.compile(r"ayakamods\.com__login(_|-|$)")
+
+
 class NexusWindows:
     """Open and close per-mod Nexus windows; e.g. ``NexusWindows(r, l, 'brave')``."""
 

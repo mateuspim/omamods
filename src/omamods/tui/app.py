@@ -199,11 +199,12 @@ class OmaModsApp(App[None]):
         self.service.ayaka.open_login()
         reason = "save or renew it"
         prompt = LoginCookiePrompt(reason, self.service.ayaka.clipboard_cookie)
-        self.push_screen(
-            prompt, lambda cookie: cookie and self._save_login_safely(cookie)
-        )
+        self.push_screen(prompt, self._save_login_safely)
 
-    def _save_login_safely(self, cookie: str) -> None:
+    def _save_login_safely(self, cookie: str | None) -> None:
+        self.service.ayaka.close_login()
+        if cookie is None:
+            return
         try:
             self.save_ayaka_login(cookie)
         except (OSError, ValueError) as error:

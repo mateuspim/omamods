@@ -105,6 +105,7 @@ class AyakaScreen(RequirementScreen):
 
     def _login_answered(self, mod: StagedMod | None, cookie: str | None) -> None:
         if cookie is None:
+            self._attempt(self.service.ayaka.close_login)
             if mod is not None:
                 self.watch_ayaka(mod)
             return
@@ -115,6 +116,7 @@ class AyakaScreen(RequirementScreen):
             # The page is already open; only the paste was wrong.
             self.ask_for_login(mod, "that value was not the xf_user cookie", False)
             return
+        self._attempt(self.service.ayaka.close_login)
         self.notify("Saved your AyakaMods login.")
         if mod is not None:
             self.download_ayaka(mod)

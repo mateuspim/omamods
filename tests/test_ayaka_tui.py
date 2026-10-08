@@ -8,7 +8,12 @@ from omamods.tui.app import OmaModsApp
 from omamods.tui.mods_screen import ModsScreen, describe_mod
 from omamods.ayaka_pages import LOGIN_URL
 from omamods.tui.login_dialog import LoginCookiePrompt
-from tests.fakes import FakeAyakaPages, FakeAyakaSession, FakeCommandRunner
+from tests.fakes import (
+    FakeAyakaPages,
+    FakeAyakaSession,
+    FakeCommandRunner,
+    FakeHyprland,
+)
 from tests.test_ayaka_pages import MOD_BLOCK, page_html
 from tests.test_tui import TuiFixture
 
@@ -246,3 +251,18 @@ class AyakaLoginTuiTests(AyakaTuiFixture):
             app.run_command_line(f":ayaka-login xf_user={COOKIE}")
             await pilot.pause()
             self.assertEqual(app.service.ayaka.login_cookie(), COOKIE)
+
+
+class AyakaLoginWindowTests(AyakaTuiFixture):
+    async def test_login_page_opens_and_closes_as_an_app_window(self) -> None:
+        window = "brave-ayakamods.com__login_-Default"
+        hyprland = FakeHyprland([{"address": "0xcd", "initialClass": window}])
+        app = self._app({}, hyprland, ayaka_pages=ayaka_pages("Stellar Blade"))
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._add_ayaka_mod(app, pilot, AYAKA_URL)
+            await self._settle(app, pilot)
+            self.assertIn(("brave", f"--app={LOGIN_URL}"), self.launcher.launched)
+            await pilot.press("escape")
+            await self._settle(app, pilot)
+            self.assertEqual(len(hyprland.closed()), 1)
+            self.assertIn("0xcd", hyprland.closed()[0])

@@ -37,7 +37,7 @@ from omamods.ayaka_staging import (
     stage_ayaka_details,
 )
 from omamods.ayaka_wait import AyakaWaits
-from omamods.browser_windows import ayaka_window_class
+from omamods.browser_windows import ayaka_login_window_class, ayaka_window_class
 from omamods.mod_fetch import download_log
 from omamods.pak_games import PakOverlayGame
 from omamods.mod_sites import AYAKA_SITE
@@ -153,8 +153,13 @@ class AyakaSite:
         )
 
     def open_login(self) -> None:
-        """Open the site's login page in the browser; e.g. ``service.ayaka.open_login()``."""
-        self.service.open_url(LOGIN_URL)
+        """Open the login page in its own window; e.g. ``service.ayaka.open_login()``."""
+        # An app window like the mod pages', so the same window rule floats it.
+        self.service.open_nexus(LOGIN_URL)
+
+    def close_login(self) -> int:
+        """Close the login window once done; e.g. ``service.ayaka.close_login()``."""
+        return self.service.windows.close_class(ayaka_login_window_class())
 
     def clipboard_cookie(self) -> str | None:
         """Read a copied xf_user value, if any; e.g. ``service.ayaka.clipboard_cookie()``."""
