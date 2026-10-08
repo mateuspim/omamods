@@ -7,7 +7,9 @@ from textual import work
 from textual.app import App
 from textual.binding import Binding
 
+from omamods.ayaka_pages import is_ayaka_url
 from omamods.nexus_api import parse_nexus_page
+from omamods.pak_games import PakOverlayGame
 from omamods.tui.commands import (
     GLOBAL_COMMANDS,
     CommandSpec,
@@ -168,9 +170,25 @@ class OmaModsApp(App[None]):
 
     def add_mod(self, url: str) -> None:
         """Open the URL's game and fetch the mod; e.g. ``app.add_mod('https://...')``."""
+        if is_ayaka_url(url):
+            # Ayaka links name no game; its page says which one.
+            self._add_ayaka_mod(url)
+            return
         game = self.service.catalog.for_domain(parse_nexus_page(url).domain)
+        self._fetch_into(game, url)
+
+    def _fetch_into(self, game: PakOverlayGame, url: str) -> None:
         screen = self._open_game(game.game_id)
         screen.call_after_refresh(screen.fetch_url, url)
+
+    @work(thread=True)
+    def _add_ayaka_mod(self, url: str) -> None:
+        try:
+            game = self.service.ayaka.game_for(url)
+        except (OSError, ValueError) as error:
+            self.notify(str(error), severity="error", timeout=10)
+            return
+        self.call_from_thread(self._fetch_into, game, url)
 
     def action_prompt_api_key(self) -> None:
         prompt = TextPrompt(

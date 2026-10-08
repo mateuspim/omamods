@@ -18,6 +18,8 @@ from omamods.nexus_api import NexusFile, NexusModInfo
 from omamods.pak_games import PakOverlayGame
 
 PICTURE_SUFFIXES = frozenset({".gif", ".jpeg", ".jpg", ".png", ".webp"})
+NEXUS_SITE = "nexus"
+AYAKA_SITE = "ayaka"
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,8 @@ class StagedMod:
     archives: dict[int, Path]
     picture: Path | None
     installed: frozenset[int]
+    # Which site's numbering mod_id follows; Ayaka mods live in their own area.
+    site: str = NEXUS_SITE
 
     @property
     def title(self) -> str:

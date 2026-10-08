@@ -26,6 +26,7 @@ from omamods.tui.games_screen import GamesScreen
 from omamods.tui.service import ModsService, TuiHost
 from tests.fakes import (
     FakeArchiveReader,
+    FakeAyakaPages,
     FakeCommandRunner,
     FakeConfigFiles,
     FakeShelfScanner,
@@ -97,7 +98,10 @@ class TuiFixture(unittest.IsolatedAsyncioTestCase):
         self.temporary.cleanup()
 
     def _app(
-        self, members: dict[str, bytes], hyprland: FakeHyprland | None = None
+        self,
+        members: dict[str, bytes],
+        hyprland: FakeHyprland | None = None,
+        ayaka_pages: FakeAyakaPages | None = None,
     ) -> OmaModsApp:
         host = TuiHost(
             self.config,
@@ -114,6 +118,8 @@ class TuiFixture(unittest.IsolatedAsyncioTestCase):
             self.scanner,
             "brave" if hyprland else None,
             RetryPolicy(sleep=FakeSleep()),
+            ayaka_pages=ayaka_pages,
+            downloads=self.root / "Downloads",
         )
         return OmaModsApp(ModsService(host))
 

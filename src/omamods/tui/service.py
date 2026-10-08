@@ -1,9 +1,11 @@
 """Everything the TUI does, behind one injectable object the screens call."""
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
+from omamods.ayaka_pages import AyakaPage, AyakaPageTransport
+from omamods.ayaka_pages import mod_page_url as ayaka_page_url
 from omamods.game_shelf import GameShelf, ShelfScanner
 from omamods.download_queue import QUEUED, DownloadStatus
 from omamods.mod_fetch import (
@@ -39,9 +41,12 @@ from omamods.pak_archive import ArchiveReader, PlannedAsset
 from omamods.detected_games import load_detected_games, save_detected_games
 from omamods.pak_detection import scanned_pak_games
 from omamods.pak_games import PakGameCatalog, PakOverlayGame
+from omamods.tui.ayaka_site import AyakaSite
 from omamods.tui.requirement_flow import RequirementFlow
 from omamods.variant_choices import exclusive_variants, nested_archives
 from omamods.staging import (
+    AYAKA_SITE,
+    NEXUS_SITE,
     StagedMod,
     list_staged_mods,
     load_staged_mod,
@@ -78,6 +83,9 @@ class TuiHost:
     browser: str | None = None
     retry: RetryPolicy = RetryPolicy()
     read_launch_options: LaunchOptionsReader = no_launch_options
+    ayaka_pages: AyakaPageTransport | None = None
+    # Where the browser saves files, watched for AyakaMods downloads.
+    downloads: Path | None = None
 
 
 class ModsService:
@@ -92,6 +100,7 @@ class ModsService:
         # Until the first scan, reuse the last one so queued downloads resolve.
         self.catalog = PakGameCatalog(load_detected_games(self.settings.storage_root))
         self.requirements = RequirementFlow(self)
+        self.ayaka = AyakaSite(self)
 
     def _load_settings(self) -> UserSettings:
         host = self.host
@@ -137,12 +146,20 @@ class ModsService:
         return self.settings.storage_root / "archives" / game.game_id
 
     def staged_mods(self, game: PakOverlayGame) -> tuple[StagedMod, ...]:
-        """List the staging folder; for example, ``service.staged_mods(sb)``."""
-        return list_staged_mods(self.settings.storage_root, game)
+        """List both sites' staging; for example, ``service.staged_mods(sb)``."""
+        nexus = list_staged_mods(self.settings.storage_root, game)
+        return nexus + self.ayaka.staged_mods(game)
 
-    def staged_mod(self, game: PakOverlayGame, mod_id: int) -> StagedMod:
+    def staged_mod(
+        self, game: PakOverlayGame, mod_id: int, site: str = NEXUS_SITE
+    ) -> StagedMod:
         """Reload one mod; for example, ``service.staged_mod(sb, 1)``."""
+        if site == AYAKA_SITE:
+            return self.ayaka.staged_mod(game, mod_id)
         return load_staged_mod(self.settings.storage_root, game, mod_id)
+
+    def _root(self, site: str) -> Path:
+        return self.ayaka.root() if site == AYAKA_SITE else self.settings.storage_root
 
     def nexus_api(self) -> NexusApi:
         """Call Nexus with the saved key; for example, ``service.nexus_api().files(p)``."""
@@ -262,8 +279,12 @@ class ModsService:
             )
         return self.fetch_file(game, status.mod_id, file)
 
-    def mod_page_url(self, game: PakOverlayGame, mod_id: int) -> str:
+    def mod_page_url(
+        self, game: PakOverlayGame, mod_id: int, site: str = NEXUS_SITE
+    ) -> str:
         """Link a mod page; for example, ``service.mod_page_url(sb, 1)``."""
+        if site == AYAKA_SITE:
+            return ayaka_page_url(AyakaPage(mod_id))
         return f"https://www.nexusmods.com/{game.nexus_domain}/mods/{mod_id}"
 
     def open_url(self, url: str) -> None:
@@ -312,14 +333,21 @@ class ModsService:
         return plan_game_assets(self.host.reader.members(archive), game, option)
 
     def install(
-        self, game: PakOverlayGame, mod_id: int, file_id: int, option: str | None
+        self,
+        game: PakOverlayGame,
+        mod_id: int,
+        file_id: int,
+        option: str | None,
+        site: str = NEXUS_SITE,
     ) -> int:
         """Install a staged file; e.g. ``service.install(sb, 1, 7, None)``."""
-        archive = self.staged_mod(game, mod_id).archives[file_id]
+        archive = self.staged_mod(game, mod_id, site).archives[file_id]
         paks = self.host.locate_paks(game, self.settings)
         request = LocalArchiveRequest(archive, mod_id, file_id, option)
+        # Records go beside the site's staging, so Ayaka IDs never meet Nexus'.
+        settings = replace(self.settings, storage_root=self._root(site))
         installed = install_local_archive(
-            game, self.settings, paks, request, self.host.reader
+            game, settings, paks, request, self.host.reader
         )
         return installed[1]
 
@@ -327,24 +355,29 @@ class ModsService:
         """Download a mod's picture if Nexus lists one; e.g. ``service.fetch_missing_picture(sb, mod)``."""
         if mod.info is None:
             # Staging page details also saves the picture.
-            url = self.mod_page_url(game, mod.mod_id)
-            mod = self.fetch_mod(game, url)
+            url = self.mod_page_url(game, mod.mod_id, mod.site)
+            add = self.ayaka.add if mod.site == AYAKA_SITE else self.fetch_mod
+            mod = add(game, url)
         if mod.picture is not None:
             return mod.picture
         if mod.info is None or mod.info.picture_url is None:
             raise ValueError(
                 f"{mod.title}: expected a picture URL in its Nexus details"
             )
-        folder = mod_folder(self.settings.storage_root, game, mod.mod_id)
+        folder = mod_folder(self._root(mod.site), game, mod.mod_id)
         return fetch_picture(self.host.transport, folder, mod.info.picture_url)
 
-    def remove_staged(self, game: PakOverlayGame, mod_id: int, file_id: int) -> Path:
+    def remove_staged(
+        self, game: PakOverlayGame, mod_id: int, file_id: int, site: str = NEXUS_SITE
+    ) -> Path:
         """Delete a downloaded file; e.g. ``service.remove_staged(sb, 365, 1028)``."""
-        return remove_staged_archive(self.settings.storage_root, game, mod_id, file_id)
+        return remove_staged_archive(self._root(site), game, mod_id, file_id)
 
-    def revert(self, game: PakOverlayGame, mod_id: int, file_id: int) -> int:
+    def revert(
+        self, game: PakOverlayGame, mod_id: int, file_id: int, site: str = NEXUS_SITE
+    ) -> int:
         """Remove one installed file; e.g. ``service.revert(sb, 1, 7)``."""
-        return revert_mod_files(game, self.settings.storage_root, mod_id, file_id)
+        return revert_mod_files(game, self._root(site), mod_id, file_id)
 
     def register_nxm(self) -> NxmRegistration:
         """Receive site download clicks; e.g. ``service.register_nxm()``."""

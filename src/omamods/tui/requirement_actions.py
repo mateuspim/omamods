@@ -12,7 +12,7 @@ from textual.screen import Screen
 
 from omamods.nexus_api import NexusFile
 from omamods.pak_games import PakOverlayGame
-from omamods.staging import StagedMod
+from omamods.staging import NEXUS_SITE, StagedMod
 from omamods.tui.launch_options_dialog import LaunchOptionsDialog
 from omamods.tui.requirements_dialog import RequirementsDialog
 from omamods.tui.service import ModsService
@@ -49,7 +49,9 @@ class RequirementScreen(Screen[None]):
         Every path (i, Enter, :install) checks Cyberpunk requirements first:
         Enter on a staged mod used to install it with its requirements missing.
         """
-        if self.game.redengine and self.service.has_api_key():
+        # Requirements are looked up on Nexus by mod ID, which Ayaka mods lack.
+        nexus = mod.site == NEXUS_SITE
+        if self.game.redengine and nexus and self.service.has_api_key():
             self._check_requirements(mod, files)
             return
         self.install_now(mod, files)

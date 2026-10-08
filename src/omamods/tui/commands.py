@@ -34,7 +34,7 @@ GLOBAL_COMMANDS = (
     CommandSpec("queue", ("downloads",), ":queue", "open the download queue"),
     CommandSpec("key", (), ":key <api-key>", "save your Nexus API key"),
     CommandSpec("nxm", (), ":nxm", "make browsers send nxm links to OmaMods"),
-    CommandSpec("add", (), ":add <url>", "add a mod by its Nexus page URL"),
+    CommandSpec("add", (), ":add <url>", "add a mod by its Nexus or AyakaMods URL"),
 )
 
 

@@ -16,9 +16,11 @@ from omamods.mod_plan import (
     default_installs,
     describe_plans,
 )
+from omamods.ayaka_pages import is_ayaka_url
 from omamods.nexus_api import NexusFile, describe_nexus_file
 from omamods.pak_games import PakOverlayGame
-from omamods.staging import StagedMod
+from omamods.staging import AYAKA_SITE, NEXUS_SITE, StagedMod
+from omamods.tui.ayaka_actions import AyakaScreen
 from omamods.tui.mods_commands import MODS_COMMANDS, run_mods_command
 from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPicker
 from omamods.tui.downloads_panel import (
@@ -28,7 +30,6 @@ from omamods.tui.downloads_panel import (
     next_panel_mode,
 )
 from omamods.tui.preview import PicturePreview
-from omamods.tui.requirement_actions import RequirementScreen
 from omamods.tui.service import ModsService
 
 REFRESH_SECONDS = 3.0
@@ -43,7 +44,9 @@ def describe_mod(mod: StagedMod) -> str:
     if mod.info is None:
         return f"{mod.title}\nNo page details yet; press a and paste its URL."
     info = mod.info
-    byline = " · ".join(part for part in (info.author, info.version) if part)
+    # AyakaMods asks integrations to credit it as the source.
+    site = "from AyakaMods" if mod.site == AYAKA_SITE else ""
+    byline = " · ".join(part for part in (info.author, info.version, site) if part)
     return f"{info.name}\n{byline}\n\n{info.summary}".strip()
 
 
@@ -62,7 +65,12 @@ def file_cells(mod: StagedMod, file: NexusFile) -> tuple[str, ...]:
     )
 
 
-class ModsScreen(RequirementScreen):
+def mod_key(mod: StagedMod) -> str:
+    """Name a mod uniquely across sites; e.g. ``mod_key(staged) == 'ayaka:7311'``."""
+    return f"{mod.site}:{mod.mod_id}"
+
+
+class ModsScreen(AyakaScreen):
     """Show and change one game's mods; e.g. ``app.push_screen(ModsScreen(s, sb))``."""
 
     BINDINGS = [
@@ -89,7 +97,7 @@ class ModsScreen(RequirementScreen):
         self.mods: tuple[StagedMod, ...] = ()
         self.current: StagedMod | None = None
         self.search_text = ""
-        self.picture_attempts: set[int] = set()
+        self.picture_attempts: set[str] = set()
         # Set from the first i until its dialog closes, so repeats are ignored.
         self.checking_requirements = False
 
@@ -121,6 +129,7 @@ class ModsScreen(RequirementScreen):
         )
         self.reload()
         self.set_interval(REFRESH_SECONDS, self.reload)
+        self.set_interval(REFRESH_SECONDS, self.take_ayaka_arrivals)
         if self.game.redengine:
             self._warn_launch_options()
         panel = self.query_one(DownloadsPanel)
@@ -145,11 +154,11 @@ class ModsScreen(RequirementScreen):
         if mods is None or mods == self.mods:
             return
         self.mods = mods
-        selected = self.current.mod_id if self.current else None
+        selected = mod_key(self.current) if self.current else None
         mod_list = self.query_one("#mods", OptionList)
         mod_list.clear_options()
-        mod_list.add_options(Option(m.title, id=str(m.mod_id)) for m in mods)
-        ids = [m.mod_id for m in mods]
+        mod_list.add_options(Option(m.title, id=mod_key(m)) for m in mods)
+        ids = [mod_key(m) for m in mods]
         if mods:
             mod_list.highlighted = ids.index(selected) if selected in ids else 0
 
@@ -175,14 +184,15 @@ class ModsScreen(RequirementScreen):
 
     def _backfill_picture(self, mod: StagedMod) -> None:
         # Mods staged before pictures worked (or while offline) fetch theirs once.
-        if mod.picture is not None or mod.mod_id in self.picture_attempts:
+        if mod.picture is not None or mod_key(mod) in self.picture_attempts:
             return
         if mod.info is not None and mod.info.picture_url is None:
             return
         # Hand-staged mods (`omamods nexus install`) have no page details yet.
-        if mod.info is None and not self.service.has_api_key():
+        nexus = mod.site == NEXUS_SITE
+        if mod.info is None and nexus and not self.service.has_api_key():
             return
-        self.picture_attempts.add(mod.mod_id)
+        self.picture_attempts.add(mod_key(mod))
         self._picture_worker(mod)
 
     @work(thread=True)
@@ -204,14 +214,16 @@ class ModsScreen(RequirementScreen):
 
     def action_add(self) -> None:
         prompt = TextPrompt(
-            f"Paste a {self.game.name} Nexus mod URL",
+            f"Paste a {self.game.name} mod URL from Nexus or AyakaMods",
             f"https://www.nexusmods.com/{self.game.nexus_domain}/mods/1",
         )
         self.app.push_screen(prompt, self.fetch_url)
 
     def fetch_url(self, url: str | None) -> None:
         """Fetch a mod page into staging; for example, ``screen.fetch_url(url)``."""
-        if url:
+        if url and is_ayaka_url(url.strip()):
+            self.fetch_ayaka(url)
+        elif url:
             self.notify("Fetching mod details from Nexus...")
             self._fetch_worker(url)
 
@@ -243,6 +255,9 @@ class ModsScreen(RequirementScreen):
         self.app.call_from_thread(self.reload)
 
     def action_download(self) -> None:
+        if self.current is not None and self.current.site == AYAKA_SITE:
+            self.watch_ayaka(self.current)  # Another file from the same page.
+            return
         file = self._selected_file()
         if file is not None and self.current is not None:
             self.download_files(self.current.mod_id, (file,))
@@ -340,14 +355,14 @@ class ModsScreen(RequirementScreen):
         if await self.app.push_screen_wait(
             ConfirmDialog(title, describe_plans(plans, self.game.folder_label()))
         ):
-            await asyncio.to_thread(self._install_plans, mod.mod_id, plans)
+            await asyncio.to_thread(self._install_plans, mod, plans)
             self.reload()
 
-    def _install_plans(self, mod_id: int, plans: tuple[FilePlan, ...]) -> None:
+    def _install_plans(self, mod: StagedMod, plans: tuple[FilePlan, ...]) -> None:
         for plan in plans:
             count = self._attempt(
                 lambda: self.service.install(
-                    self.game, mod_id, plan.file.file_id, plan.option
+                    self.game, mod.mod_id, plan.file.file_id, plan.option, mod.site
                 )
             )
             if count is None:
@@ -369,14 +384,14 @@ class ModsScreen(RequirementScreen):
     def confirm_uninstall(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
         names = "\n".join(f"  {file.file_name}" for file in files)
         dialog = ConfirmDialog(f"Uninstall from {mod.title}?", names)
-        self.app.push_screen(
-            dialog, lambda yes: yes and self._uninstall(mod.mod_id, files)
-        )
+        self.app.push_screen(dialog, lambda yes: yes and self._uninstall(mod, files))
 
-    def _uninstall(self, mod_id: int, files: tuple[NexusFile, ...]) -> None:
+    def _uninstall(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
         for file in files:
             count = self._attempt(
-                lambda: self.service.revert(self.game, mod_id, file.file_id)
+                lambda: self.service.revert(
+                    self.game, mod.mod_id, file.file_id, mod.site
+                )
             )
             if count is None:
                 break
@@ -394,16 +409,18 @@ class ModsScreen(RequirementScreen):
         if self.current is None or file.file_id not in self.current.archives:
             self.notify("This file is not downloaded.")
             return
-        mod_id = self.current.mod_id
+        mod = self.current
         dialog = ConfirmDialog(
             f"Delete the download {file.file_name}?",
             f"{describe_nexus_file(file)}\nThe game is not touched.",
         )
-        self.app.push_screen(dialog, lambda yes: yes and self._remove(mod_id, file))
+        self.app.push_screen(dialog, lambda yes: yes and self._remove(mod, file))
 
-    def _remove(self, mod_id: int, file: NexusFile) -> None:
+    def _remove(self, mod: StagedMod, file: NexusFile) -> None:
         removed = self._attempt(
-            lambda: self.service.remove_staged(self.game, mod_id, file.file_id)
+            lambda: self.service.remove_staged(
+                self.game, mod.mod_id, file.file_id, mod.site
+            )
         )
         if removed is not None:
             self.notify(f"Deleted {removed.name}")
@@ -444,5 +461,6 @@ class ModsScreen(RequirementScreen):
 
     def action_open_page(self) -> None:
         if self.current is not None:
-            url = self.service.mod_page_url(self.game, self.current.mod_id)
+            current = self.current
+            url = self.service.mod_page_url(self.game, current.mod_id, current.site)
             self._attempt(lambda: self.service.open_url(url))

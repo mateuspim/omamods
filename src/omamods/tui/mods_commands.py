@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from omamods.mod_plan import preselected_download
 from omamods.nexus_api import NexusFile
-from omamods.staging import StagedMod
+from omamods.staging import AYAKA_SITE, StagedMod
 from omamods.tui.commands import CommandSpec, find_file
 
 if TYPE_CHECKING:
@@ -23,11 +23,12 @@ MODS_COMMANDS = (
         "download selected, one, or all files",
     ),
     CommandSpec("rm", ("x",), ":rm <file>", "delete a download from staging"),
-    CommandSpec("web", ("w",), ":web", "open the mod's Nexus page"),
+    CommandSpec("web", ("w",), ":web", "open the mod's web page"),
     CommandSpec("picture", ("o",), ":picture", "open the full picture in imv"),
     CommandSpec(
         "dl", (), ":dl [min|game|full]", "resize the downloads panel (D cycles)"
     ),
+    CommandSpec("stop", (), ":stop", "stop waiting for an AyakaMods download"),
 )
 PANEL_SIZES = {"min": "minimized", "game": "game", "full": "full"}
 # Files are given by the ID column or a unique part of their name.
@@ -70,6 +71,10 @@ def _download(screen: "ModsScreen", args: tuple[str, ...]) -> None:
         screen.action_download()
         return
     mod = _current_mod(screen)
+    if mod.site == AYAKA_SITE:
+        # The browser picks the file on the mod page; there is no file list.
+        screen.watch_ayaka(mod)
+        return
     if args == ("all",):
         files = tuple(
             f
@@ -109,6 +114,7 @@ HANDLERS: dict[str, Callable[["ModsScreen", tuple[str, ...]], None]] = {
     "web": lambda screen, args: screen.action_open_page(),
     "picture": lambda screen, args: screen.action_open_picture(),
     "dl": _resize_downloads,
+    "stop": lambda screen, args: screen.cancel_ayaka(),
 }
 
 

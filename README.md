@@ -173,12 +173,13 @@ so `:inst` is `:install`. `:help` lists the commands for the current screen.
 | --- | --- |
 | `:q`, `:qa` | close this screen, quit OmaMods |
 | `:game <name>` | open a game by ID prefix, name, or initials (`:game sb`) |
-| `:add <url>` | add a mod; opens the URL's game |
+| `:add <url>` | add a Nexus or AyakaMods mod; opens the URL's game |
 | `:install [file]`, `:uninstall [file]` | the whole mod, or one file |
 | `:download [file\|all]` | the selected file, one file, or every current file |
 | `:rm <file>` | delete a download from staging |
 | `:queue`, `:retry`, `:clear` | the download queue |
 | `:dl [min\|game\|full]` | size the mods screen's downloads panel |
+| `:stop` | stop waiting for an AyakaMods download |
 | `:key <api-key>`, `:nxm` | setup |
 
 ### Downloads panel
@@ -242,6 +243,35 @@ downloads running in the separate browser-handler process.
 
 Pictures render inline in Kitty, Ghostty, and foot; other terminals such as
 Alacritty show a coarse block preview, with `o` for full quality.
+
+### AyakaMods
+
+Press `a` (or `:add`) and paste an AyakaMods page URL, such as
+`https://ayakamods.com/mods/sample-outfit.7311/`. No API key is
+needed: OmaMods reads the name, author, version, picture, and game from the
+page, and refuses a mod made for another game. `:add` from any screen opens
+the game the page names.
+
+AyakaMods only serves files to a logged-in browser and has no mod-manager
+link like Nexus' `nxm://`, so OmaMods opens the mod page (in its own app
+window with a Chromium-family browser, as for Nexus) and watches your
+downloads folder (`xdg-user-dir DOWNLOAD`, else `~/Downloads`). Download the
+file there as usual. Once the browser has finished writing it, the archive is
+moved into staging, the window closes, and `i` installs it like any other
+mod. Files already in the folder are ignored, and partial `.crdownload` and
+`.part` files are waited out. If your browser asks where to save, pick that
+folder.
+
+OmaMods waits for one AyakaMods download at a time; adding another mod
+replaces the wait, and `:stop` ends it. Anything else that finishes
+downloading into the folder while it waits is taken as that mod's file, so
+`x` deletes it from staging if it was not. `d` on an AyakaMods mod opens its
+page again to fetch another file (an optional one, say). The Nexus
+requirement check does not apply to AyakaMods mods.
+
+AyakaMods mods keep their own staging and install records under
+`<storage-root>/ayaka/`, because the two sites number their mods
+independently.
 
 ## Cyberpunk 2077 Nexus mods
 

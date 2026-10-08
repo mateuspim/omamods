@@ -50,6 +50,11 @@ def nexus_window_class(domain: str, mod_id: int) -> re.Pattern[str]:
     return re.compile(rf"www\.nexusmods\.com__{re.escape(domain)}_mods_{mod_id}(-|$)")
 
 
+def ayaka_window_class(mod_id: int) -> re.Pattern[str]:
+    """Match an AyakaMods page's app window; e.g. ``ayaka_window_class(7311)``."""
+    return re.compile(rf"ayakamods\.com__mods_{mod_id}(_|-|$)")
+
+
 class NexusWindows:
     """Open and close per-mod Nexus windows; e.g. ``NexusWindows(r, l, 'brave')``."""
 
@@ -68,13 +73,12 @@ class NexusWindows:
         self.launcher.launch((self.browser, f"--app={url}"))
         return True
 
-    def _addresses(self, domain: str, mod_id: int) -> tuple[str, ...]:
+    def _addresses(self, pattern: re.Pattern[str]) -> tuple[str, ...]:
         code, output = self.runner.run(("hyprctl", "clients", "-j"))
         try:
             clients = json.loads(output) if code == 0 else []
         except ValueError:
             return ()
-        pattern = nexus_window_class(domain, mod_id)
         return tuple(
             str(client["address"])
             for client in clients
@@ -102,16 +106,20 @@ class NexusWindows:
         legacy = f"{HIDDEN_WORKSPACE},address:{address}"
         self._dispatch(lua, ("movetoworkspacesilent", legacy))
 
-    def close_mod(self, domain: str, mod_id: int) -> int:
-        """Close a mod's windows; e.g. ``windows.close_mod('stellarblade', 1)``."""
-        addresses = self._addresses(domain, mod_id)
+    def close_class(self, pattern: re.Pattern[str]) -> int:
+        """Close windows by class; e.g. ``windows.close_class(ayaka_window_class(1))``."""
+        addresses = self._addresses(pattern)
         for address in addresses:
             self._close(address)
         return len(addresses)
 
+    def close_mod(self, domain: str, mod_id: int) -> int:
+        """Close a mod's windows; e.g. ``windows.close_mod('stellarblade', 1)``."""
+        return self.close_class(nexus_window_class(domain, mod_id))
+
     def hide_mod(self, domain: str, mod_id: int) -> int:
         """Move a mod's windows off screen; e.g. ``windows.hide_mod('stellarblade', 1)``."""
-        addresses = self._addresses(domain, mod_id)
+        addresses = self._addresses(nexus_window_class(domain, mod_id))
         for address in addresses:
             self._hide(address)
         return len(addresses)
