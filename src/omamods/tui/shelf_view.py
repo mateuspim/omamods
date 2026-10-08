@@ -10,6 +10,7 @@ from textual.widgets.option_list import Option
 from omamods.game_shelf import CATALOG, LIBRARY, MOD_READY, GameShelf, ShelfEntry
 from omamods.installed_games import InstalledGame
 from omamods.pak_games import PakOverlayGame
+from omamods.tui.list_filter import mark_matches, matches_query
 
 SECTION_TITLES: dict[str, str] = {
     MOD_READY: "MOD-READY",
@@ -44,8 +45,8 @@ def install_dot(entry: ShelfEntry) -> tuple[str, str]:
     return READY_DOT if install.ready else INCOMPLETE_DOT
 
 
-def entry_prompt(entry: ShelfEntry) -> Table:
-    """Render one list row as mark, name, store; e.g. ``Option(entry_prompt(e))``."""
+def entry_prompt(entry: ShelfEntry, query: str = "") -> Table:
+    """Render one list row as mark, name, store; e.g. ``Option(entry_prompt(e, 'sb'))``."""
     dot, colour = install_dot(entry)
     install = entry.install
     row = Table.grid(expand=True, padding=(0, 1))
@@ -53,7 +54,8 @@ def entry_prompt(entry: ShelfEntry) -> Table:
     # Long titles (the Metal Gear collection) used to wrap onto two rows.
     row.add_column(ratio=1, no_wrap=True, overflow="ellipsis", style="bold")
     row.add_column(justify="right", no_wrap=True, style="dim italic")
-    row.add_row(f" {dot}", entry.name, install.store if install else "not installed")
+    name = mark_matches(entry.name, query)
+    row.add_row(f" {dot}", name, install.store if install else "not installed")
     return row
 
 
@@ -63,15 +65,15 @@ def section_heading(section: str, count: int) -> Option:
     return Option(label, id=f"{SECTION_PREFIX}{section}", disabled=True)
 
 
-def shelf_options(shelf: GameShelf) -> list[Option]:
-    """List every section with its games; e.g. ``games.add_options(shelf_options(s))``."""
+def shelf_options(shelf: GameShelf, query: str = "") -> list[Option]:
+    """List each section's games matching query; e.g. ``shelf_options(s, 'blade')``."""
     options: list[Option] = []
     for section in SECTION_TITLES:
-        entries = shelf.section(section)
+        entries = [e for e in shelf.section(section) if matches_query(e.name, query)]
         if not entries:
             continue
         options.append(section_heading(section, len(entries)))
-        options.extend(Option(entry_prompt(e), id=e.key) for e in entries)
+        options.extend(Option(entry_prompt(e, query), id=e.key) for e in entries)
     return options
 
 

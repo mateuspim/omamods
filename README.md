@@ -128,7 +128,7 @@ overwrite it. OmaMods then refuses to uninstall the changed file; reinstall
 your mods after a game update.
 
 The detail panel shows the game's folder, library, size, Steam app ID, build,
-and Proton prefix. `o` opens the folder in your file manager, `/` searches by
+and Proton prefix. `o` opens the folder in your file manager, `/` filters by
 name, and `w` lists records that could not be read. Catalog games match Steam
 installs by app ID, never by title. The theme defaults to Tokyo Night; pick
 another with `Ctrl+P` → *Change theme*.
@@ -164,8 +164,12 @@ another with `Ctrl+P` → *Change theme*.
 ### Vim keys and commands
 
 `j`/`k` move, `gg`/`G` jump to the top/bottom, `Ctrl+d`/`Ctrl+u` page, and
-`h`/`l` switch panes. `/text` jumps to a mod whose name contains `text`;
-`n`/`N` find the next/previous match. `:` opens a command line (Tab or the
+`h`/`l` switch panes. `/` filters the games or mods list as you type, like a
+LazyVim picker: only names containing every typed word stay, with the words
+highlighted, and the panel title shows the filter and its count. Enter keeps the
+filter, Esc in the prompt puts back the previous one, and Esc on the list clears
+it while staying on the highlighted entry (a second Esc leaves the mods screen).
+On the mods screen `n`/`N` cycle through the matches. `:` opens a command line (Tab or the
 right arrow accepts the suggestion); commands accept unique prefixes like vim,
 so `:inst` is `:install`. `:help` lists the commands for the current screen.
 

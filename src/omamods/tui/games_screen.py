@@ -4,23 +4,25 @@ from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
-from textual.screen import Screen
 from textual.widgets import Footer, Header, OptionList, Static
 from textual.widgets.option_list import OptionDoesNotExist
 
 from omamods.game_shelf import GameShelf, ShelfEntry
 from omamods.tui.dialogs import InfoDialog
+from omamods.tui.list_filter import search_title
+from omamods.tui.list_search import SearchableScreen
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
 from omamods.tui.shelf_view import entry_detail, setup_summary, shelf_options
 
 WELCOME = (
     "Pick a game on the left.\n\n"
-    "Vim keys: j/k move, gg/G top/bottom, / search, : commands (:help)."
+    "Vim keys: j/k move, gg/G top/bottom, / filters (Esc clears), "
+    ": commands (:help)."
 )
 
 
-class GamesScreen(Screen[None]):
+class GamesScreen(SearchableScreen):
     """Choose a game; e.g. ``app.push_screen(GamesScreen(service))``."""
 
     BINDINGS = [
@@ -30,12 +32,16 @@ class GamesScreen(Screen[None]):
         Binding("K", "app.prompt_api_key", "API key"),
         Binding("n", "app.register_nxm", "Handle nxm links"),
         Binding("q", "app.quit", "Quit"),
+        Binding("escape", "clear_search", "Clear filter", show=False),
     ]
+    SEARCH_LIST_ID = "games"
 
     def __init__(self, service: ModsService) -> None:
         super().__init__()
         self.service = service
         self.shelf: GameShelf | None = None
+        # Survives a filter that matches nothing, so clearing it finds the game.
+        self.selected_key: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -73,20 +79,30 @@ class GamesScreen(Screen[None]):
 
     def show_shelf(self, shelf: GameShelf) -> None:
         """List a scan's games, keeping the cursor; e.g. ``screen.show_shelf(s)``."""
-        games = self.query_one("#games", OptionList)
-        current = self.selected_entry()
         self.shelf = shelf
-        games.clear_options()
-        games.add_options(shelf_options(shelf))
-        games.loading = False
-        games.action_first()
-        if current is not None:
-            self._highlight(current.key)
+        self.query_one("#games", OptionList).loading = False
+        self.rebuild_list(jump_to_first=False)
         installed = sum(1 for entry in shelf.entries if entry.install)
         self.sub_title = (
             f"{installed} installed · {len(shelf.libraries)} Steam libraries"
         )
         self.refresh_status()
+
+    def rebuild_list(self, jump_to_first: bool) -> int:
+        """List the games matching ``search_query``; e.g. ``screen.rebuild_list(True)``."""
+        games = self.query_one("#games", OptionList)
+        options = shelf_options(self.shelf, self.search_query) if self.shelf else []
+        games.clear_options()
+        games.add_options(options)
+        games.action_first()
+        if self.selected_key is not None and not jump_to_first:
+            self._highlight(self.selected_key)
+        if games.highlighted_option is not None:
+            self.selected_key = games.highlighted_option.id
+        shown = sum(1 for option in options if not option.disabled)
+        total = len(self.shelf.entries) if self.shelf else 0
+        games.border_title = search_title("Games", self.search_query, shown, total)
+        return shown
 
     def _highlight(self, key: str) -> None:
         games = self.query_one("#games", OptionList)
@@ -112,6 +128,7 @@ class GamesScreen(Screen[None]):
     ) -> None:
         entry = self.entry(event.option.id)
         if entry is not None:
+            self.selected_key = entry.key
             card = entry_detail(entry, self._staged_count(entry))
             self.query_one("#game-info", Static).update(card)
 
@@ -149,16 +166,6 @@ class GamesScreen(Screen[None]):
         warnings = self.shelf.warnings if self.shelf else ()
         text = "\n\n".join(warnings) or "No discovery warnings."
         self.app.push_screen(InfoDialog("Discovery warnings", text))
-
-    def search(self, text: str) -> None:
-        """Jump to a game whose name contains text; e.g. ``screen.search('blade')``."""
-        needle = text.casefold()
-        entries = self.shelf.entries if self.shelf else ()
-        match = next((e for e in entries if needle in e.name.casefold()), None)
-        if match is None:
-            self.notify(f"No game matches {text!r}.", severity="warning")
-            return
-        self._highlight(match.key)
 
     def refresh_status(self) -> None:
         """Re-render setup state, e.g. after saving a key."""

@@ -183,6 +183,14 @@ class ShelfViewTests(unittest.TestCase):
         self.assertEqual(options[0].id, f"section:{MOD_READY}")
         self.assertIn("MOD-READY · 2", str(options[0].prompt))
 
+    def test_options_keep_only_matching_games_and_sections(self) -> None:
+        options = shelf_options(self.shelf, "blade")
+        self.assertEqual(
+            [o.id for o in options], [f"section:{MOD_READY}", "stellar-blade"]
+        )
+        self.assertIn("MOD-READY · 1", str(options[0].prompt))
+        self.assertEqual(shelf_options(self.shelf, "zzz"), [])
+
     def test_detail_card_lists_folder_and_support(self) -> None:
         text = render(entry_detail(self.shelf.entries[0], 3))
         self.assertIn("/g/Stellar Blade™", text)

@@ -24,6 +24,8 @@ from omamods.staging import StagedMod
 from omamods.tui.ayaka_actions import AyakaScreen
 from omamods.tui.mods_commands import MODS_COMMANDS, run_mods_command
 from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPicker
+from omamods.tui.list_filter import mark_matches, matches_query, search_title
+from omamods.tui.list_search import SearchableScreen
 from omamods.tui.downloads_panel import (
     FULL_QUEUE,
     MINIMIZED,
@@ -71,7 +73,7 @@ def mod_key(mod: StagedMod) -> str:
     return f"{mod.site}:{mod.mod_id}"
 
 
-class ModsScreen(AyakaScreen):
+class ModsScreen(SearchableScreen, AyakaScreen):
     """Show and change one game's mods; e.g. ``app.push_screen(ModsScreen(s, sb))``."""
 
     BINDINGS = [
@@ -85,19 +87,21 @@ class ModsScreen(AyakaScreen):
         Binding("L", "launch_options", "Launch options", show=False),
         # Overrides the app's D (open the queue screen): grows the panel instead.
         Binding("D", "cycle_downloads", "Downloads size"),
-        Binding("escape", "app.pop_screen", "Back"),
+        Binding("escape", "back", "Back"),
         Binding("n", "next_match(1)", "Next match", show=False),
         Binding("N", "next_match(-1)", "Previous match", show=False),
     ]
     SCREEN_COMMANDS = MODS_COMMANDS
+    SEARCH_LIST_ID = "mods"
 
     def __init__(self, service: ModsService, game: PakOverlayGame) -> None:
         super().__init__()
         self.service = service
         self.game = game
         self.mods: tuple[StagedMod, ...] = ()
+        # The mods matching the '/' filter, in list order.
+        self.shown: tuple[StagedMod, ...] = ()
         self.current: StagedMod | None = None
-        self.search_text = ""
         self.picture_attempts: set[str] = set()
         # Set from the first i until its dialog closes, so repeats are ignored.
         self.checking_requirements = False
@@ -155,18 +159,41 @@ class ModsScreen(AyakaScreen):
         if mods is None or mods == self.mods:
             return
         self.mods = mods
-        selected = mod_key(self.current) if self.current else None
+        self.rebuild_list(jump_to_first=False)
+
+    def rebuild_list(self, jump_to_first: bool) -> int:
+        """List the mods matching ``search_query``; e.g. ``screen.rebuild_list(True)``."""
+        query = self.search_query
+        self.shown = tuple(m for m in self.mods if matches_query(m.title, query))
         mod_list = self.query_one("#mods", OptionList)
         mod_list.clear_options()
-        mod_list.add_options(Option(m.title, id=mod_key(m)) for m in mods)
-        ids = [mod_key(m) for m in mods]
-        if mods:
-            mod_list.highlighted = ids.index(selected) if selected in ids else 0
+        mod_list.add_options(
+            Option(mark_matches(m.title, query), id=mod_key(m)) for m in self.shown
+        )
+        mod_list.border_title = search_title(
+            "Mods", query, len(self.shown), len(self.mods)
+        )
+        ids = [mod_key(m) for m in self.shown]
+        selected = mod_key(self.current) if self.current else None
+        if ids:
+            keep = selected in ids and not jump_to_first
+            mod_list.highlighted = ids.index(selected) if keep else 0
+        return len(ids)
+
+    def action_back(self) -> None:
+        """Esc clears an active '/' filter first, then leaves the screen."""
+        if self.search_query:
+            self.action_clear_search()
+            return
+        self.app.pop_screen()
 
     def on_option_list_option_highlighted(
         self, event: OptionList.OptionHighlighted
     ) -> None:
-        self._show(self.mods[event.option_index])
+        # Look up by ID: a fast '/' may re-list the mods before this event lands.
+        by_key = {mod_key(m): m for m in self.shown}
+        if event.option.id in by_key:
+            self._show(by_key[event.option.id])
 
     def _show(self, mod: StagedMod) -> None:
         previous = self.current
@@ -430,28 +457,6 @@ class ModsScreen(AyakaScreen):
     def run_command(self, name: str, args: tuple[str, ...]) -> None:
         """Run a ':' command; for example, ``screen.run_command('install', ())``."""
         run_mods_command(self, name, args)
-
-    def search(self, text: str) -> None:
-        """Jump to the first mod whose name contains ``text``, like vim's '/'."""
-        self.search_text = text.lower()
-        self._jump_to_match(1, include_current=True)
-
-    def action_next_match(self, step: int) -> None:
-        if not self.search_text:
-            self.notify("E35: No previous regular expression; press / to search")
-            return
-        self._jump_to_match(step, include_current=False)
-
-    def _jump_to_match(self, step: int, include_current: bool) -> None:
-        mod_list = self.query_one("#mods", OptionList)
-        start = mod_list.highlighted or 0
-        offsets = range(0 if include_current else 1, len(self.mods) + 1)
-        for offset in offsets:
-            index = (start + step * offset) % max(len(self.mods), 1)
-            if self.search_text in self.mods[index].title.lower():
-                mod_list.highlighted = index
-                return
-        self.notify(f"E486: Pattern not found: {self.search_text}", severity="warning")
 
     def action_open_picture(self) -> None:
         if self.current is None or self.current.picture is None:

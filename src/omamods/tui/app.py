@@ -18,9 +18,10 @@ from omamods.tui.commands import (
     parse_command,
     resolve_command,
 )
-from omamods.tui.dialogs import CommandPrompt, InfoDialog, TextPrompt
+from omamods.tui.dialogs import CommandPrompt, InfoDialog, SearchPrompt, TextPrompt
 from omamods.tui.downloads_screen import DownloadsScreen
 from omamods.tui.games_screen import GamesScreen
+from omamods.tui.list_search import SearchableScreen
 from omamods.tui.login_dialog import LoginCookiePrompt
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
@@ -118,12 +119,23 @@ class OmaModsApp(App[None]):
         self.push_screen(CommandPrompt(":", words), self.run_command_line)
 
     def action_search(self) -> None:
-        if hasattr(self.screen, "search"):
-            self.push_screen(CommandPrompt("/", ()), self._search)
+        """Filter the screen's list as you type; e.g. ``app.action_search()``."""
+        screen = self.screen
+        if not isinstance(screen, SearchableScreen):
+            return
+        before = screen.search_query
+        prompt = SearchPrompt(before, screen.filter_list)
+        self.push_screen(prompt, lambda text: self._finish_search(screen, before, text))
 
-    def _search(self, text: str | None) -> None:
-        if text:
-            self.screen.search(text)
+    def _finish_search(
+        self, screen: SearchableScreen, before: str, text: str | None
+    ) -> None:
+        # Esc puts back the filter that was active when '/' was pressed.
+        if text is None:
+            screen.filter_list(before)
+            return
+        screen.search(text)
+        screen.query_one(f"#{screen.SEARCH_LIST_ID}").focus()
 
     def run_command_line(self, text: str | None) -> None:
         """Run a ':' line on the current screen; e.g. ``app.run_command_line('q')``."""

@@ -1,6 +1,6 @@
 """Small modal dialogs shared by the TUI screens."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -176,6 +176,32 @@ class CommandPrompt(ModalScreen[str | None]):
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         self.dismiss(event.value.strip() or None)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+class SearchPrompt(ModalScreen[str | None]):
+    """A '/' line that filters the list below as you type; Enter keeps, Esc restores."""
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel")]
+
+    def __init__(self, query: str, on_change: Callable[[str], None]) -> None:
+        super().__init__(classes="command-screen")
+        self.query_text = query
+        self.on_change = on_change
+
+    def compose(self) -> ComposeResult:
+        yield Input(self.query_text, id="command-line", placeholder="/")
+
+    def on_mount(self) -> None:
+        self.query_one(Input).border_title = "/"
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        self.on_change(event.value.strip())
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.dismiss(event.value.strip())
 
     def action_cancel(self) -> None:
         self.dismiss(None)

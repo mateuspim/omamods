@@ -446,25 +446,56 @@ class TuiTests(TuiFixture):
             self.assertIsNone(app.screen.current.info)
             self.assertEqual(app._notifications.__len__(), 0)
 
-    async def test_slash_search_and_n(self) -> None:
+    async def _open_mods_with(self, app: OmaModsApp, pilot, names: dict[int, str]):
+        for mod_id, name in names.items():
+            self._stage_by_hand(mod_id, name)
+        await self._wait_for_shelf(app, pilot)
+        await pilot.press("down", "enter")
+        await pilot.pause()
+        return app.screen
+
+    async def test_slash_filters_mods_as_you_type(self) -> None:
         self.config_files.contents.clear()  # Keep hand-staged titles offline.
         app = self._app({})
-        for mod_id, name in ((2, "Hair Pack"), (3, "Blue Suit"), (4, "Hair Long")):
-            self._stage_by_hand(mod_id, name)
         async with app.run_test(size=(140, 45)) as pilot:
-            await self._wait_for_shelf(app, pilot)
-            await pilot.press("down", "enter")
+            screen = await self._open_mods_with(app, pilot, {2: "a", 3: "b", 14: "c"})
+            await pilot.press("slash", "4")
             await pilot.pause()
-            mods = app.screen.query_one("#mods", OptionList)
-            await pilot.press("slash")
-            app.screen.query_one(Input).value = "mod 4"
-            await pilot.press("enter")
+            self.assertEqual([m.mod_id for m in screen.shown], [14])
+            await pilot.press("escape")
             await pilot.pause()
-            self.assertEqual(app.screen.mods[mods.highlighted].mod_id, 4)
-            app.screen.search("mod")
-            first = mods.highlighted
-            await pilot.press("n")
-            self.assertNotEqual(mods.highlighted, first)
+            self.assertEqual(len(screen.shown), 3)
+            self.assertIs(app.screen, screen)
+
+    async def test_enter_keeps_filter_n_cycles_and_esc_clears(self) -> None:
+        self.config_files.contents.clear()
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            screen = await self._open_mods_with(app, pilot, {2: "a", 3: "b", 4: "c"})
+            mods = screen.query_one("#mods", OptionList)
+            await pilot.press("slash", "m", "o", "d", "enter", "n")
+            await pilot.pause()
+            self.assertEqual(screen.current.mod_id, 3)
+            self.assertIn("/mod (3/3)", mods.border_title)
+            screen.search("mod 4")
+            await pilot.pause()
+            await pilot.press("escape")
+            await pilot.pause()
+            self.assertEqual(len(screen.shown), 3)
+            self.assertEqual(screen.current.mod_id, 4)
+            await pilot.press("escape")
+            self.assertIsInstance(app.screen, GamesScreen)
+
+    async def test_unmatched_search_restores_every_mod(self) -> None:
+        self.config_files.contents.clear()
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            screen = await self._open_mods_with(app, pilot, {2: "a", 3: "b"})
+            screen.search("zzz")
+            await pilot.pause()
+            self.assertEqual(len(screen.shown), 2)
+            messages = [str(n.message) for n in app._notifications]
+            self.assertIn("E486: Pattern not found: zzz", messages)
 
     async def test_api_key_prompt_saves_key(self) -> None:
         self.config_files.contents.clear()
@@ -533,6 +564,22 @@ class HomeScreenTests(TuiFixture):
             self.assertEqual(self.scanner.scans, 2)
             self.assertEqual(screen.selected_entry().key, "dawnwalker")
             screen.search("zzz")
+            self.assertEqual(screen.selected_entry().key, "dawnwalker")
+
+    async def test_slash_filters_games_and_esc_keeps_the_found_one(self) -> None:
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            screen = app.screen
+            games = screen.query_one("#games", OptionList)
+            total = games.option_count
+            await pilot.press("slash", *"blood", "enter")
+            await pilot.pause()
+            self.assertLess(games.option_count, total)
+            self.assertEqual(screen.selected_entry().key, "dawnwalker")
+            await pilot.press("escape")
+            await pilot.pause()
+            self.assertEqual(games.option_count, total)
             self.assertEqual(screen.selected_entry().key, "dawnwalker")
 
     async def test_w_lists_warnings(self) -> None:
