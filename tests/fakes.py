@@ -196,6 +196,8 @@ class FakeNexusSite:
         # Mod ID -> required mod IDs, served like Nexus' v2 GraphQL API.
         self.requirement_graph: dict[int, tuple[int, ...]] = {}
         self.queries: list[tuple[int, ...]] = []
+        # Served as contains_adult_content in mod details.
+        self.adult = False
 
     def post_json(self, url: str, api_key: str, body: object) -> object:
         """Answer requirement queries; e.g. ``site.post_json(url, key, body)``."""
@@ -245,6 +247,7 @@ class FakeNexusSite:
             "author": "someone",
             "version": "1.0",
             "picture_url": "https://staticdelivery.nexusmods.com/suit.png",
+            "contains_adult_content": self.adult,
         }
 
     def _file(self, file_id: int, name: str, category: str) -> dict[str, object]:

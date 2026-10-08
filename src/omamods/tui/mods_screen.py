@@ -21,11 +21,17 @@ from omamods.nexus_api import NexusFile, describe_nexus_file
 from omamods.pak_games import PakOverlayGame
 from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE
 from omamods.staging import StagedMod
-from omamods.tui.ayaka_actions import AyakaScreen
+from omamods.tui.adult_actions import AdultScreen
 from omamods.tui.mods_commands import MODS_COMMANDS, run_mods_command
 from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPicker
-from omamods.tui.list_filter import matches_query, no_match_option, search_title
-from omamods.tui.mod_rows import mod_prompt
+from omamods.tui.list_filter import no_match_option, search_title
+from omamods.tui.mod_rows import (
+    describe_mod,
+    file_cells,
+    mod_key,
+    mod_prompt,
+    visible_mods,
+)
 from omamods.tui.list_search import SearchableScreen
 from omamods.tui.downloads_panel import (
     FULL_QUEUE,
@@ -43,38 +49,7 @@ BROWSER_HINT = (
 )
 
 
-def describe_mod(mod: StagedMod) -> str:
-    """Render the details panel; for example, ``describe_mod(staged)``."""
-    if mod.info is None:
-        return f"{mod.title}\nNo page details yet; press a and paste its URL."
-    info = mod.info
-    # AyakaMods asks integrations to credit it as the source.
-    site = "from AyakaMods" if mod.site == AYAKA_SITE else ""
-    byline = " · ".join(part for part in (info.author, info.version, site) if part)
-    return f"{info.name}\n{byline}\n\n{info.summary}".strip()
-
-
-def file_cells(mod: StagedMod, file: NexusFile) -> tuple[str, ...]:
-    """Render one file row; for example, ``file_cells(staged, file)``."""
-    size = f"{file.size_kb / 1024:.1f} MB" if file.size_kb else ""
-    # Status first: long Nexus file names used to push it off-screen.
-    return (
-        "yes" if file.file_id in mod.installed else "",
-        "yes" if file.file_id in mod.archives else "",
-        file.category,
-        file.version,
-        size,
-        file.display_name or file.file_name,
-        str(file.file_id),
-    )
-
-
-def mod_key(mod: StagedMod) -> str:
-    """Name a mod uniquely across sites; e.g. ``mod_key(staged) == 'ayaka:7311'``."""
-    return f"{mod.site}:{mod.mod_id}"
-
-
-class ModsScreen(SearchableScreen, AyakaScreen):
+class ModsScreen(SearchableScreen, AdultScreen):
     """Show and change one game's mods; e.g. ``app.push_screen(ModsScreen(s, sb))``."""
 
     BINDINGS = [
@@ -91,6 +66,8 @@ class ModsScreen(SearchableScreen, AyakaScreen):
         Binding("escape", "back", "Back"),
         Binding("n", "next_match(1)", "Next match", show=False),
         Binding("N", "next_match(-1)", "Previous match", show=False),
+        Binding("H", "toggle_adult", "Hide/show NSFW"),
+        Binding("m", "mark_adult", "Mark NSFW", show=False),
     ]
     SCREEN_COMMANDS = MODS_COMMANDS
     SEARCH_LIST_ID = "mods"
@@ -133,6 +110,7 @@ class ModsScreen(SearchableScreen, AyakaScreen):
         self.query_one("#status", Static).update(
             f"Enter on a file installs or uninstalls just that file · Staging: {folder}"
         )
+        self.load_adult_marks()
         self.reload()
         self.set_interval(REFRESH_SECONDS, self.reload)
         self.set_interval(REFRESH_SECONDS, self.take_ayaka_arrivals)
@@ -164,24 +142,33 @@ class ModsScreen(SearchableScreen, AyakaScreen):
 
     def rebuild_list(self, jump_to_first: bool) -> int:
         """List the mods matching ``search_query``; e.g. ``screen.rebuild_list(True)``."""
-        query = self.search_query
-        self.shown = tuple(m for m in self.mods if matches_query(m.title, query))
+        hidden = self.hidden_mod_keys()
+        self.shown = visible_mods(self.mods, self.search_query, hidden)
         mod_list = self.query_one("#mods", OptionList)
         mod_list.clear_options()
-        mod_list.add_options(
-            Option(mod_prompt(m, query), id=mod_key(m)) for m in self.shown
-        )
-        if query and not self.shown:
-            mod_list.add_option(no_match_option(query))
-        mod_list.border_title = search_title(
-            "Mods", query, len(self.shown), len(self.mods)
-        )
+        mod_list.add_options(self._mod_options())
+        self._title_mod_list(mod_list, len(hidden))
         ids = [mod_key(m) for m in self.shown]
         selected = mod_key(self.current) if self.current else None
         if ids:
             keep = selected in ids and not jump_to_first
             mod_list.highlighted = ids.index(selected) if keep else 0
         return len(ids)
+
+    def _mod_options(self) -> list[Option]:
+        query = self.search_query
+        options = [
+            Option(mod_prompt(m, query, self.mod_is_adult(m)), id=mod_key(m))
+            for m in self.shown
+        ]
+        if query and not options:
+            options.append(no_match_option(query))
+        return options
+
+    def _title_mod_list(self, mod_list: OptionList, hidden: int) -> None:
+        shown, total = len(self.shown), len(self.mods)
+        mod_list.border_title = search_title("Mods", self.search_query, shown, total)
+        mod_list.border_subtitle = f"{hidden} NSFW hidden · H shows" if hidden else ""
 
     def action_back(self) -> None:
         """Esc clears an active '/' filter first, then leaves the screen."""
@@ -204,7 +191,8 @@ class ModsScreen(SearchableScreen, AyakaScreen):
         if previous is None or previous.picture != mod.picture:
             self.query_one("#picture", PicturePreview).show(mod.picture)
         self._backfill_picture(mod)
-        self.query_one("#details", Static).update(describe_mod(mod))
+        details = describe_mod(mod, self.mod_is_adult(mod))
+        self.query_one("#details", Static).update(details)
         table = self.query_one("#files", DataTable)
         row = table.cursor_row
         table.clear()

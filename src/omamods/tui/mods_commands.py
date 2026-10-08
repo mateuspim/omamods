@@ -30,8 +30,15 @@ MODS_COMMANDS = (
         "dl", (), ":dl [min|game|full]", "resize the downloads panel (D cycles)"
     ),
     CommandSpec("stop", (), ":stop", "stop waiting for an AyakaMods download"),
+    CommandSpec(
+        "nsfw",
+        (),
+        ":nsfw [hide|show|mark|unmark]",
+        "hide or show NSFW mods (H), or mark this mod (m)",
+    ),
 )
 PANEL_SIZES = {"min": "minimized", "game": "game", "full": "full"}
+NSFW_CHOICES = ("hide", "show", "mark", "unmark")
 # Files are given by the ID column or a unique part of their name.
 
 
@@ -107,6 +114,18 @@ def _resize_downloads(screen: "ModsScreen", args: tuple[str, ...]) -> None:
     screen.show_downloads(size)
 
 
+def _nsfw(screen: "ModsScreen", args: tuple[str, ...]) -> None:
+    choice = " ".join(args).lower()
+    if not choice:
+        screen.action_toggle_adult()
+    elif choice in ("hide", "show"):
+        screen.set_adult_hidden(choice == "hide")
+    elif choice in ("mark", "unmark"):
+        screen.mark_adult(choice == "mark")
+    else:
+        raise ValueError(f":nsfw choice={choice!r}: expected one of {NSFW_CHOICES}")
+
+
 HANDLERS: dict[str, Callable[["ModsScreen", tuple[str, ...]], None]] = {
     "install": _install,
     "uninstall": _uninstall,
@@ -116,6 +135,7 @@ HANDLERS: dict[str, Callable[["ModsScreen", tuple[str, ...]], None]] = {
     "picture": lambda screen, args: screen.action_open_picture(),
     "dl": _resize_downloads,
     "stop": lambda screen, args: screen.cancel_ayaka(),
+    "nsfw": _nsfw,
 }
 
 

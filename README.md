@@ -171,7 +171,17 @@ filter, Esc in the prompt puts back the previous one, and Esc on the list clears
 it while staying on the highlighted entry (a second Esc leaves the mods screen).
 On the mods screen `n`/`N` cycle through the matches. The `:` and `/` lines sit on the bottom row
 like vim's, and `/` shows the live match count there. In the mods list, `●`
-marks mods with an installed file and `○` mods that are only staged. `:` opens a command line (Tab or the
+marks mods with an installed file and `○` mods that are only staged.
+
+### NSFW mods
+
+Mods Nexus flags as adult content show a red `18+`. `H` hides them from the
+mods list (the panel's bottom edge counts how many are hidden) and shows them
+again; the choice applies to every game and is remembered. `m` marks or unmarks
+the selected mod as NSFW by hand, for AyakaMods and hand-staged mods or when
+Nexus' flag is wrong; a hand mark wins over the flag. Both are kept in
+`<storage>/adult_marks.json`. Mods staged before OmaMods read the flag have
+none until you add them again (`a` and their URL) or mark them. `:` opens a command line (Tab or the
 right arrow accepts the suggestion); commands accept unique prefixes like vim,
 so `:inst` is `:install`. `:help` lists the commands for the current screen.
 
@@ -186,6 +196,7 @@ so `:inst` is `:install`. `:help` lists the commands for the current screen.
 | `:queue`, `:retry`, `:clear` | the download queue |
 | `:dl [min\|game\|full]` | size the mods screen's downloads panel |
 | `:stop` | stop waiting for an AyakaMods download |
+| `:nsfw [hide\|show\|mark\|unmark]` | hide or show NSFW mods, or mark the selected one |
 | `:ayaka-login [xf_user]` | save your AyakaMods login (guided without a value) |
 | `:key <api-key>`, `:nxm` | setup |
 

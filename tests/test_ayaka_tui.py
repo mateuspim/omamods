@@ -5,7 +5,8 @@ from pathlib import Path
 from textual.widgets import Input
 
 from omamods.tui.app import OmaModsApp
-from omamods.tui.mods_screen import ModsScreen, describe_mod
+from omamods.tui.mod_rows import describe_mod
+from omamods.tui.mods_screen import ModsScreen
 from omamods.ayaka_pages import LOGIN_URL
 from omamods.tui.login_dialog import LoginCookiePrompt
 from tests.fakes import (

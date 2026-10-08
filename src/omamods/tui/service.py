@@ -4,6 +4,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from omamods.adult_marks import AdultMarks, load_adult_marks, save_adult_marks
 from omamods.ayaka_download import AyakaSession
 from omamods.ayaka_pages import AyakaPage, AyakaPageTransport
 from omamods.ayaka_pages import mod_page_url as ayaka_page_url
@@ -142,6 +143,14 @@ class ModsService:
             host.config_path, host.fallback_root, api_key.strip(), host.config_files
         )
         self.settings = self._load_settings()
+
+    def adult_marks(self) -> AdultMarks:
+        """Read the NSFW toggle and hand marks; e.g. ``service.adult_marks().hide``."""
+        return load_adult_marks(self.settings.storage_root)
+
+    def save_adult_marks(self, marks: AdultMarks) -> Path:
+        """Persist NSFW choices; e.g. ``service.save_adult_marks(marks)``."""
+        return save_adult_marks(self.settings.storage_root, marks)
 
     def staging_folder(self, game: PakOverlayGame) -> Path:
         """Show where archives land; e.g. ``service.staging_folder(sb)``."""

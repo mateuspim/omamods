@@ -56,6 +56,8 @@ class NexusModInfo:
     author: str
     version: str
     picture_url: str | None
+    # Nexus' contains_adult_content; defaults off for mod.json staged before it.
+    adult: bool = False
 
 
 @dataclass(frozen=True)
@@ -269,6 +271,7 @@ def parse_mod_info(value: object) -> NexusModInfo:
         _text(value, "author"),
         _text(value, "version"),
         _picture_url(value.get("picture_url")),
+        value.get("contains_adult_content") is True,
     )
 
 

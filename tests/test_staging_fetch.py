@@ -51,6 +51,11 @@ class NexusMetadataTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "picture_url"):
             parse_mod_info({"name": "A", "picture_url": "http://x/a.png"})
 
+    def test_mod_info_reads_the_adult_flag(self) -> None:
+        self.assertFalse(parse_mod_info({"name": "A"}).adult)
+        flagged = parse_mod_info({"name": "A", "contains_adult_content": True})
+        self.assertTrue(flagged.adult)
+
     def test_file_listing_keeps_display_details(self) -> None:
         listed = parse_file_listing(FakeNexusSite().get_json("files.json", "k"))
         self.assertEqual((listed[0].display_name, listed[0].size_kb), ("Black", 2048))

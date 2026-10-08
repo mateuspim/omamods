@@ -20,6 +20,7 @@ from omamods.nexus_config import UserSettings
 from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.tui.app import OmaModsApp
 from omamods.tui.dialogs import ConfirmDialog, InfoDialog
+from omamods.tui.mod_rows import describe_mod
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.downloads_screen import DownloadsScreen
 from omamods.tui.games_screen import GamesScreen
@@ -496,6 +497,43 @@ class TuiTests(TuiFixture):
             self.assertEqual(len(screen.shown), 2)
             messages = [str(n.message) for n in app._notifications]
             self.assertIn("E486: Pattern not found: zzz", messages)
+
+    async def test_h_hides_nexus_flagged_mods_and_remembers_it(self) -> None:
+        self.site.adult = True
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._open_stellar_blade_and_add(app, pilot)
+            screen = app.screen
+            mods = screen.query_one("#mods", OptionList)
+            self.assertIn("18+", describe_mod(screen.current, True))
+            await pilot.press("H")
+            await pilot.pause()
+            self.assertEqual(screen.shown, ())
+            self.assertIn("1 NSFW hidden", str(mods.border_subtitle))
+            await pilot.press("escape", "enter")
+            await pilot.pause()
+            self.assertEqual(app.screen.shown, ())
+
+    async def test_m_marks_a_mod_nsfw_by_hand(self) -> None:
+        self.config_files.contents.clear()
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            screen = await self._open_mods_with(app, pilot, {2: "a", 3: "b"})
+            await pilot.press("m", "H")
+            await pilot.pause()
+            self.assertEqual([m.mod_id for m in screen.shown], [3])
+            await pilot.press("H")
+            await pilot.pause()
+            self.assertTrue(screen.mod_is_adult(screen.mods[0]))
+            app.run_command_line("nsfw unmark")
+            app.run_command_line("nsfw wat")
+            await pilot.pause()
+            # Hiding mod 2 moved the cursor to mod 3, which unmark targets.
+            self.assertEqual(screen.current.mod_id, 3)
+            self.assertFalse(screen.mod_is_adult(screen.current))
+            self.assertTrue(screen.mod_is_adult(screen.mods[0]))
+            messages = [str(n.message) for n in app._notifications]
+            self.assertTrue(any("expected one of" in m for m in messages))
 
     async def test_api_key_prompt_saves_key(self) -> None:
         self.config_files.contents.clear()
