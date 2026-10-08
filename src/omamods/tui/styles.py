@@ -54,7 +54,8 @@ Footer { background: $panel; }
 #downloads-bar { height: auto; }
 .downloads-full #mods-body { display: none; }
 #command-line { dock: bottom; border: tall $accent; }
-.command-screen { align: left bottom; }
+/* Like vim, the : and / lines leave the list fully visible behind them. */
+.command-screen { align: left bottom; background: transparent; }
 .placeholder { color: $text-muted; content-align: center middle; height: 100%; }
 .dialog {
     width: 70; height: auto; padding: 1 2;
