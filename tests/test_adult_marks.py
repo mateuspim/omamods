@@ -6,14 +6,21 @@ import unittest
 
 from omamods.adult_marks import (
     ADULT_MARKS_FILE,
+    BLUR,
+    HIDE,
+    SHOW,
     AdultMarks,
     is_adult,
     load_adult_marks,
+    next_mode,
     save_adult_marks,
     with_mark,
 )
 from omamods.nexus_api import NexusModInfo
 from omamods.staging import StagedMod
+from PIL import Image as PilImage
+
+from omamods.tui.preview import BLUR_WIDTH, blurred_picture
 from omamods.tui.mod_rows import describe_mod, mod_prompt, visible_mods
 
 
@@ -29,9 +36,20 @@ class AdultMarksTests(unittest.TestCase):
         self.assertEqual(load_adult_marks(self.root), AdultMarks())
 
     def test_marks_and_toggle_survive_a_restart(self) -> None:
-        marks = with_mark(AdultMarks(hide=True), "sb", "ayaka:4", True)
+        marks = with_mark(AdultMarks(mode=HIDE), "sb", "ayaka:4", True)
         save_adult_marks(self.root, marks)
         self.assertEqual(load_adult_marks(self.root), marks)
+
+    def test_pictures_start_blurred_and_h_cycles_modes(self) -> None:
+        self.assertEqual(AdultMarks().mode, BLUR)
+        self.assertEqual([next_mode(m) for m in (BLUR, HIDE, SHOW)], [HIDE, SHOW, BLUR])
+
+    def test_files_from_before_blur_keep_their_choice(self) -> None:
+        path = self.root / ADULT_MARKS_FILE
+        path.write_text('{"hide": true, "marks": {}}', encoding="utf-8")
+        self.assertEqual(load_adult_marks(self.root).mode, HIDE)
+        path.write_text('{"hide": false, "marks": {}}', encoding="utf-8")
+        self.assertEqual(load_adult_marks(self.root).mode, BLUR)
 
     def test_hand_mark_beats_the_site_flag(self) -> None:
         marks = with_mark(AdultMarks(), "sb", "nexus:1", False)
@@ -68,6 +86,32 @@ class AdultRowTests(unittest.TestCase):
         self.assertIn("18+", str(mod_prompt(staged(1), adult=True).columns[2]._cells))
         self.assertIn("18+ NSFW", describe_mod(staged(1), adult=True))
         self.assertNotIn("NSFW", describe_mod(staged(1)))
+
+
+class BlurredPictureTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def test_blur_shrinks_and_smooths_the_picture(self) -> None:
+        picture = self.root / "p.png"
+        sharp = PilImage.new("RGB", (800, 400), "white")
+        sharp.paste((0, 0, 0), (0, 0, 400, 400))
+        sharp.save(picture)
+        blurred = blurred_picture(picture)
+        self.assertEqual(blurred.size, (BLUR_WIDTH, BLUR_WIDTH // 2))
+        # The hard black/white edge becomes a grey ramp.
+        edge = blurred.getpixel((BLUR_WIDTH // 2, BLUR_WIDTH // 4))
+        self.assertTrue(40 < edge[0] < 215, edge)
+
+    def test_unreadable_picture_raises(self) -> None:
+        broken = self.root / "broken.png"
+        broken.write_bytes(b"not a png")
+        with self.assertRaises(OSError):
+            blurred_picture(broken)
 
 
 if __name__ == "__main__":

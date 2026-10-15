@@ -21,6 +21,7 @@ from omamods.nexus_api import NexusFile, describe_nexus_file
 from omamods.pak_games import PakOverlayGame
 from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE
 from omamods.staging import StagedMod
+from omamods.adult_marks import BLUR
 from omamods.tui.adult_actions import AdultScreen
 from omamods.tui.mods_commands import MODS_COMMANDS, run_mods_command
 from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPicker
@@ -66,7 +67,7 @@ class ModsScreen(SearchableScreen, AdultScreen):
         Binding("escape", "back", "Back"),
         Binding("n", "next_match(1)", "Next match", show=False),
         Binding("N", "next_match(-1)", "Previous match", show=False),
-        Binding("H", "toggle_adult", "Hide/show NSFW"),
+        Binding("H", "cycle_adult", "NSFW blur/hide/show"),
         Binding("m", "mark_adult", "Mark NSFW", show=False),
     ]
     SCREEN_COMMANDS = MODS_COMMANDS
@@ -168,7 +169,9 @@ class ModsScreen(SearchableScreen, AdultScreen):
     def _title_mod_list(self, mod_list: OptionList, hidden: int) -> None:
         shown, total = len(self.shown), len(self.mods)
         mod_list.border_title = search_title("Mods", self.search_query, shown, total)
-        mod_list.border_subtitle = f"{hidden} NSFW hidden · H shows" if hidden else ""
+        mod_list.border_subtitle = (
+            f"{hidden} NSFW hidden · H shows them" if hidden else ""
+        )
 
     def action_back(self) -> None:
         """Esc clears an active '/' filter first, then leaves the screen."""
@@ -186,10 +189,9 @@ class ModsScreen(SearchableScreen, AdultScreen):
             self._show(by_key[event.option.id])
 
     def _show(self, mod: StagedMod) -> None:
-        previous = self.current
         self.current = mod
-        if previous is None or previous.picture != mod.picture:
-            self.query_one("#picture", PicturePreview).show(mod.picture)
+        blurred = self.adult.mode == BLUR and self.mod_is_adult(mod)
+        self.query_one("#picture", PicturePreview).show(mod.picture, blurred)
         self._backfill_picture(mod)
         details = describe_mod(mod, self.mod_is_adult(mod))
         self.query_one("#details", Static).update(details)

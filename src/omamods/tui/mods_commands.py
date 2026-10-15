@@ -33,12 +33,12 @@ MODS_COMMANDS = (
     CommandSpec(
         "nsfw",
         (),
-        ":nsfw [hide|show|mark|unmark]",
-        "hide or show NSFW mods (H), or mark this mod (m)",
+        ":nsfw [blur|hide|show|mark|unmark]",
+        "blur, hide, or show NSFW mods (H), or mark this mod (m)",
     ),
 )
 PANEL_SIZES = {"min": "minimized", "game": "game", "full": "full"}
-NSFW_CHOICES = ("hide", "show", "mark", "unmark")
+NSFW_CHOICES = ("blur", "hide", "show", "mark", "unmark")
 # Files are given by the ID column or a unique part of their name.
 
 
@@ -117,9 +117,9 @@ def _resize_downloads(screen: "ModsScreen", args: tuple[str, ...]) -> None:
 def _nsfw(screen: "ModsScreen", args: tuple[str, ...]) -> None:
     choice = " ".join(args).lower()
     if not choice:
-        screen.action_toggle_adult()
-    elif choice in ("hide", "show"):
-        screen.set_adult_hidden(choice == "hide")
+        screen.action_cycle_adult()
+    elif choice in ("blur", "hide", "show"):
+        screen.set_adult_mode(choice)
     elif choice in ("mark", "unmark"):
         screen.mark_adult(choice == "mark")
     else:

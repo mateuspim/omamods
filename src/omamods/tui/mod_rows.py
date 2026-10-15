@@ -39,7 +39,7 @@ def visible_mods(
 
 def describe_mod(mod: StagedMod, adult: bool = False) -> str:
     """Render the details panel; for example, ``describe_mod(staged, adult=True)``."""
-    note = "\n\n18+ NSFW · m unmarks, H hides NSFW mods" if adult else ""
+    note = "\n\n18+ NSFW · m unmarks · H cycles blur, hide, show" if adult else ""
     if mod.info is None:
         return f"{mod.title}\nNo page details yet; press a and paste its URL.{note}"
     info = mod.info

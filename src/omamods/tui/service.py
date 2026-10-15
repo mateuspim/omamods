@@ -145,7 +145,7 @@ class ModsService:
         self.settings = self._load_settings()
 
     def adult_marks(self) -> AdultMarks:
-        """Read the NSFW toggle and hand marks; e.g. ``service.adult_marks().hide``."""
+        """Read the NSFW toggle and hand marks; e.g. ``service.adult_marks().mode``."""
         return load_adult_marks(self.settings.storage_root)
 
     def save_adult_marks(self, marks: AdultMarks) -> Path:

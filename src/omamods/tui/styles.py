@@ -38,6 +38,7 @@ Footer { background: $panel; }
 #detail { padding: 0 1; }
 #picture { height: 20; }
 #picture Image { width: auto; height: 100%; }
+.nsfw-note { dock: top; color: $error; text-style: bold; height: 1; }
 #details { margin: 1 0; }
 #files { height: auto; max-height: 14; }
 #status { color: $text-muted; padding: 0 1; }

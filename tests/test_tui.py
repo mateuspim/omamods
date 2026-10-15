@@ -22,6 +22,7 @@ from omamods.tui.app import OmaModsApp
 from omamods.tui.dialogs import ConfirmDialog, InfoDialog
 from omamods.tui.mod_rows import describe_mod
 from omamods.tui.mods_screen import ModsScreen
+from omamods.tui.preview import PicturePreview
 from omamods.tui.downloads_screen import DownloadsScreen
 from omamods.tui.games_screen import GamesScreen
 from omamods.tui.service import ModsService, TuiHost
@@ -498,7 +499,7 @@ class TuiTests(TuiFixture):
             messages = [str(n.message) for n in app._notifications]
             self.assertIn("E486: Pattern not found: zzz", messages)
 
-    async def test_h_hides_nexus_flagged_mods_and_remembers_it(self) -> None:
+    async def test_h_blurs_then_hides_nexus_flagged_mods_and_remembers_it(self) -> None:
         self.site.adult = True
         app = self._app({})
         async with app.run_test(size=(140, 45)) as pilot:
@@ -506,6 +507,8 @@ class TuiTests(TuiFixture):
             screen = app.screen
             mods = screen.query_one("#mods", OptionList)
             self.assertIn("18+", describe_mod(screen.current, True))
+            preview = screen.query_one(PicturePreview)
+            self.assertEqual(preview.showing, (screen.current.picture, True))
             await pilot.press("H")
             await pilot.pause()
             self.assertEqual(screen.shown, ())

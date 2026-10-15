@@ -1,11 +1,26 @@
-"""Hide NSFW mods from the mods list and mark mods NSFW by hand."""
+"""Blur, hide, or show NSFW mods in the mods list, and mark mods NSFW by hand."""
 
 from dataclasses import replace
 
-from omamods.adult_marks import AdultMarks, is_adult, with_mark
+from omamods.adult_marks import (
+    ADULT_MODES,
+    BLUR,
+    HIDE,
+    SHOW,
+    AdultMarks,
+    is_adult,
+    next_mode,
+    with_mark,
+)
 from omamods.staging import StagedMod
 from omamods.tui.ayaka_actions import AyakaScreen
 from omamods.tui.mod_rows import mod_key
+
+MODE_MESSAGES = {
+    BLUR: "NSFW mods: listed with blurred pictures (H to hide them).",
+    HIDE: "NSFW mods: hidden (H to show them unblurred).",
+    SHOW: "NSFW mods: shown unblurred (H to blur them).",
+}
 
 
 class AdultScreen(AyakaScreen):
@@ -28,17 +43,19 @@ class AdultScreen(AyakaScreen):
 
     def hidden_mod_keys(self) -> frozenset[str]:
         """Keys the list leaves out; e.g. ``'nexus:12' in screen.hidden_mod_keys()``."""
-        if not self.adult.hide:
+        if self.adult.mode != HIDE:
             return frozenset()
         return frozenset(mod_key(m) for m in self.mods if self.mod_is_adult(m))
 
-    def action_toggle_adult(self) -> None:
-        self.set_adult_hidden(not self.adult.hide)
+    def action_cycle_adult(self) -> None:
+        self.set_adult_mode(next_mode(self.adult.mode))
 
-    def set_adult_hidden(self, hide: bool) -> None:
-        """Hide or show NSFW mods in every game; e.g. ``screen.set_adult_hidden(True)``."""
-        if self._save_adult(replace(self.adult, hide=hide)):
-            self.notify("Hiding NSFW mods." if hide else "Showing NSFW mods.")
+    def set_adult_mode(self, mode: str) -> None:
+        """Blur, hide, or show NSFW mods in every game; e.g. ``screen.set_adult_mode('hide')``."""
+        if mode not in ADULT_MODES:
+            raise ValueError(f"NSFW mode={mode!r}: expected one of {ADULT_MODES}")
+        if self._save_adult(replace(self.adult, mode=mode)):
+            self.notify(MODE_MESSAGES[mode])
 
     def action_mark_adult(self) -> None:
         if self.current is not None:
@@ -52,7 +69,7 @@ class AdultScreen(AyakaScreen):
         marks = with_mark(self.adult, self.game.game_id, mod_key(mod), adult)
         if not self._save_adult(marks):
             return
-        hidden = " and hid it" if adult and marks.hide else ""
+        hidden = " and hid it" if adult and marks.mode == HIDE else ""
         self.notify(f"Marked {mod.title} {'NSFW' if adult else 'not NSFW'}{hidden}.")
 
     def _save_adult(self, marks: AdultMarks) -> bool:
