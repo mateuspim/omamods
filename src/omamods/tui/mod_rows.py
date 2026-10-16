@@ -1,6 +1,7 @@
 """Render the mods screen's rows: the mods list, details, and file table."""
 
 from rich.table import Table
+from rich.text import Text
 
 from omamods.mod_sites import AYAKA_SITE
 from omamods.nexus_api import NexusFile
@@ -49,19 +50,30 @@ def describe_mod(mod: StagedMod, adult: bool = False) -> str:
     return f"{info.name}\n{byline}\n\n{info.summary}".strip() + note
 
 
-def file_cells(mod: StagedMod, file: NexusFile) -> tuple[str, ...]:
+def file_cells(mod: StagedMod, file: NexusFile) -> tuple[Text | str, ...]:
     """Render one file row; for example, ``file_cells(staged, file)``."""
     size = f"{file.size_kb / 1024:.1f} MB" if file.size_kb else ""
     # Status first: long Nexus file names used to push it off-screen.
+    state = Text("available", style="dim")
+    if file.file_id in mod.archives:
+        state = Text("staged", style="cyan")
+    if file.file_id in mod.installed:
+        state = Text("installed", style="bold green")
     return (
-        "yes" if file.file_id in mod.installed else "",
-        "yes" if file.file_id in mod.archives else "",
+        state,
+        Text(file.display_name or file.file_name, no_wrap=True, overflow="ellipsis"),
         file.category,
         file.version,
         size,
-        file.display_name or file.file_name,
         str(file.file_id),
     )
+
+
+def file_next_action(mod: StagedMod, file: NexusFile) -> str:
+    """Name Enter's actual effect; e.g. ``file_next_action(staged, file)``."""
+    if file.file_id in mod.installed:
+        return "uninstall"
+    return "install" if file.file_id in mod.archives else "download"
 
 
 def mod_key(mod: StagedMod) -> str:

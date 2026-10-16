@@ -4,7 +4,7 @@ from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
-from textual.widgets import Footer, Header, OptionList, Static
+from textual.widgets import OptionList, Static
 from textual.widgets.option_list import OptionDoesNotExist
 
 from omamods.game_shelf import GameShelf, ShelfEntry
@@ -14,6 +14,7 @@ from omamods.tui.list_search import SearchableScreen
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
 from omamods.tui.shelf_view import entry_detail, setup_summary, shelf_options
+from omamods.tui.workspace import WorkspaceHeader, WorkspaceHints, WorkspaceStatus
 
 WELCOME = (
     "Pick a game on the left.\n\n"
@@ -44,17 +45,21 @@ class GamesScreen(SearchableScreen):
         self.selected_key: str | None = None
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield WorkspaceHeader("Your library", "LOCAL / STEAM + HEROIC")
         with Horizontal(id="home"):
             yield OptionList(id="games")
             with VerticalScroll(id="game-card", can_focus=False):
+                yield Static("THE NEXT PLAYTHROUGH", classes="pane-eyebrow")
                 yield Static(WELCOME, id="game-info", markup=False)
         yield Static(id="setup")
-        yield Footer()
+        yield WorkspaceStatus("Library")
+        yield WorkspaceHints(
+            "[b]enter[/] open   [b]/[/] find   [b]r[/] rescan   " "[b]o[/] folder"
+        )
 
     def on_mount(self) -> None:
         self.query_one("#games").border_title = "Games"
-        self.query_one("#game-card").border_title = "Details"
+        self.query_one("#game-card").border_title = "Inspector"
         self.query_one("#setup").border_title = "Setup"
         self.action_rescan()
 

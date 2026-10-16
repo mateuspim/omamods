@@ -30,6 +30,7 @@ from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.shelf_scan import ShelfSources, scan_shelf
 from omamods.steam_launch_options import steam_launch_options
 from omamods.tui.service import ModsService, TuiHost
+from omamods.omarchy_palette import OmarchyPaletteReader, omarchy_palette_paths
 
 
 def omamods_executable(argv0: str) -> Path:
@@ -146,6 +147,9 @@ def tui_host(
         ayaka_pages=UrlAyakaPageTransport(),
         ayaka_session=UrlAyakaSession,
         downloads=downloads_folder(runtime.runner, runtime.home),
+        palette_reader=OmarchyPaletteReader(
+            omarchy_palette_paths(runtime.home, runtime.environment), sources.files
+        ),
     )
 
 

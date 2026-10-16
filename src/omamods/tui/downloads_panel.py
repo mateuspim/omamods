@@ -87,7 +87,10 @@ class DownloadsPanel(QueueActions, Vertical):
             raise ValueError(f"panel mode={mode!r}: expected one of {PANEL_MODES!r}")
         self.remove_class(self.mode).add_class(mode)
         self.mode = mode
-        self.border_title = panel_title(mode, self.game.name)
+        self.border_title = (
+            "" if mode == MINIMIZED else panel_title(mode, self.game.name)
+        )
+        self.tooltip = panel_title(mode, self.game.name)
         self.refresh_queue()
 
     def cycle(self) -> str:

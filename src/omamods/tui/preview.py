@@ -19,6 +19,7 @@ from textual_image.widget import Image
 BLUR_WIDTH = 160
 BLUR_RADIUS = 8
 BLUR_NOTE = "18+ · picture blurred · H cycles blur, hide, show · o opens it"
+EMPTY_ARTWORK = "[b]◇[/]\n\nNo artwork cached\n[dim]A mod's picture appears here[/]"
 
 
 def blurred_picture(picture: Path) -> PilImage.Image:
@@ -38,7 +39,7 @@ class PicturePreview(Container):
         self.showing: tuple[Path | None, bool] = (None, False)
 
     def compose(self) -> ComposeResult:
-        yield Static("No picture", classes="placeholder")
+        yield Static(EMPTY_ARTWORK, classes="placeholder")
 
     def show(self, picture: Path | None, blurred: bool = False) -> None:
         """Display ``picture`` (blurred or not) or the placeholder; e.g. ``preview.show(None)``."""
@@ -47,7 +48,7 @@ class PicturePreview(Container):
         self.showing = (picture, blurred)
         self.remove_children()
         if picture is None:
-            self.mount(Static("No picture", classes="placeholder"))
+            self.mount(Static(EMPTY_ARTWORK, classes="placeholder"))
             return
         if not blurred:
             self.mount(Image(str(picture), on_error=self._unreadable))

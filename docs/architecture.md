@@ -69,6 +69,28 @@ are never replaced, so no backup is needed for this adapter. State records
 ownership hashes, and revert refuses to remove modified files. Other archive
 layouts require separate adapters. A TUI can call the same core later.
 
+## TUI workspace
+
+`tui/workspace.py` owns shared header, mode/statusline, key hints, and terminal
+size classes. `tui/styles.py` defines the fallback OmaMods Night theme and uses
+Textual theme tokens so alternate palettes apply to the workspace. Main screens
+share this chrome; command/search prompts keep their one-line bottom overlay.
+
+`tui/mod_detail.py` separates the files from the optional artwork split.
+`tui/file_table.py` owns responsive column widths and preserves the selected
+file when resizing. Neither layout component performs host I/O.
+`tui/action_picker.py` searches the existing `CommandSpec` definitions; selected
+actions use the same dispatch and confirmation paths as `:` commands.
+
+`omarchy_palette.py` validates recognized color tokens through an injected
+read-only filesystem, ignoring unrelated community theme settings. Generated
+`color0`–`color15` tokens provide aliases when named colors are absent.
+The host supplies staged state and legacy config locations through
+`TuiHost.palette_reader`; tests never inspect the desktop. The app polls once
+per second, applies changed snapshots through `tui/theme_bridge.py`, and retains
+the last valid snapshot during theme staging. Textual surfaces and Rich ANSI
+colors use the same palette; cached text is refreshed after a change.
+
 ## Discovery implementation
 
 The Python CLI lives in `src/omamods`. Manifest validation, Steam library

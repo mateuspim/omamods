@@ -46,6 +46,7 @@ from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.tui.ayaka_site import AyakaSite
 from omamods.tui.requirement_flow import RequirementFlow
 from omamods.variant_choices import exclusive_variants, nested_archives
+from omamods.omarchy_palette import OmarchyPalette, PaletteReader
 from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE
 from omamods.staging import (
     StagedMod,
@@ -89,6 +90,7 @@ class TuiHost:
     ayaka_session: Callable[[str], AyakaSession] | None = None
     # Where the browser saves files, watched for AyakaMods downloads.
     downloads: Path | None = None
+    palette_reader: PaletteReader | None = None
 
 
 class ModsService:
@@ -122,6 +124,11 @@ class ModsService:
     def games(self) -> tuple[PakOverlayGame, ...]:
         """List supported games; for example, ``service.games()``."""
         return self.catalog.all()
+
+    def theme_palette(self) -> OmarchyPalette | None:
+        """Read injected desktop colours; e.g. ``service.theme_palette()``."""
+        reader = self.host.palette_reader
+        return reader.read() if reader is not None else None
 
     def shelf(self) -> GameShelf:
         """Find catalog and installed games; e.g. ``service.shelf().entries``."""

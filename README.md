@@ -134,8 +134,8 @@ your mods after a game update.
 The detail panel shows the game's folder, library, size, Steam app ID, build,
 and Proton prefix. `o` opens the folder in your file manager, `/` filters by
 name, and `w` lists records that could not be read. Catalog games match Steam
-installs by app ID, never by title. The theme defaults to Tokyo Night; pick
-another with `Ctrl+P` → *Change theme*.
+installs by app ID, never by title. Colors follow Omarchy's current theme, with
+OmaMods Night as a fallback; `Ctrl+P` → *Change theme* selects a session palette.
 
 1. Press `K` once and paste your personal Nexus API key
    (nexusmods.com/users/myaccount?tab=api). It is saved to the private config.
@@ -167,6 +167,32 @@ another with `Ctrl+P` → *Change theme*.
 
 ### Vim keys and commands
 
+The workspace follows your **active Omarchy theme**, including its status and
+search colors. Changes apply live, within a second, without restarting OmaMods.
+It reads Omarchy's staged `colors.toml` under `~/.local/state/omarchy/current/theme`
+(or the legacy config location), without changing desktop configuration. If
+Omarchy is absent, the **OmaMods Night** palette is used. A partially written
+palette keeps the last valid colors until the update finishes.
+Both named colors and Omarchy's generated `color0`–`color15` palettes are
+supported. Community theme settings such as terminal opacity and border
+gradients are ignored when reading colors.
+
+`Ctrl+p` → **Change theme** selects another palette for the session; the next
+Omarchy theme change resumes desktop sync. The bottom statusline shows the
+interaction mode, active pane, and cursor position. The key hints follow focus:
+files show Enter's exact action, and queues show retry and clear keys.
+**Space** opens a searchable action picker: type a name or
+description, use `↑`/`↓` (or `Ctrl+j`/`Ctrl+k`) to select, and Enter to run it.
+Actions needing an argument open a prefilled `:` line.
+
+Mod files and artwork have independent panes. **p** (or `:preview`) toggles the
+artwork; narrow or short terminals hide it automatically to keep the files
+visible. The file table adapts too: compact splits show state, filename, and
+category; wider splits also show version, size, and file ID. Filenames remain
+beside their installed, staged, or available state. The inspector keeps artwork
+in proportion and describes the highlighted file's next action. Very wide
+terminals center the workspace at a comfortable reading width.
+
 `j`/`k` move, `gg`/`G` jump to the top/bottom, `Ctrl+d`/`Ctrl+u` page, and
 `h`/`l` switch panes. `/` filters the games or mods list as you type, like a
 LazyVim picker: only names containing every typed word stay, with the words
@@ -192,6 +218,7 @@ lists the commands for the current screen.
 | `:rm <file>` | delete a download from staging |
 | `:queue`, `:retry`, `:clear` | the download queue |
 | `:dl [min\|game\|full]` | size the mods screen's downloads panel |
+| `:preview` | toggle the artwork split (`p`) |
 | `:stop` | stop waiting for an AyakaMods download |
 | `:nsfw [blur\|hide\|show\|mark\|unmark]` | blur, hide, or show NSFW mods, or mark the selected one |
 | `:ayaka-login [xf_user]` | save your AyakaMods login (guided without a value) |

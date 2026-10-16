@@ -26,6 +26,7 @@ MODS_COMMANDS = (
     CommandSpec("rm", ("x",), ":rm <file>", "delete a download from staging"),
     CommandSpec("web", ("w",), ":web", "open the mod's web page"),
     CommandSpec("picture", ("o",), ":picture", "open the full picture in imv"),
+    CommandSpec("preview", ("p",), ":preview", "toggle the artwork split"),
     CommandSpec(
         "dl", (), ":dl [min|game|full]", "resize the downloads panel (D cycles)"
     ),
@@ -133,6 +134,7 @@ HANDLERS: dict[str, Callable[["ModsScreen", tuple[str, ...]], None]] = {
     "rm": _remove,
     "web": lambda screen, args: screen.action_open_page(),
     "picture": lambda screen, args: screen.action_open_picture(),
+    "preview": lambda screen, args: screen.action_toggle_preview(),
     "dl": _resize_downloads,
     "stop": lambda screen, args: screen.cancel_ayaka(),
     "nsfw": _nsfw,

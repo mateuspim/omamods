@@ -34,16 +34,19 @@ class CommandPrompt(ModalScreen[str | None]):
 
     BINDINGS = [Binding("escape", "cancel", "Cancel")]
 
-    def __init__(self, prefix: str, words: tuple[str, ...]) -> None:
+    def __init__(self, prefix: str, words: tuple[str, ...], initial: str = "") -> None:
         super().__init__(classes="command-screen")
         self.prefix = prefix
         self.words = words
+        self.initial = initial
 
     def compose(self) -> ComposeResult:
         suggester: Suggester | None = (
             SuggestFromList(self.words, case_sensitive=False) if self.words else None
         )
-        field = Input(id="command-line", suggester=suggester)
+        field = Input(
+            self.initial, id="command-line", suggester=suggester, select_on_focus=False
+        )
         yield from bottom_line(self.prefix, field, COMMAND_HINT)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:

@@ -2,12 +2,13 @@
 
 import asyncio
 from pathlib import Path
+from rich.text import Text
 
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, VerticalScroll
-from textual.widgets import DataTable, Footer, Header, OptionList, Static
+from textual.containers import Horizontal
+from textual.widgets import DataTable, OptionList, Static
 from textual.widgets.option_list import Option
 
 from omamods.mod_plan import (
@@ -28,7 +29,6 @@ from omamods.tui.dialogs import ConfirmDialog, FilePicker, TextPrompt, VariantPi
 from omamods.tui.list_filter import no_match_option, search_title
 from omamods.tui.mod_rows import (
     describe_mod,
-    file_cells,
     mod_key,
     mod_prompt,
     visible_mods,
@@ -44,6 +44,8 @@ from omamods.tui.preview import PicturePreview
 from omamods.tui.service import ModsService
 from omamods.tui.requirement_actions import ERROR_TOAST_SECONDS
 from omamods.tui.toast_filter import RepeatedToastFilter
+from omamods.tui.mod_detail import ModDetail
+from omamods.tui.workspace import WorkspaceHeader, WorkspaceHints, WorkspaceStatus
 
 REFRESH_SECONDS = 3.0
 BROWSER_HINT = (
@@ -71,6 +73,7 @@ class ModsScreen(SearchableScreen, AdultScreen):
         Binding("N", "next_match(-1)", "Previous match", show=False),
         Binding("H", "cycle_adult", "NSFW blur/hide/show"),
         Binding("m", "mark_adult", "Mark NSFW", show=False),
+        Binding("p", "toggle_preview", "Toggle preview", show=False),
     ]
     SCREEN_COMMANDS = MODS_COMMANDS
     SEARCH_LIST_ID = "mods"
@@ -89,27 +92,34 @@ class ModsScreen(SearchableScreen, AdultScreen):
         self.error_toasts = RepeatedToastFilter(ERROR_TOAST_SECONDS)
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield WorkspaceHeader(self.game.name, "MOD WORKSPACE")
         with Horizontal(id="mods-body"):
-            yield OptionList(id="mods")
+            yield OptionList(
+                Option("No mods yet.\n\na  Add your first mod", disabled=True),
+                id="mods",
+            )
             # Not focusable, so h/l (and Tab) go straight from the mod list to
             # the file table instead of stopping on this pane first.
-            with VerticalScroll(id="detail", can_focus=False):
-                yield PicturePreview(id="picture")
-                yield Static(id="details", markup=False)
-                yield DataTable(id="files", cursor_type="row")
+            yield ModDetail()
         yield DownloadsPanel(self.service, self.game)
         yield Static(id="status", markup=False)
-        yield Footer()
+        yield WorkspaceStatus(self.game.name)
+        yield WorkspaceHints(
+            "[b]a[/] add   [b]i[/] install   [b]enter[/] file   [b]/[/] find   "
+            "[b]p[/] preview   [b]D[/] downloads"
+        )
+
+    def action_toggle_preview(self) -> None:
+        """Make room for artwork or files; e.g. ``screen.action_toggle_preview()``."""
+        show = not self.query_one("#preview-pane").display
+        self.set_class(not show, "preview-hidden")
+        self.set_class(show, "preview-requested")
 
     def on_mount(self) -> None:
         self.sub_title = self.game.name
         self.query_one("#mods").border_title = "Mods"
-        self.query_one("#detail").border_title = "Details"
-        table = self.query_one("#files", DataTable)
-        table.add_columns(
-            "Installed", "Staged", "Category", "Version", "Size", "File", "ID"
-        )
+        self.query_one("#detail").border_title = "Mod files"
+        self.query_one("#preview-pane").border_title = "Inspector"
         folder = self.service.staging_folder(self.game)
         self.query_one("#status", Static).update(
             f"Enter on a file installs or uninstalls just that file · Staging: {folder}"
@@ -173,7 +183,9 @@ class ModsScreen(SearchableScreen, AdultScreen):
         shown, total = len(self.shown), len(self.mods)
         mod_list.border_title = search_title("Mods", self.search_query, shown, total)
         mod_list.border_subtitle = (
-            f"{hidden} NSFW hidden · H shows them" if hidden else ""
+            f"{hidden} NSFW hidden · H shows them"
+            if hidden
+            else f"{sum(bool(mod.installed) for mod in self.mods)} installed · {len(self.mods)} staged"
         )
 
     def action_back(self) -> None:
@@ -196,15 +208,10 @@ class ModsScreen(SearchableScreen, AdultScreen):
         blurred = self.adult.mode == BLUR and self.mod_is_adult(mod)
         self.query_one("#picture", PicturePreview).show(mod.picture, blurred)
         self._backfill_picture(mod)
-        details = describe_mod(mod, self.mod_is_adult(mod))
+        details = Text(describe_mod(mod, self.mod_is_adult(mod)))
+        details.stylize("bold", 0, len(mod.title))
         self.query_one("#details", Static).update(details)
-        table = self.query_one("#files", DataTable)
-        row = table.cursor_row
-        table.clear()
-        for file in mod.files:
-            table.add_row(*file_cells(mod, file), key=str(file.file_id))
-        if mod.files:
-            table.move_cursor(row=min(row, len(mod.files) - 1))
+        self.query_one(ModDetail).show_mod(mod)
 
     def _backfill_picture(self, mod: StagedMod) -> None:
         # Mods staged before pictures worked (or while offline) fetch theirs once.

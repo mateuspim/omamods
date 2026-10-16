@@ -6,6 +6,7 @@ from collections.abc import Callable
 from textual import work
 from textual.app import App
 from textual.binding import Binding
+from textual.widgets import Static
 
 from omamods.ayaka_pages import is_ayaka_url
 from omamods.nexus_api import parse_nexus_page
@@ -26,8 +27,11 @@ from omamods.tui.list_search import SearchableScreen
 from omamods.tui.login_dialog import LoginCookiePrompt
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
-from omamods.tui.styles import APP_CSS, DEFAULT_THEME
+from omamods.tui.styles import APP_CSS, DEFAULT_THEME, WORKSPACE_THEME
 from omamods.tui.vim import ChordTracker, run_motion
+from omamods.tui.action_picker import ActionPicker
+from omamods.omarchy_palette import OmarchyPalette
+from omamods.tui.theme_bridge import terminal_theme, workspace_theme
 
 BROWSER_POLL_SECONDS = 2.0
 
@@ -47,6 +51,7 @@ class OmaModsApp(App[None]):
     BINDINGS = [
         Binding("D", "downloads", "Downloads"),
         Binding("colon", "command_line", ":cmd"),
+        Binding("space", "action_picker", show=False),
         Binding("slash", "search", "/search", show=False),
         Binding("j", "motion('down')", show=False),
         Binding("k", "motion('up')", show=False),
@@ -62,12 +67,37 @@ class OmaModsApp(App[None]):
         super().__init__()
         self.service = service
         self.chord = ChordTracker()
+        self.register_theme(WORKSPACE_THEME)
         self.theme = DEFAULT_THEME
+        self.desktop_palette: OmarchyPalette | None = None
 
     def on_mount(self) -> None:
+        self.refresh_omarchy_theme()
+        self.set_interval(1.0, self.refresh_omarchy_theme)
         self.push_screen(GamesScreen(self.service))
         self.set_interval(BROWSER_POLL_SECONDS, self.advance_browser_downloads)
         self.set_interval(BROWSER_POLL_SECONDS, self.tick_requirements)
+
+    def refresh_omarchy_theme(self) -> None:
+        """Follow desktop changes without restarting; e.g. ``app.refresh_omarchy_theme()``."""
+        try:
+            palette = self.service.theme_palette()
+        except (OSError, ValueError):
+            # Theme staging can briefly expose a missing or incomplete palette.
+            return
+        if palette is None or palette == self.desktop_palette:
+            return
+        self.desktop_palette = palette
+        self.register_theme(workspace_theme(palette))
+        self.ansi_theme_dark = self.ansi_theme_light = terminal_theme(palette)
+        self.theme = "omarchy"
+        self.mutate_reactive(type(self).theme)
+        self.call_next(self._recolour_text)
+
+    def _recolour_text(self) -> None:
+        # Rebuild cached visuals so theme-dependent content refreshes with CSS.
+        for widget in self.query(Static):
+            widget.update(widget.content, layout=False)
 
     def tick_requirements(self) -> None:
         """Install requirement downloads as they arrive; runs on a timer."""
@@ -118,6 +148,20 @@ class OmaModsApp(App[None]):
     def action_command_line(self) -> None:
         words = tuple(spec.name for spec in self._screen_commands())
         self.push_screen(CommandPrompt(":", words), self.run_command_line)
+
+    def action_action_picker(self) -> None:
+        """Open searchable screen actions; e.g. ``app.action_action_picker()``."""
+        self.push_screen(ActionPicker(self._screen_commands()), self._pick_action)
+
+    def _pick_action(self, name: str | None) -> None:
+        if name is None:
+            return
+        spec = resolve_command(name, self._screen_commands())
+        if "<" not in spec.usage:
+            self.run_command_line(name)
+            return
+        words = tuple(command.name for command in self._screen_commands())
+        self.push_screen(CommandPrompt(":", words, f"{name} "), self.run_command_line)
 
     def action_search(self) -> None:
         """Filter the screen's list as you type; e.g. ``app.action_search()``."""

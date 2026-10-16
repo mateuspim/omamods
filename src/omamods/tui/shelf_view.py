@@ -184,7 +184,7 @@ def _notes(entry: ShelfEntry) -> Text:
 def entry_detail(entry: ShelfEntry, staged_mods: int | None) -> RenderableType:
     """Render the right-hand card; e.g. ``detail.update(entry_detail(entry, 3))``."""
     return Group(
-        Text(entry.name, style="bold reverse"),
+        Text(entry.name, style="bold"),
         _status_line(entry),
         Text(),
         _facts(entry, entry.install),

@@ -4,19 +4,24 @@ import time
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.screen import Screen
-from textual.widgets import DataTable, Footer, Header, Static
+from textual.widgets import DataTable, Static
 
 from omamods.download_queue import STALL_SECONDS, DownloadStatus
 from omamods.tui.commands import CommandSpec
 from omamods.tui.download_rows import QUEUE_COLUMNS, DownloadTitles, queue_cells
 from omamods.tui.queue_actions import QueueActions
 from omamods.tui.service import ModsService
+from omamods.tui.workspace import (
+    WorkspaceHeader,
+    WorkspaceHints,
+    WorkspaceScreen,
+    WorkspaceStatus,
+)
 
 REFRESH_SECONDS = 1.0
 
 
-class DownloadsScreen(QueueActions, Screen[None]):
+class DownloadsScreen(QueueActions, WorkspaceScreen):
     """Watch every download; e.g. ``app.push_screen(DownloadsScreen(service))``."""
 
     BINDINGS = [
@@ -36,15 +41,19 @@ class DownloadsScreen(QueueActions, Screen[None]):
         self.titles = DownloadTitles(service)
 
     def compose(self) -> ComposeResult:
-        yield Header()
-        yield DataTable(id="queue", cursor_type="row")
+        yield WorkspaceHeader("Downloads", "TRANSFER QUEUE")
+        yield DataTable(id="queue", cursor_type="row", zebra_stripes=True)
         yield Static(
             f"Stalled = no data for {STALL_SECONDS:.0f}s. "
             "r retries the selected download, c clears done and failed ones.",
             id="queue-help",
             markup=False,
         )
-        yield Footer()
+        yield WorkspaceStatus("Downloads")
+        yield WorkspaceHints(
+            "[b]r[/] retry   [b]c[/] clear finished   [b]j/k[/] navigate   "
+            "[b]esc[/] back"
+        )
 
     def on_mount(self) -> None:
         self.sub_title = "Downloads"

@@ -1,10 +1,10 @@
 """Vim-style '/' for a screen's main list: filter as you type, n/N cycle, Esc clears."""
 
-from textual.screen import Screen
 from textual.widgets import OptionList
+from omamods.tui.workspace import WorkspaceScreen
 
 
-class SearchableScreen(Screen[None]):
+class SearchableScreen(WorkspaceScreen):
     """Base for screens whose list '/' filters; e.g. ``class S(SearchableScreen)``.
 
     Subclasses rebuild their list from ``search_query`` in ``rebuild_list``.
