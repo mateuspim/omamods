@@ -42,6 +42,8 @@ from omamods.tui.downloads_panel import (
 )
 from omamods.tui.preview import PicturePreview
 from omamods.tui.service import ModsService
+from omamods.tui.requirement_actions import ERROR_TOAST_SECONDS
+from omamods.tui.toast_filter import RepeatedToastFilter
 
 REFRESH_SECONDS = 3.0
 BROWSER_HINT = (
@@ -84,6 +86,7 @@ class ModsScreen(SearchableScreen, AdultScreen):
         self.picture_attempts: set[str] = set()
         # Set from the first i until its dialog closes, so repeats are ignored.
         self.checking_requirements = False
+        self.error_toasts = RepeatedToastFilter(ERROR_TOAST_SECONDS)
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -115,7 +118,7 @@ class ModsScreen(SearchableScreen, AdultScreen):
         self.reload()
         self.set_interval(REFRESH_SECONDS, self.reload)
         self.set_interval(REFRESH_SECONDS, self.take_ayaka_arrivals)
-        if self.game.redengine:
+        if self.game.steam_app_id is not None:
             self._warn_launch_options()
         panel = self.query_one(DownloadsPanel)
         self.set_interval(REFRESH_SECONDS, panel.refresh_queue)
@@ -378,6 +381,10 @@ class ModsScreen(SearchableScreen, AdultScreen):
         ):
             await asyncio.to_thread(self._install_plans, mod, plans)
             self.reload()
+            # A UE4SS bundle does nothing until Proton loads its proxy DLL.
+            beside_exe = any(a.beside_exe for plan in plans for a in plan.assets)
+            if beside_exe and self.game.steam_app_id is not None:
+                self._warn_launch_options()
 
     def _install_plans(self, mod: StagedMod, plans: tuple[FilePlan, ...]) -> None:
         for plan in plans:

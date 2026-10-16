@@ -1,0 +1,11 @@
+id: metalgearsoliddeltasnakeeater
+name: 'METAL GEAR SOLID Δ: SNAKE EATER'
+status: discovery
+platforms:
+  - steam
+adapter: direct-overlay
+steam_app_id: 2417610
+notes:
+  - Pak mods go to MGSDelta/Content/Paks/~mods.
+  - Mods that bundle UE4SS go beside MGSDelta-Win64-Shipping.exe in MGSDelta/Binaries/Win64.
+  - UE4SS needs WINEDLLOVERRIDES="dwmapi=n,b" in the Steam launch options.

@@ -60,10 +60,11 @@ def launch_options_advice(
     framework_ids: frozenset[int],
     runtime: FileVersion | None = None,
     app_id: str | None = None,
+    loader_dlls: frozenset[str] = frozenset(),
 ) -> LaunchOptionsAdvice:
     """Advise on the first Steam user's line; e.g. ``launch_options_advice(opts, ids)``."""
     current = options[0] if options else ""
-    missing = missing_proxy_dlls(framework_ids, (current,))
+    missing = missing_proxy_dlls(framework_ids, (current,), loader_dlls)
     suggested = merged_launch_options(current, missing)
     fix = _runtime_fix(framework_ids, runtime, app_id)
     return LaunchOptionsAdvice(current, missing, suggested, runtime, fix)

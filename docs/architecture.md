@@ -45,7 +45,14 @@ Cronos and Stellar Blade. Each game is a `PakOverlayGame` entry in
 download link, or a manually downloaded file, yield a cached archive. Only
 `.pak`, `.utoc`, and `.ucas` files are installed: beneath an existing mods
 folder in the archive, from one variant folder copied intact, or as one flat
-same-stem set. Archives with loaders or scripts are rejected.
+same-stem set. Archives with loaders or scripts are rejected, except a
+complete UE4SS bundle (`ue4ss/UE4SS.dll` plus its proxy DLL), which
+`ue4ss_archive.py` places in `<Project>/Binaries/Win64`; its ownership record
+names that folder instead of `Paks`. An `Engine.ini` beside the bundle goes to
+`Saved/Config/<platform>` in the Proton prefix (`ue_config.py`) under a second
+record, `<file-id>.config.json`. It is the one install that may replace an
+existing file: `original_files.py` keeps the game's copy next to that record
+and revert puts it back.
 
 The staging folder is `archives/<game>/<mod-id>/`: Nexus page details in
 `mod.json`, the main picture, and one subfolder per downloaded file ID.

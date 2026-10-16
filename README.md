@@ -70,7 +70,7 @@ The home screen scans for games each time it opens (press `r` to rescan) and
 lists them in three groups:
 
 - **Mod-ready**: catalog games OmaMods can install mods for (Cronos, Stellar
-  Blade, Cyberpunk 2077), plus detected Unreal and RE Engine games. Enter
+  Blade, Cyberpunk 2077, METAL GEAR SOLID Δ), plus detected Unreal and RE Engine games. Enter
   opens their mods.
 - **In the catalog**: games with a manifest but no installer yet.
 - **Your other games**: every other game Steam has installed, in any library
@@ -86,8 +86,12 @@ matches a game on Nexus, it moves to **Mod-ready** and uses the same pak
 installer as Cronos and Stellar Blade: mods go to `Content/Paks/~mods`, and
 IoStore games (`.utoc` present) accept both lone `.pak` files and
 `.pak/.ucas/.utoc` sets. Games that ship `.sig` files carry a warning, since
-they may refuse unsigned paks. Mods that need UE4SS, Lua, or DLL loaders are
-still refused.
+they may refuse unsigned paks. Archives that bundle UE4SS itself (a
+`dwmapi.dll` and a `ue4ss/` folder) install beside the game's executable, and
+an `Engine.ini` beside them replaces the game's own in the Proton prefix until
+uninstalled, as described for [METAL GEAR SOLID Δ](games/metalgearsoliddeltasnakeeater/README.md);
+standalone UE4SS mods, Blueprint `LogicMods`, and other DLL loaders are still
+refused.
 
 Title matching uses Nexus' game list, which needs an API key once and is cached
 for a week in `<storage>/cache/nexus_games.json`. Unreal games with no match
@@ -377,6 +381,16 @@ and the terminal's clipboard. The requirements dialog shows the same and
 copies with the same keys. A `modlist.txt` in
 `archive/pc/mod` overrides the archives' name order; OmaMods does not edit it.
 See the [Cyberpunk 2077 adapter](games/cyberpunk-2077/README.md).
+
+## METAL GEAR SOLID Δ: SNAKE EATER
+
+Pak mods go to `MGSDelta/Content/Paks/~mods`. Mods that ship UE4SS with them,
+such as BetterUncapFPS' "UE4SS_All in One Package", install whole into
+`MGSDelta/Binaries/Win64` (their `Engine.ini` goes to the game's config folder
+in the Proton prefix and the original comes back on uninstall), and need `WINEDLLOVERRIDES="dwmapi=n,b"` in the
+Steam launch options; the mods screen warns when it is missing and `L` shows
+the line to paste. See the
+[METAL GEAR SOLID Δ adapter](games/metalgearsoliddeltasnakeeater/README.md).
 
 ## Cronos and Stellar Blade Nexus mods
 

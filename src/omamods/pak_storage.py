@@ -1,6 +1,7 @@
 """Persist downloaded archives and reversible Unreal asset ownership."""
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 import hashlib
 import json
 import os
@@ -15,11 +16,18 @@ from omamods.cdn_download import (
     download_with_retries,
 )
 from omamods.nexus_api import NexusFile
+from omamods.original_files import (
+    originals_folder,
+    put_back_original,
+    set_aside_original,
+)
 from omamods.pak_archive import ASSET_SUFFIXES, ArchiveReader, PlannedAsset
 from omamods.pak_games import PakOverlayGame
 from omamods.red_archive import is_red_game_path, is_removable_red_folder
 from omamods.re_pak_archive import write_packed_pak
 from omamods.re_patch_chain import is_empty_patch, patch_number
+from omamods.ue4ss_archive import UE4SS_FOLDER, is_ue4ss_game_path
+from omamods.ue_config import is_ue_config_path
 
 PARTIAL_SUFFIX = ".partial"
 
@@ -33,6 +41,11 @@ class InstalledAsset:
     # The install overwrote an empty RE Engine patch; revert puts a 0-byte
     # file back instead of deleting, so Steam's file list still matches.
     replaced_empty: bool = False
+    # A settings file the mod rewrites; revert removes it even when changed.
+    user_editable: bool = False
+    # Where the game's own file was kept (prefix Engine.ini); "" when the
+    # install created the file.
+    original: str = ""
 
 
 def _digest(path: Path) -> str:
@@ -130,6 +143,8 @@ def _preflight(paks: Path, assets: tuple[PlannedAsset, ...], record: Path) -> No
         )
     for asset in assets:
         target = _safe_target(paks, asset.target)
+        if asset.user_config:
+            continue  # The game's own file is set aside and restored.
         if target.exists() and not (asset.replaces_empty and is_empty_patch(target)):
             raise ValueError(
                 f"asset target={str(target)!r}: expected an unowned path; the file "
@@ -160,7 +175,10 @@ def _write_asset(
         target.unlink()
         raise ValueError(f"asset member={asset.member!r}: expected nonempty content")
     return InstalledAsset(
-        asset.target.as_posix(), _digest(target), asset.replaces_empty
+        asset.target.as_posix(),
+        _digest(target),
+        asset.replaces_empty,
+        asset.user_editable,
     )
 
 
@@ -197,23 +215,53 @@ def install_pak_archive(
 ) -> tuple[InstalledAsset, ...]:
     """Install owned files; e.g. ``install_pak_archive(zip, paks, state, 12, reader, plan)``."""
     _preflight(paks, planned, record)
-    created: list[Path] = []
-    folders: list[Path] = []
+    undo = _InstallUndo(originals_folder(record))
     installed: list[InstalledAsset] = []
     try:
         for asset in planned:
-            target = paks / asset.target
-            folders.extend(_missing_folders(paks, target))
-            installed.append(_write_asset(archive, paks, asset, reader))
-            created.append(target)
+            installed.append(_install_asset(archive, paks, asset, reader, undo))
         _write_state(record, paks, archive, file_id, tuple(installed))
     except BaseException:
-        for path in created:
-            path.unlink(missing_ok=True)
-        _remove_new_folders(folders)
+        undo.roll_back()
         _restore_empty_patches(paks, planned)
         raise
     return tuple(installed)
+
+
+@dataclass
+class _InstallUndo:
+    """What a failed install must take back, newest last."""
+
+    originals: Path
+    created: list[Path] = field(default_factory=list)
+    folders: list[Path] = field(default_factory=list)
+    set_aside: list[tuple[Path, Path]] = field(default_factory=list)
+
+    def roll_back(self) -> None:
+        for path in self.created:
+            path.unlink(missing_ok=True)
+        _remove_new_folders(self.folders)
+        for saved, target in self.set_aside:
+            put_back_original(saved, target, self.originals)
+
+
+def _install_asset(
+    archive: Path,
+    paks: Path,
+    asset: PlannedAsset,
+    reader: ArchiveReader,
+    undo: _InstallUndo,
+) -> InstalledAsset:
+    target = paks / asset.target
+    undo.folders.extend(_missing_folders(paks, target))
+    saved = None
+    if asset.user_config:
+        saved = set_aside_original(target, undo.originals / asset.target)
+    if saved is not None:
+        undo.set_aside.append((saved, target))
+    installed = _write_asset(archive, paks, asset, reader)
+    undo.created.append(target)
+    return replace(installed, original=str(saved or ""))
 
 
 def _missing_folders(paks: Path, target: Path) -> list[Path]:
@@ -262,7 +310,16 @@ def _recorded_assets(
     for asset in assets:
         _validate_owned_path(asset, game)
         _validate_digest(asset)
+        _validate_original(asset, record)
     return paks, assets
+
+
+def _validate_original(asset: InstalledAsset, record: Path) -> None:
+    expected = originals_folder(record) / asset.relative_path
+    if asset.original and Path(asset.original) != expected:
+        raise ValueError(
+            f"saved original={asset.original!r}: expected {str(expected)!r}"
+        )
 
 
 def _validate_owned_path(asset: InstalledAsset, game: PakOverlayGame) -> None:
@@ -271,6 +328,10 @@ def _validate_owned_path(asset: InstalledAsset, game: PakOverlayGame) -> None:
         return
     if game.redengine:
         _validate_owned_game_path(asset)
+        return
+    if is_ue4ss_game_path(asset.relative_path):
+        return
+    if is_ue_config_path(asset.relative_path):
         return
     mods_dirname = game.mods_dirname
     relative = Path(asset.relative_path)
@@ -318,6 +379,8 @@ def revert_pak_mod(record: Path, game: PakOverlayGame) -> tuple[Path, ...]:
     paks, assets = _recorded_assets(record, game)
     targets = tuple(_safe_target(paks, Path(asset.relative_path)) for asset in assets)
     for target, asset in zip(targets, assets, strict=True):
+        if asset.user_editable:
+            continue
         if target.exists() and _digest(target) != asset.sha256:
             raise ValueError(
                 f"asset target={str(target)!r}: expected original SHA-256; file changed"
@@ -326,17 +389,30 @@ def revert_pak_mod(record: Path, game: PakOverlayGame) -> tuple[Path, ...]:
         target.unlink(missing_ok=True)
         if asset.replaced_empty:
             target.touch()
+        if asset.original:
+            put_back_original(Path(asset.original), target, originals_folder(record))
     if game.redengine:
-        _prune_empty_folders(paks, targets)
+        _prune_empty_folders(paks, targets, is_removable_red_folder)
+    elif any(is_ue4ss_game_path(asset.relative_path) for asset in assets):
+        _prune_empty_folders(paks, targets, _is_removable_ue4ss_folder)
     record.unlink()
     return targets
 
 
-def _prune_empty_folders(root: Path, targets: tuple[Path, ...]) -> None:
+def _prune_empty_folders(
+    root: Path, targets: tuple[Path, ...], removable: Callable[[Path, Path], bool]
+) -> None:
     # Framework folders such as red4ext/plugins/ArchiveXL would otherwise stay
     # behind empty; the game's own top-level folders are never removed.
     for target in targets:
         folder = target.parent
-        while is_removable_red_folder(root, folder):
+        while removable(root, folder):
             folder.rmdir()
             folder = folder.parent
+
+
+def _is_removable_ue4ss_folder(binaries: Path, folder: Path) -> bool:
+    # Only ue4ss/ and below; UE4SS.log written at run time keeps it in place.
+    if folder == binaries or not folder.is_relative_to(binaries / UE4SS_FOLDER):
+        return False
+    return folder.is_dir() and not any(folder.iterdir())

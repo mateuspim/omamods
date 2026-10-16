@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from omamods.nexus_api import STALE_CATEGORIES, NexusFile
 from omamods.pak_archive import PlannedAsset
 from omamods.staging import StagedMod
+from omamods.ue_config import CONFIG_LABEL
+from omamods.ue4ss_archive import BINARIES_LABEL
 
 NOT_DEFAULT_INSTALL = STALE_CATEGORIES | {"OPTIONAL"}
 
@@ -66,6 +68,13 @@ def describe_plans(plans: tuple[FilePlan, ...], folder: str = "Paks") -> str:
 
 
 def _target_line(asset: PlannedAsset, folder: str) -> str:
+    if asset.user_config:
+        return (
+            f"  {CONFIG_LABEL}/{asset.target.as_posix()} "
+            "(replaces the game's; uninstall puts it back)"
+        )
+    if asset.beside_exe:
+        return f"  {BINARIES_LABEL}/{asset.target.as_posix()}"
     if asset.packed:
         return (
             f"  next free patch_NNN.pak <- {len(asset.packed)} natives/ files, packed"

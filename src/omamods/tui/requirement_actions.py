@@ -17,12 +17,14 @@ from omamods.staging import StagedMod
 from omamods.tui.launch_options_dialog import LaunchOptionsDialog
 from omamods.tui.requirements_dialog import RequirementsDialog
 from omamods.tui.service import ModsService
+from omamods.tui.toast_filter import RepeatedToastFilter
 
 Result = TypeVar("Result")
 LAUNCH_WARNING = (
-    "Steam or the Proton prefix is missing what RED4ext/CET need; "
+    "Steam or the Proton prefix is missing what this game's mod loaders need; "
     "press L to see the fix and copy it."
 )
+ERROR_TOAST_SECONDS = 10
 
 
 class RequirementScreen(Screen[None]):
@@ -32,6 +34,8 @@ class RequirementScreen(Screen[None]):
     game: PakOverlayGame
     # Set from the first i until its dialog closes, so repeats are ignored.
     checking_requirements: bool = False
+    # Set by ModsScreen; repeated keypresses would stack identical errors.
+    error_toasts: RepeatedToastFilter
 
     def install_now(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
         """Install without a requirement check; ModsScreen provides it."""
@@ -41,7 +45,8 @@ class RequirementScreen(Screen[None]):
         try:
             return action()
         except (OSError, ValueError) as error:
-            self.notify(str(error), severity="error", timeout=10)
+            if self.error_toasts.should_show(str(error)):
+                self.notify(str(error), severity="error", timeout=ERROR_TOAST_SECONDS)
             return None
 
     def install_files(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:

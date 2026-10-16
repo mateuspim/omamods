@@ -31,6 +31,15 @@ class PlannedAsset:
     # An empty pak means a broken extraction, but Cyberpunk frameworks ship
     # 0-byte marker files (ArchiveXL's r6/config/redsUserHints/ArchiveXL.toml).
     allow_empty: bool = False
+    # A settings file the mod rewrites at run time (UE4SS Lua configs); revert
+    # removes it even when it no longer matches the archive.
+    user_editable: bool = False
+    # The target is relative to the folder holding the game's executable
+    # (UE4SS bundles) instead of Paks.
+    beside_exe: bool = False
+    # The target is relative to the game's Saved/Config folder in the Proton
+    # prefix (a bundle's Engine.ini); the install sets the game's file aside.
+    user_config: bool = False
 
 
 class ArchiveReader(Protocol):

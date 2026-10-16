@@ -18,7 +18,7 @@ from omamods.install_records import (
 from omamods.mod_fetch import stage_file
 from omamods.nexus_config import RequestedMod, UserSettings
 from omamods.asset_plans import plan_game_assets
-from omamods.pak_archive import ArchiveReader
+from omamods.pak_archive import ArchiveReader, PlannedAsset
 from omamods.pak_games import PakOverlayGame
 from omamods.pak_storage import (
     archive_path,
@@ -32,6 +32,8 @@ from omamods.re_patch_chain import (
     require_packable_chain,
 )
 from omamods.steam_apps import GameInspection
+from omamods.ue4ss_archive import ue4ss_binaries
+from omamods.ue_config import config_record, ue_config_folder
 
 
 @dataclass(frozen=True)
@@ -98,6 +100,24 @@ def scanned_game_paks(game: PakOverlayGame) -> Path:
     return paks
 
 
+@dataclass(frozen=True)
+class _FileInstall:
+    """One staged file on its way into the game, and its ownership record."""
+
+    game: PakOverlayGame
+    paks: Path
+    archive: Path
+    record: Path
+    file_id: int
+    reader: ArchiveReader
+
+    def write(self, root: Path, record: Path, assets: tuple[PlannedAsset, ...]) -> int:
+        installed = install_pak_archive(
+            self.archive, root, record, self.file_id, self.reader, assets
+        )
+        return len(installed)
+
+
 def _install_cached(
     game: PakOverlayGame,
     settings: UserSettings,
@@ -113,10 +133,31 @@ def _install_cached(
         planned = number_patches(planned, paks, game.patch_chain)
     root = settings.storage_root
     record = file_state_path(root, game, local.mod_id, local.file_id, local.option)
-    installed = install_pak_archive(
-        archive, paks, record, local.file_id, reader, planned
-    )
-    return len(installed)
+    install = _FileInstall(game, paks, archive, record, local.file_id, reader)
+    return _install_planned(install, planned)
+
+
+def _install_planned(install: _FileInstall, planned: tuple[PlannedAsset, ...]) -> int:
+    configs = tuple(asset for asset in planned if asset.user_config)
+    files = tuple(asset for asset in planned if not asset.user_config)
+    if not configs:
+        return _install_game_files(install, files)
+    # Prefix files go under their own record, since they have another root.
+    prefix_record = config_record(install.record)
+    folder = ue_config_folder(install.paks, install.game)
+    count = install.write(folder, prefix_record, configs)
+    try:
+        return count + _install_game_files(install, files)
+    except BaseException:
+        revert_pak_mod(prefix_record, install.game)  # Put the game's file back.
+        raise
+
+
+def _install_game_files(install: _FileInstall, files: tuple[PlannedAsset, ...]) -> int:
+    # UE4SS bundles go beside the executable; everything else into Paks.
+    beside_exe = any(asset.beside_exe for asset in files)
+    root = ue4ss_binaries(install.paks) if beside_exe else install.paks
+    return install.write(root, install.record, files)
 
 
 def install_local_archive(

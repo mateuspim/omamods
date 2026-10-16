@@ -20,6 +20,13 @@ RED_FRAMEWORK_MARKERS: dict[int, str] = {
 # RED4ext loads through winmm.dll and CET through version.dll; Wine prefers its
 # builtin copies unless the launch options override them.
 RED_PROXY_DLLS: dict[int, str] = {RED4EXT_MOD_ID: "winmm", CET_MOD_ID: "version"}
+# Which loader each proxy DLL belongs to, to name it in the hint.
+PROXY_LOADERS: dict[str, str] = {
+    "winmm": "RED4ext",
+    "version": "CET",
+    "dwmapi": "UE4SS",
+    "xinput1_3": "UE4SS",
+}
 OVERRIDES_PATTERN = re.compile(r"WINEDLLOVERRIDES=(?:\"([^\"]*)\"|'([^']*)'|(\S+))")
 PathProbe = Callable[[Path], bool]
 
@@ -46,10 +53,16 @@ def native_overrides(launch_options: str) -> frozenset[str]:
 
 
 def missing_proxy_dlls(
-    framework_ids: frozenset[int], launch_options: tuple[str, ...]
+    framework_ids: frozenset[int],
+    launch_options: tuple[str, ...],
+    loader_dlls: frozenset[str] = frozenset(),
 ) -> tuple[str, ...]:
-    """DLL overrides still needed; e.g. ``missing_proxy_dlls(frozenset({2380}), opts)``."""
+    """DLL overrides still needed; e.g. ``missing_proxy_dlls(frozenset({2380}), opts)``.
+
+    ``loader_dlls`` adds proxies found on disk, such as UE4SS' ``dwmapi``.
+    """
     needed = {RED_PROXY_DLLS[i] for i in framework_ids if i in RED_PROXY_DLLS}
+    needed |= loader_dlls
     for options in launch_options:
         needed -= native_overrides(options)
     return tuple(sorted(needed))
@@ -58,9 +71,10 @@ def missing_proxy_dlls(
 def launch_options_hint(missing: tuple[str, ...]) -> str:
     """Tell people what to set; e.g. ``launch_options_hint(('version', 'winmm'))``."""
     dlls = ",".join(missing)
+    loaders = sorted({PROXY_LOADERS.get(dll, dll) for dll in missing})
     return (
-        f'Add WINEDLLOVERRIDES="{dlls}=n,b" before %command% in Cyberpunk '
-        f"2077's Steam launch options so Proton loads "
-        f"{' and '.join(f'{dll}.dll' for dll in missing)}; without it RED4ext "
-        "and CET mods do nothing."
+        f'Add WINEDLLOVERRIDES="{dlls}=n,b" before %command% in the game\'s '
+        f"Steam launch options so Proton loads "
+        f"{' and '.join(f'{dll}.dll' for dll in missing)}; without it "
+        f"{' and '.join(loaders)} mods do nothing."
     )

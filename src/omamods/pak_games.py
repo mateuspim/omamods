@@ -60,6 +60,19 @@ PAK_OVERLAY_GAMES: dict[str, PakOverlayGame] = {
         # Stellar Blade mod 1 ships a lone .pak; others ship a triplet.
         flat_suffix_sets=(PAK_SUFFIXES, IOSTORE_SUFFIXES),
     ),
+    # The ID is the Nexus domain the scan gave it, so files already staged
+    # under archives/metalgearsoliddeltasnakeeater/ stay where they are.
+    "metalgearsoliddeltasnakeeater": PakOverlayGame(
+        game_id="metalgearsoliddeltasnakeeater",
+        name="METAL GEAR SOLID Δ: SNAKE EATER",
+        nexus_domain="metalgearsoliddeltasnakeeater",
+        # Foxhunt and Nightmare are separate projects beside MGSDelta/.
+        paks_subpath=Path("MGSDelta/Content/Paks"),
+        mods_dirname="~mods",
+        flat_suffix_sets=(PAK_SUFFIXES, IOSTORE_SUFFIXES),
+        # Read for UE4SS' dwmapi override in the launch options.
+        steam_app_id="2417610",
+    ),
     "cyberpunk-2077": PakOverlayGame(
         game_id="cyberpunk-2077",
         name="Cyberpunk 2077",
