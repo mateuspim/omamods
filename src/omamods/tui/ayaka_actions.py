@@ -14,7 +14,7 @@ from omamods.nexus_api import NexusFile
 from omamods.staging import StagedMod
 from omamods.tui.dialogs import FilePicker
 from omamods.tui.login_dialog import LoginCookiePrompt
-from omamods.tui.requirement_actions import RequirementScreen
+from omamods.tui.release_actions import ReleaseScreen
 
 
 def offer_file(offer: AyakaOffer, index: int) -> NexusFile:
@@ -24,12 +24,8 @@ def offer_file(offer: AyakaOffer, index: int) -> NexusFile:
     return NexusFile(file_id, offer.label, AYAKA_FILE_CATEGORY, 0, offer.label)
 
 
-class AyakaScreen(RequirementScreen):
+class AyakaScreen(ReleaseScreen):
     """Base for ModsScreen: add AyakaMods mods and download their files."""
-
-    def reload(self) -> None:
-        """Re-read staging; ModsScreen provides it."""
-        raise NotImplementedError(f"screen={self!r}: expected reload")
 
     def fetch_ayaka(self, url: str) -> None:
         """Stage a page, then download its files; e.g. ``screen.fetch_ayaka(url)``."""

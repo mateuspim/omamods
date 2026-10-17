@@ -1,7 +1,8 @@
-"""Show what Steam and the Proton prefix need for RED4ext/CET, ready to copy.
+"""Show what Steam and the Proton prefix need for mod loaders, ready to copy.
 
-Two separate fixes: the launch options line (DLL overrides) and the prefix's
-Visual C++ runtime (an old one makes CET fail with error 998).
+Two separate fixes: the launch options line (DLL overrides), which w also
+saves into Steam, and the prefix's Visual C++ runtime (an old one makes CET
+fail with error 998).
 """
 
 from collections.abc import Callable
@@ -27,7 +28,7 @@ def _launch_section(advice: LaunchOptionsAdvice) -> str:
         return f"Steam launch options are fine:\n  {current}"
     return (
         f"Steam has now:\n  {current}\n\nSet it to:\n  {advice.suggested}\n\n"
-        f"{launch_options_hint(advice.missing)}\n{STEAM_PATH}"
+        f"{launch_options_hint(advice.missing, advice.loader)}\n{STEAM_PATH}"
     )
 
 
@@ -59,15 +60,24 @@ def launch_options_text(advice: LaunchOptionsAdvice) -> Text:
 
 def setup_hint(advice: LaunchOptionsAdvice) -> str:
     """List the copy keys that apply; e.g. ``setup_hint(advice)``."""
-    keys = ["c copies the launch options"] if advice.missing else []
+    keys = ["w saves the launch options to Steam"] if advice.missing else []
+    keys += ["c copies them"] if advice.missing else []
     keys += ["p copies the protontricks command"] if advice.runtime_fix else []
     return ", ".join([*keys, "Esc closes"])
 
 
-class LaunchOptionsDialog(ModalScreen[None]):
-    """Offer both fixes; e.g. ``LaunchOptionsDialog(advice, service.copy_to_clipboard)``."""
+# What the dialog returns when w asks the screen to write the line to Steam.
+SAVE_TO_STEAM = "save"
+
+
+class LaunchOptionsDialog(ModalScreen[str | None]):
+    """Offer both fixes; e.g. ``LaunchOptionsDialog(advice, service.copy_to_clipboard)``.
+
+    Dismisses with ``SAVE_TO_STEAM`` on w, so the screen can close Steam first.
+    """
 
     BINDINGS = [
+        Binding("w", "save", "Save to Steam"),
         Binding("c", "copy", "Copy launch options"),
         Binding("p", "copy_runtime_fix", "Copy protontricks command"),
         Binding("escape,q,enter", "close", "Close"),
@@ -86,6 +96,10 @@ class LaunchOptionsDialog(ModalScreen[None]):
 
     def action_copy(self) -> None:
         copy_launch_line(self, self.advice, self.copier)
+
+    def action_save(self) -> None:
+        if self.advice.missing:
+            self.dismiss(SAVE_TO_STEAM)
 
     def action_copy_runtime_fix(self) -> None:
         copy_runtime_fix(self, self.advice, self.copier)

@@ -27,8 +27,11 @@ from omamods.game_shelf import GameShelf
 from omamods.heroic_games import default_heroic_roots
 from omamods.manifests import GameManifest, load_catalog
 from omamods.pak_games import PakGameCatalog, PakOverlayGame
+from omamods.release_api import UrlReleaseTransport
 from omamods.shelf_scan import ShelfSources, scan_shelf
 from omamods.steam_launch_options import steam_launch_options
+from omamods.steam_launch_writer import localconfig_paths, save_launch_options
+from omamods.steam_process import SteamProcess
 from omamods.tui.service import ModsService, TuiHost
 from omamods.omarchy_palette import OmarchyPaletteReader, omarchy_palette_paths
 
@@ -71,6 +74,18 @@ class SteamLaunchOptionsReader:
     def __call__(self, app_id: str) -> tuple[str, ...]:
         roots = self.args.steam_root or self.sources.steam_roots
         return steam_launch_options(tuple(roots), app_id, self.sources.files)
+
+
+class SteamLaunchOptionsWriter:
+    """Write a game's Steam launch options; e.g. ``writer('287700', line, backups)``."""
+
+    def __init__(self, args: Namespace, sources: CatalogSources) -> None:
+        self.args = args
+        self.sources = sources
+
+    def __call__(self, app_id: str, line: str, backups: Path) -> tuple[Path, ...]:
+        roots = tuple(self.args.steam_root or self.sources.steam_roots)
+        return save_launch_options(localconfig_paths(roots), app_id, line, backups)
 
 
 class CachedNexusGames:
@@ -150,6 +165,9 @@ def tui_host(
         palette_reader=OmarchyPaletteReader(
             omarchy_palette_paths(runtime.home, runtime.environment), sources.files
         ),
+        release_transport=UrlReleaseTransport(),
+        write_launch_options=SteamLaunchOptionsWriter(args, sources),
+        steam=SteamProcess(runtime.runner, runtime.launcher),
     )
 
 

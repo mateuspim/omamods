@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import tempfile
 
+from omamods.asi_archive import is_asi_game_path, is_removable_asi_folder
 from omamods.cdn_download import (
     ProgressCallback,
     ResumableTransport,
@@ -329,6 +330,9 @@ def _validate_owned_path(asset: InstalledAsset, game: PakOverlayGame) -> None:
     if game.redengine:
         _validate_owned_game_path(asset)
         return
+    if game.asi_loader:
+        _validate_owned_asi_path(asset)
+        return
     if is_ue4ss_game_path(asset.relative_path):
         return
     if is_ue_config_path(asset.relative_path):
@@ -352,6 +356,14 @@ def _validate_owned_game_path(asset: InstalledAsset) -> None:
         raise ValueError(
             f"owned asset={asset.relative_path!r}: expected a path beneath a "
             "game folder such as bin/ or archive/"
+        )
+
+
+def _validate_owned_asi_path(asset: InstalledAsset) -> None:
+    if not is_asi_game_path(asset.relative_path):
+        raise ValueError(
+            f"owned asset={asset.relative_path!r}: expected a loader DLL, .asi, or "
+            ".ini beside the executable or beneath scripts/ or plugins/"
         )
 
 
@@ -393,6 +405,8 @@ def revert_pak_mod(record: Path, game: PakOverlayGame) -> tuple[Path, ...]:
             put_back_original(Path(asset.original), target, originals_folder(record))
     if game.redengine:
         _prune_empty_folders(paks, targets, is_removable_red_folder)
+    elif game.asi_loader:
+        _prune_empty_folders(paks, targets, is_removable_asi_folder)
     elif any(is_ue4ss_game_path(asset.relative_path) for asset in assets):
         _prune_empty_folders(paks, targets, _is_removable_ue4ss_folder)
     record.unlink()

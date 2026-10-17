@@ -83,8 +83,8 @@ class DialogTextTests(unittest.TestCase):
         self.assertIn("bold green", [s.style for s in text.spans if s.start == start])
         self.assertEqual(
             setup_hint(advice),
-            "c copies the launch options, p copies the protontricks command, "
-            "Esc closes",
+            "w saves the launch options to Steam, c copies them, "
+            "p copies the protontricks command, Esc closes",
         )
 
 

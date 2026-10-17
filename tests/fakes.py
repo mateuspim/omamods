@@ -510,3 +510,74 @@ class FakeAyakaSession:
         copy_with_progress(
             BytesIO(body[resume_from:]), destination, len(body), progress, resume_from
         )
+
+
+class FakeReleaseTransport:
+    """Answer the Codeberg/GitHub release API from a canned reply."""
+
+    def __init__(self, reply: object, archive: bytes = b"release zip") -> None:
+        self.reply = reply
+        self.archive = archive
+        self.requests: list[str] = []
+        self.downloads: list[str] = []
+
+    def get_json(self, url: str) -> object:
+        """Return the canned release; e.g. ``fake.get_json(source.latest_release_url)``."""
+        self.requests.append(url)
+        if isinstance(self.reply, OSError):
+            raise self.reply
+        return self.reply
+
+    def download(
+        self,
+        url: str,
+        destination: BytesIO,
+        progress: ProgressCallback | None = None,
+        resume_from: int = 0,
+    ) -> None:
+        """Write the fake archive; e.g. ``fake.download(url, stream)``."""
+        self.downloads.append(url)
+        destination.write(self.archive)
+
+
+def codeberg_release(
+    tag: str = "0.0.3", asset_id: int = 9001, name: str = "MGSVFix_0.0.3.zip"
+) -> dict[str, object]:
+    """Build a Gitea latest-release reply; e.g. ``codeberg_release('0.0.4', 9002)``."""
+    url = f"https://codeberg.org/Lyall/MGSVFix/releases/download/{tag}/{name}"
+    return {
+        "tag_name": tag,
+        "published_at": "2026-06-11T23:53:53+02:00",
+        "assets": [
+            {"id": asset_id, "name": name, "size": 786976, "browser_download_url": url},
+            {
+                "id": asset_id + 1,
+                "name": "SHA256SUMS",
+                "size": 90,
+                "browser_download_url": url + ".sha256",
+            },
+        ],
+    }
+
+
+class FakeSteamClient:
+    """Answer ``pgrep -x steam`` as running until ``steam -shutdown`` is seen."""
+
+    def __init__(self, running: bool, exits_after: int = 1) -> None:
+        self.is_running = running
+        self.exits_after = exits_after
+        self.commands: list[tuple[str, ...]] = []
+        self.launched: list[tuple[str, ...]] = []
+        self.shutdown_polls = 0
+
+    def run(self, command: tuple[str, ...]) -> tuple[int, str]:
+        """Answer pgrep; e.g. ``fake.run(('pgrep', '-x', 'steam'))``."""
+        self.commands.append(command)
+        if self.is_running and ("steam", "-shutdown") in self.launched:
+            self.shutdown_polls += 1
+            self.is_running = self.shutdown_polls < self.exits_after
+        return (0, "1234") if self.is_running else (1, "")
+
+    def launch(self, command: tuple[str, ...]) -> None:
+        """Record steam -shutdown and -silent; e.g. ``fake.launch(('steam', '-silent'))``."""
+        self.launched.append(command)

@@ -20,7 +20,7 @@ from omamods.mod_plan import (
 from omamods.ayaka_pages import is_ayaka_url
 from omamods.nexus_api import NexusFile, describe_nexus_file
 from omamods.pak_games import PakOverlayGame
-from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE
+from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE, RELEASE_SITE
 from omamods.staging import StagedMod
 from omamods.adult_marks import BLUR
 from omamods.tui.adult_actions import AdultScreen
@@ -130,6 +130,7 @@ class ModsScreen(SearchableScreen, AdultScreen):
         self.set_interval(REFRESH_SECONDS, self.take_ayaka_arrivals)
         if self.game.steam_app_id is not None:
             self._warn_launch_options()
+        self.check_release_updates()
         panel = self.query_one(DownloadsPanel)
         self.set_interval(REFRESH_SECONDS, panel.refresh_queue)
 
@@ -289,6 +290,9 @@ class ModsScreen(SearchableScreen, AdultScreen):
         if self.current is not None and self.current.site == AYAKA_SITE:
             self.download_ayaka(self.current)  # Its files, or its page.
             return
+        if self.current is not None and self.current.site == RELEASE_SITE:
+            self.download_release(self.current)  # The newest release's.
+            return
         file = self._selected_file()
         if file is not None and self.current is not None:
             self.download_files(self.current.mod_id, (file,))
@@ -313,6 +317,8 @@ class ModsScreen(SearchableScreen, AdultScreen):
             self.confirm_uninstall(self.current, (file,))
         elif file.file_id in self.current.archives:
             self.install_files(self.current, (file,))
+        elif self.current.site == RELEASE_SITE:
+            self.download_release(self.current)
         else:
             self.download_files(self.current.mod_id, (file,))
 
@@ -388,9 +394,11 @@ class ModsScreen(SearchableScreen, AdultScreen):
         ):
             await asyncio.to_thread(self._install_plans, mod, plans)
             self.reload()
-            # A UE4SS bundle does nothing until Proton loads its proxy DLL.
+            # A UE4SS bundle or ASI plugin does nothing until Proton loads its
+            # proxy DLL.
             beside_exe = any(a.beside_exe for plan in plans for a in plan.assets)
-            if beside_exe and self.game.steam_app_id is not None:
+            loads_dll = beside_exe or self.game.asi_loader
+            if loads_dll and self.game.steam_app_id is not None:
                 self._warn_launch_options()
 
     def _install_plans(self, mod: StagedMod, plans: tuple[FilePlan, ...]) -> None:

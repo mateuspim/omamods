@@ -54,6 +54,27 @@ record, `<file-id>.config.json`. It is the one install that may replace an
 existing file: `original_files.py` keeps the game's copy next to that record
 and revert puts it back.
 
+Games flagged `asi_loader` (METAL GEAR SOLID V, Fox Engine) take only ASI
+plugin archives. `asi_archive.py` maps a loader DLL, `.asi`/`.ini` files, and
+`scripts/` or `plugins/` beside the executable, the folder `paks_subpath`
+names. Revert accepts only those paths and prunes emptied plugin folders.
+
+Mods published only as Codeberg or GitHub releases (MGSVFix) are listed in
+`release_sources.py` with a small fixed mod ID. `release_api.py` reads
+`/repos/<owner>/<repo>/releases/latest` through its own anonymous
+`ReleaseTransport` (`TuiHost.release_transport`), so the Nexus key never
+reaches those sites. `release_staging.py` keeps Nexus' staging layout under
+`release/` and lists older releases' files as `OLD_VERSION`.
+`tui/release_site.py` and `tui/release_actions.py` add them to the mods
+screen, and `RELEASE_SITE` routes installs, reverts, and queue retries.
+
+Launch options are written by `steam_launch_writer.py`, which edits the
+`LaunchOptions` token in `localconfig.vdf` in place and backs the file up
+first. `steam_process.py` closes Steam (`steam -shutdown`) before the write
+and restarts it afterwards, because Steam rewrites the file on exit.
+`tui/steam_setup.py` coordinates both through `TuiHost.write_launch_options`
+and `TuiHost.steam`.
+
 The staging folder is `archives/<game>/<mod-id>/`: Nexus page details in
 `mod.json`, the main picture, and one subfolder per downloaded file ID.
 Ownership records are per file (`state/<game>/<mod-id>/<file-id>.json`); the

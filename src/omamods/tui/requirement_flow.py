@@ -9,7 +9,7 @@ Launch options are checked for every game with a Steam app ID.
 # need the import, which would otherwise be circular.
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 import threading
 from typing import TYPE_CHECKING
@@ -38,6 +38,7 @@ from omamods.requirement_chain_store import (
 )
 from omamods.staging import StagedMod
 from omamods.ue4ss_archive import BINARIES_FROM_PAKS, ue4ss_proxies_on_disk
+from omamods.asi_archive import ASI_LOADER_LABEL, asi_loaders_on_disk
 
 if TYPE_CHECKING:
     from omamods.tui.service import ModsService
@@ -210,6 +211,8 @@ class RequirementFlow:
         app_id = game.steam_app_id
         options = self.service.host.read_launch_options(app_id)
         root = self.service.host.locate_paks(game, self.service.settings)
+        if game.asi_loader:
+            return self._asi_advice(options, root, app_id)
         if not game.redengine:
             return self._unreal_advice(options, root, app_id)
         host = ServiceChainHost(self.service, game, self.exists)
@@ -223,6 +226,14 @@ class RequirementFlow:
         # An installed UE4SS bundle needs its proxy DLL (dwmapi) overridden.
         loaders = ue4ss_proxies_on_disk(paks / BINARIES_FROM_PAKS, self.exists)
         return launch_options_advice(options, frozenset(), None, app_id, loaders)
+
+    def _asi_advice(
+        self, options: tuple[str, ...], root: Path, app_id: str
+    ) -> LaunchOptionsAdvice:
+        # An installed ASI loader (MGSVFix's winmm.dll) needs its override.
+        loaders = asi_loaders_on_disk(root, self.exists)
+        advice = launch_options_advice(options, frozenset(), None, app_id, loaders)
+        return replace(advice, loader=ASI_LOADER_LABEL)
 
     def start(self, plan: RequirementPlan) -> RequirementChain:
         """Begin installing; e.g. ``flow.start(plan)``."""

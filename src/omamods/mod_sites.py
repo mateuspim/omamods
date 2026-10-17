@@ -2,3 +2,4 @@
 
 NEXUS_SITE = "nexus"
 AYAKA_SITE = "ayaka"
+RELEASE_SITE = "release"

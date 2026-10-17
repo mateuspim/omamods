@@ -28,6 +28,9 @@ class LaunchOptionsAdvice:
     # it is too old for RED4ext/CET (error 998); None when it is fine.
     runtime: FileVersion | None = None
     runtime_fix: str | None = None
+    # Names the loader in the hint when its DLL is ambiguous (MGSV's winmm
+    # is the ASI loader, not RED4ext); None names it from the DLL.
+    loader: str | None = None
 
     @property
     def needed(self) -> bool:

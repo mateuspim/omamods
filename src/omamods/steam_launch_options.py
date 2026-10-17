@@ -17,7 +17,8 @@ def _child(block: KeyValues, key: str) -> KeyValues | None:
     return None
 
 
-def _app_launch_options(document: KeyValues, app_id: str) -> str | None:
+def app_launch_options(document: KeyValues, app_id: str) -> str | None:
+    """Read one app's options; e.g. ``app_launch_options(parsed, '287700')``."""
     block: KeyValues | None = document
     for key in (*APPS_PATH, app_id):
         block = _child(block, key) if block is not None else None
@@ -33,7 +34,7 @@ def steam_launch_options(
     for root in steam_roots:
         for config in files.glob(root, LOCALCONFIG_PATTERN):
             try:
-                options = _app_launch_options(
+                options = app_launch_options(
                     parse_keyvalues(files.read_text(config)), app_id
                 )
             except (OSError, ValueError):

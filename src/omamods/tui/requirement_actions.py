@@ -14,7 +14,9 @@ from omamods.nexus_api import NexusFile
 from omamods.pak_games import PakOverlayGame
 from omamods.mod_sites import NEXUS_SITE
 from omamods.staging import StagedMod
-from omamods.tui.launch_options_dialog import LaunchOptionsDialog
+from omamods.launch_options_advice import LaunchOptionsAdvice
+from omamods.tui.dialogs import ConfirmDialog
+from omamods.tui.launch_options_dialog import SAVE_TO_STEAM, LaunchOptionsDialog
 from omamods.tui.requirements_dialog import RequirementsDialog
 from omamods.tui.service import ModsService
 from omamods.tui.toast_filter import RepeatedToastFilter
@@ -22,7 +24,11 @@ from omamods.tui.toast_filter import RepeatedToastFilter
 Result = TypeVar("Result")
 LAUNCH_WARNING = (
     "Steam or the Proton prefix is missing what this game's mod loaders need; "
-    "press L to see the fix and copy it."
+    "press L to see the fix, then w to save it to Steam."
+)
+CLOSE_STEAM_NOTE = (
+    "Steam rewrites its settings when it exits, so OmaMods closes Steam, saves "
+    "the launch options, and starts Steam again. A running game closes with it."
 )
 ERROR_TOAST_SECONDS = 10
 
@@ -121,4 +127,33 @@ class RequirementScreen(Screen[None]):
             self.notify(f"{self.game.name}: no Steam launch options to check.")
             return
         copier = self.service.copy_to_clipboard
-        self.app.push_screen(LaunchOptionsDialog(advice, copier))
+        dialog = LaunchOptionsDialog(advice, copier)
+        self.app.push_screen(
+            dialog,
+            lambda choice: choice == SAVE_TO_STEAM and self.save_to_steam(advice),
+        )
+
+    def save_to_steam(self, advice: LaunchOptionsAdvice) -> None:
+        """Write the suggested line, asking before closing Steam; e.g. ``screen.save_to_steam(a)``."""
+        running = self._attempt(self.service.steam_setup.steam_running)
+        if running is None:
+            return
+        if not running:
+            self._save_worker(advice.suggested)
+            return
+        dialog = ConfirmDialog(
+            "Close Steam to save the launch options?", CLOSE_STEAM_NOTE
+        )
+        self.app.push_screen(
+            dialog, lambda yes: yes and self._save_worker(advice.suggested)
+        )
+
+    @work(thread=True)
+    def _save_worker(self, line: str) -> None:
+        app_id = self.game.steam_app_id
+        if app_id is None:
+            return
+        self.notify("Saving the launch options to Steam...")
+        message = self._attempt(lambda: self.service.steam_setup.save(app_id, line))
+        if message is not None:
+            self.notify(message, timeout=15)

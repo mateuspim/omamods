@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from omamods.mod_plan import preselected_download
 from omamods.nexus_api import NexusFile
-from omamods.mod_sites import AYAKA_SITE
+from omamods.mod_sites import AYAKA_SITE, RELEASE_SITE
 from omamods.staging import StagedMod
 from omamods.tui.commands import CommandSpec, find_file
 
@@ -83,6 +83,9 @@ def _download(screen: "ModsScreen", args: tuple[str, ...]) -> None:
     if mod.site == AYAKA_SITE:
         # The site lists the files (or the browser does, without a login).
         screen.download_ayaka(mod)
+        return
+    if mod.site == RELEASE_SITE:
+        screen.download_release(mod)  # Only the newest release downloads.
         return
     if args == ("all",):
         files = tuple(

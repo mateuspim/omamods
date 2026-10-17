@@ -44,10 +44,14 @@ from omamods.detected_games import load_detected_games, save_detected_games
 from omamods.pak_detection import scanned_pak_games
 from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.tui.ayaka_site import AyakaSite
+from omamods.tui.release_site import ReleaseSite
+from omamods.tui.steam_setup import SteamSetup
+from omamods.steam_process import SteamProcess
 from omamods.tui.requirement_flow import RequirementFlow
 from omamods.variant_choices import exclusive_variants, nested_archives
 from omamods.omarchy_palette import OmarchyPalette, PaletteReader
-from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE
+from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE, RELEASE_SITE
+from omamods.release_api import ReleaseTransport
 from omamods.staging import (
     StagedMod,
     list_staged_mods,
@@ -59,6 +63,8 @@ from omamods.staging import (
 PaksLocator = Callable[[PakOverlayGame, UserSettings], Path]
 # Maps a Steam app ID to every local user's launch options for it.
 LaunchOptionsReader = Callable[[str], tuple[str, ...]]
+# Writes (app ID, line) into Steam's configs, backing them up into a folder.
+LaunchOptionsWriter = Callable[[str, str, Path], tuple[Path, ...]]
 
 
 def no_launch_options(app_id: str) -> tuple[str, ...]:
@@ -91,6 +97,10 @@ class TuiHost:
     # Where the browser saves files, watched for AyakaMods downloads.
     downloads: Path | None = None
     palette_reader: PaletteReader | None = None
+    # Reads Codeberg/GitHub releases anonymously (MGSVFix).
+    release_transport: ReleaseTransport | None = None
+    write_launch_options: LaunchOptionsWriter | None = None
+    steam: SteamProcess | None = None
 
 
 class ModsService:
@@ -106,6 +116,8 @@ class ModsService:
         self.catalog = PakGameCatalog(load_detected_games(self.settings.storage_root))
         self.requirements = RequirementFlow(self)
         self.ayaka = AyakaSite(self)
+        self.release = ReleaseSite(self)
+        self.steam_setup = SteamSetup(self)
 
     def _load_settings(self) -> UserSettings:
         host = self.host
@@ -164,9 +176,9 @@ class ModsService:
         return self.settings.storage_root / "archives" / game.game_id
 
     def staged_mods(self, game: PakOverlayGame) -> tuple[StagedMod, ...]:
-        """List both sites' staging; for example, ``service.staged_mods(sb)``."""
+        """List every site's staging; for example, ``service.staged_mods(sb)``."""
         nexus = list_staged_mods(self.settings.storage_root, game)
-        return nexus + self.ayaka.staged_mods(game)
+        return self.release.staged_mods(game) + nexus + self.ayaka.staged_mods(game)
 
     def staged_mod(
         self, game: PakOverlayGame, mod_id: int, site: str = NEXUS_SITE
@@ -174,9 +186,13 @@ class ModsService:
         """Reload one mod; for example, ``service.staged_mod(sb, 1)``."""
         if site == AYAKA_SITE:
             return self.ayaka.staged_mod(game, mod_id)
+        if site == RELEASE_SITE:
+            return self.release.staged_mod(game, mod_id)
         return load_staged_mod(self.settings.storage_root, game, mod_id)
 
     def _root(self, site: str) -> Path:
+        if site == RELEASE_SITE:
+            return self.release.root()
         return self.ayaka.root() if site == AYAKA_SITE else self.settings.storage_root
 
     def nexus_api(self) -> NexusApi:
@@ -292,6 +308,9 @@ class ModsService:
         if status.site == AYAKA_SITE:
             self.ayaka.retry(game, status.mod_id, status.file_id)
             return True
+        if status.site == RELEASE_SITE:
+            self.release.retry(game, status.mod_id, status.file_id)
+            return True
         mod = self.staged_mod(game, status.mod_id)
         file = next((f for f in mod.files if f.file_id == status.file_id), None)
         if file is None:
@@ -306,6 +325,8 @@ class ModsService:
         """Link a mod page; for example, ``service.mod_page_url(sb, 1)``."""
         if site == AYAKA_SITE:
             return ayaka_page_url(AyakaPage(mod_id))
+        if site == RELEASE_SITE:
+            return self.release.page_url(game, mod_id)
         return f"https://www.nexusmods.com/{game.nexus_domain}/mods/{mod_id}"
 
     def open_url(self, url: str) -> None:

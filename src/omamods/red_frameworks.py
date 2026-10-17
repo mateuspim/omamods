@@ -68,10 +68,14 @@ def missing_proxy_dlls(
     return tuple(sorted(needed))
 
 
-def launch_options_hint(missing: tuple[str, ...]) -> str:
-    """Tell people what to set; e.g. ``launch_options_hint(('version', 'winmm'))``."""
+def launch_options_hint(missing: tuple[str, ...], loader: str | None = None) -> str:
+    """Tell people what to set; e.g. ``launch_options_hint(('version', 'winmm'))``.
+
+    ``loader`` names the mod loader when the DLL alone is ambiguous: winmm.dll
+    is RED4ext in Cyberpunk but the ASI loader in MGSV.
+    """
     dlls = ",".join(missing)
-    loaders = sorted({PROXY_LOADERS.get(dll, dll) for dll in missing})
+    loaders = [loader] if loader else sorted({PROXY_LOADERS.get(d, d) for d in missing})
     return (
         f'Add WINEDLLOVERRIDES="{dlls}=n,b" before %command% in the game\'s '
         f"Steam launch options so Proton loads "

@@ -1,7 +1,8 @@
 """Describe games whose self-contained pak mods share one installer.
 
 Unreal games overlay a mods folder; RE Engine games load numbered patch paks;
-REDengine games take files anywhere in the game folder.
+REDengine games take files anywhere in the game folder; Fox Engine games take
+ASI plugins beside their executable.
 """
 
 from dataclasses import dataclass
@@ -35,10 +36,14 @@ class PakOverlayGame:
     redengine: bool = False
     # Built-in games that read Steam settings, such as launch options.
     steam_app_id: str | None = None
+    # Games whose only supported mods are ASI plugins with their loader DLL
+    # (MGSV's MGSVFix), installed beside the executable; paks_subpath is the
+    # executable's folder.
+    asi_loader: bool = False
 
     def folder_label(self) -> str:
         """Name the install folder in plans; e.g. ``cyberpunk.folder_label()``."""
-        return "<game>" if self.redengine else "Paks"
+        return "<game>" if self.redengine or self.asi_loader else "Paks"
 
 
 PAK_OVERLAY_GAMES: dict[str, PakOverlayGame] = {
@@ -72,6 +77,19 @@ PAK_OVERLAY_GAMES: dict[str, PakOverlayGame] = {
         flat_suffix_sets=(PAK_SUFFIXES, IOSTORE_SUFFIXES),
         # Read for UE4SS' dwmapi override in the launch options.
         steam_app_id="2417610",
+    ),
+    # Fox Engine, not Unreal: Nexus mods for it are mostly SnakeBite .mgsv
+    # packages, which need SnakeBite; only ASI plugins install here.
+    "metalgearsolidvtpp": PakOverlayGame(
+        game_id="metalgearsolidvtpp",
+        name="METAL GEAR SOLID V: THE PHANTOM PAIN",
+        nexus_domain="metalgearsolidvtpp",
+        # mgsvtpp.exe sits at the top of the game folder.
+        paks_subpath=Path("."),
+        mods_dirname=".",
+        flat_suffix_sets=(),
+        steam_app_id="287700",
+        asi_loader=True,
     ),
     "cyberpunk-2077": PakOverlayGame(
         game_id="cyberpunk-2077",

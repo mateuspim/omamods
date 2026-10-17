@@ -70,8 +70,8 @@ The home screen scans for games each time it opens (press `r` to rescan) and
 lists them in three groups:
 
 - **Mod-ready**: catalog games OmaMods can install mods for (Cronos, Stellar
-  Blade, Cyberpunk 2077, METAL GEAR SOLID Δ), plus detected Unreal and RE Engine games. Enter
-  opens their mods.
+  Blade, Cyberpunk 2077, METAL GEAR SOLID Δ, METAL GEAR SOLID V: THE PHANTOM
+  PAIN), plus detected Unreal and RE Engine games. Enter opens their mods.
 - **In the catalog**: games with a manifest but no installer yet.
 - **Your other games**: every other game Steam has installed, in any library
   `libraryfolders.vdf` lists, plus Epic, GOG, Amazon, and sideloaded games
@@ -399,15 +399,31 @@ fails with "Unable to load cyber_engine_tweaks.asi, Error: 998". OmaMods reads
 older, suggests `protontricks 1091500 -q vcrun2022` (run it with the game
 closed).
 
-OmaMods reads the launch options and the prefix but changes neither. Opening
-Cyberpunk's mods warns when RED4ext or CET is installed without the override or
-with an old runtime; `L` there shows what Steam has now next to the full line
-to paste (your other options kept, the override merged in) and the
-protontricks command. `c` copies the line and `p` the command, with `wl-copy`
-and the terminal's clipboard. The requirements dialog shows the same and
+Opening Cyberpunk's mods warns when RED4ext or CET is installed without the
+override or with an old runtime. `L` there shows what Steam has now next to
+the full line to paste (your other options kept, the override merged in) and
+the protontricks command. `w` saves the line into Steam for you (see
+[Saving launch options to Steam](#saving-launch-options-to-steam)). `c` copies
+the line and `p` the command, with `wl-copy` and the terminal's clipboard.
+OmaMods never changes the Proton prefix. The requirements dialog shows the same and
 copies with the same keys. A `modlist.txt` in
 `archive/pc/mod` overrides the archives' name order; OmaMods does not edit it.
 See the [Cyberpunk 2077 adapter](games/cyberpunk-2077/README.md).
+
+### Saving launch options to Steam
+
+`w` in the `L` dialog writes the suggested line into the game's
+`LaunchOptions` in every Steam user's `userdata/<id>/config/localconfig.vdf`
+that lists the game. Only that one value changes; the rest of the file stays
+byte for byte. Each file is first copied to
+`<storage-root>/backups/steam-localconfig/<timestamp>/<user id>/`.
+
+Steam keeps that file in memory and writes it back when it exits, so an edit
+made while Steam runs would be lost. If Steam is running, OmaMods asks first,
+then closes it (`steam -shutdown`, which also closes a running game), writes
+the file, and starts Steam again in the tray (`steam -silent`). If Steam has
+never shown the game's settings, its block is missing from the file; open the
+game's Properties in Steam once and try again.
 
 ## METAL GEAR SOLID Δ: SNAKE EATER
 
@@ -418,6 +434,37 @@ in the Proton prefix and the original comes back on uninstall), and need `WINEDL
 Steam launch options; the mods screen warns when it is missing and `L` shows
 the line to paste. See the
 [METAL GEAR SOLID Δ adapter](games/metalgearsoliddeltasnakeeater/README.md).
+
+## METAL GEAR SOLID V: THE PHANTOM PAIN
+
+The game has no ultrawide support of its own. Its mods list always shows
+[MGSVFix](https://codeberg.org/Lyall/MGSVFix), Lyall's fix for ultrawide
+resolutions (HUD and effects included), resolution choice, and the framerate
+cap. It is published only as Codeberg releases, not on Nexus. `d` asks
+Codeberg for the newest release and downloads its zip. `i` then puts
+`MGSVFix.asi`, `MGSVFix.ini`, and the ASI loader `winmm.dll` beside
+`mgsvtpp.exe`. Proton only loads that `winmm.dll` with this in the Steam
+launch options:
+
+```text
+WINEDLLOVERRIDES="winmm=n,b" %command%
+```
+
+The mods screen warns when it is missing. `L` shows the line, and `w` there
+saves it into Steam. Opening the screen checks Codeberg again and says when a newer release than
+the installed one is out: `u`, `d`, then `i` updates. Uninstalling removes
+`MGSVFix.ini` even after you edited it, so copy your settings first.
+
+Other archives with `.asi` plugins (a loader DLL, `.asi` and `.ini` files, or
+a `scripts/` or `plugins/` folder) install the same way, from Nexus or by
+hand. A second plugin that ships its own `winmm.dll` is refused while another
+mod owns that file. SnakeBite `.mgsv` packages, which most MGSV Nexus mods
+are, are refused. See the
+[METAL GEAR SOLID V adapter](games/metalgearsolidvtpp/README.md).
+
+Release mods keep their own staging and install records under
+`<storage-root>/release/`. The built-in list of repositories lives in
+`src/omamods/release_sources.py`; Codeberg and GitHub are supported.
 
 ## Cronos and Stellar Blade Nexus mods
 

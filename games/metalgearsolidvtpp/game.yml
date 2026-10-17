@@ -1,0 +1,12 @@
+id: metalgearsolidvtpp
+name: 'METAL GEAR SOLID V: THE PHANTOM PAIN'
+status: discovery
+platforms:
+  - steam
+adapter: direct-overlay
+steam_app_id: 287700
+notes:
+  - ASI plugins and their loader DLL go beside mgsvtpp.exe in the game folder.
+  - MGSVFix (ultrawide, resolution, and framerate unlocks) comes from codeberg.org/Lyall/MGSVFix releases.
+  - The loader needs WINEDLLOVERRIDES="winmm=n,b" in the Steam launch options.
+  - SnakeBite .mgsv packages are not supported.
