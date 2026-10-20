@@ -50,6 +50,23 @@ class BrowserQueueTests(unittest.TestCase):
         self.assertEqual(queue.waiting_for("sb", 365), 3039)
         self.assertEqual(queue.advance("sb", 365, {3038, 1028}).unexpected, ())
 
+    def test_drop_shown_file_moves_to_next(self) -> None:
+        queue = BrowserQueue()
+        queue.add("sb", 1, 7, "u7")
+        queue.add("sb", 1, 8, "u8")
+        step = queue.drop("sb", 1, 7)
+        self.assertEqual((step.action, step.url), (NEXT, "u8"))
+        self.assertEqual(queue.drop("sb", 1, 8).action, FINISHED)
+        self.assertEqual(queue.pending, {})
+
+    def test_drop_unknown_or_later_file_stays(self) -> None:
+        queue = BrowserQueue()
+        queue.add("sb", 1, 7, "u7")
+        queue.add("sb", 1, 8, "u8")
+        self.assertEqual(queue.drop("sb", 1, 99).action, STAY)
+        self.assertEqual(queue.drop("sb", 1, 8).action, STAY)
+        self.assertEqual(queue.waiting_files(), {("sb", 1): 7})
+
 
 if __name__ == "__main__":
     unittest.main()

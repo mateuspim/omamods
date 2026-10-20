@@ -110,6 +110,19 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(self.log.clear_finished(), 1)
         self.assertEqual([s.mod_id for s in self.log.statuses()], [2])
 
+    def test_remove_forgets_one_entry(self) -> None:
+        first = self.log.begin("sb", 1, FILE, WAITING_FOR_BROWSER)
+        self.log.begin("sb", 2, FILE, WAITING_FOR_BROWSER)
+        self.log.remove(first)
+        self.assertEqual([s.mod_id for s in self.log.statuses()], [2])
+
+    def test_clear_idle_keeps_only_moving_downloads(self) -> None:
+        self.log.begin("sb", 1, FILE, WAITING_FOR_BROWSER)
+        self.log.finish(self.log.begin("sb", 2, FILE, DOWNLOADING), None)
+        self.log.begin("sb", 3, FILE, DOWNLOADING)
+        self.assertEqual(self.log.clear_idle(), 2)
+        self.assertEqual([s.mod_id for s in self.log.statuses()], [3])
+
     def test_unreadable_entries_are_skipped(self) -> None:
         (Path(self.temporary.name) / "broken.json").write_text("{")
         self.assertEqual(self.log.statuses(), ())

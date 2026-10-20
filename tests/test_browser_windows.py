@@ -7,10 +7,11 @@ import unittest
 from omamods.browser_windows import (
     NexusWindows,
     chromium_browser,
+    default_browser_entry,
     exec_program,
     nexus_window_class,
 )
-from tests.fakes import FakeHyprland, FakeLauncher
+from tests.fakes import FakeHyprland, FakeLauncher, FakeOmarchyBrowser
 
 SB_WINDOW = {
     "address": "0x5652e6a01af0",
@@ -38,6 +39,25 @@ class BrowserDetectionTests(unittest.TestCase):
             self.assertEqual(found, "/home/me/.local/bin/brave-origin")
             entry.write_text("Exec=firefox %u\n")
             self.assertIsNone(chromium_browser(FakeHyprland([]), folders))
+
+    def test_omarchy_wrapper_resolves_to_the_real_browser(self) -> None:
+        # Regression: omarchy-browser.desktop runs omarchy-launch-browser, which
+        # hid Brave and sent Nexus pages to a tab instead of an app window.
+        with tempfile.TemporaryDirectory() as temporary:
+            apps = Path(temporary) / "applications"
+            apps.mkdir()
+            (apps / "omarchy-browser.desktop").write_text(
+                "Exec=omarchy-launch-browser %U\n"
+            )
+            (apps / "brave-origin.desktop").write_text("Exec=/usr/bin/brave-origin\n")
+            runner = FakeOmarchyBrowser("brave-origin.desktop")
+            found = chromium_browser(runner, (Path(temporary),))
+            self.assertEqual(found, "/usr/bin/brave-origin")
+
+    def test_default_entry_falls_back_to_xdg_settings(self) -> None:
+        self.assertEqual(
+            default_browser_entry(FakeOmarchyBrowser(None)), "omarchy-browser.desktop"
+        )
 
     def test_window_class_does_not_match_longer_mod_ids(self) -> None:
         pattern = nexus_window_class("stellarblade", 1)

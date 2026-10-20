@@ -58,6 +58,17 @@ def register_nxm_handler(
     return NxmRegistration(desktop_file, previous)
 
 
+def nxm_entry_outdated(executable: Path, applications: Path) -> bool:
+    """True when our handler runs another program; e.g. ``nxm_entry_outdated(exe, apps)``."""
+    # A moved checkout leaves Exec on a missing path; GIO then hides the entry
+    # and the portal answers nxm clicks with "No Apps available".
+    try:
+        written = (applications / DESKTOP_ENTRY_NAME).read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return written != desktop_entry(executable)
+
+
 def log_nxm_event(log: Path, event: dict[str, object]) -> None:
     """Append one JSON line; e.g. ``log_nxm_event(path, {'status': 'staged'})``."""
     log.parent.mkdir(parents=True, exist_ok=True)

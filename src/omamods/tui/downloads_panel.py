@@ -51,7 +51,7 @@ def panel_title(mode: str, game_name: str) -> str:
     titles = {
         MINIMIZED: "Downloads · D: this game's queue",
         GAME_QUEUE: f"Downloads · {game_name} · D: all games",
-        FULL_QUEUE: "Downloads · all games · r retry, c clear · D: minimize",
+        FULL_QUEUE: "Downloads · all games · r retry, x remove, C clear all · D: minimize",
     }
     return titles[mode]
 
@@ -62,6 +62,8 @@ class DownloadsPanel(QueueActions, Vertical):
     BINDINGS = [
         Binding("r", "retry", "Retry download"),
         Binding("c", "clear", "Clear finished"),
+        Binding("x,delete", "remove", "Remove from queue"),
+        Binding("C", "clear_all", "Clear queue"),
     ]
 
     def __init__(self, service: ModsService, game: PakOverlayGame) -> None:

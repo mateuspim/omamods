@@ -155,8 +155,11 @@ The mods screen keeps the download queue in a panel along its bottom edge.
    details.
 3. **All games**: the whole queue fills the screen, hiding the mods.
 
-In either table, `r` retries the highlighted download and `c` clears done and
-failed ones; `l`/`h` move focus into and out of the table. `:dl full` (or
+In either table, `r` retries the highlighted download, `x` (or `delete`)
+removes it, `c` clears done and failed ones, and `C` clears everything except
+downloads still receiving data. Removing a file that is waiting for the
+browser also moves that mod's Nexus window on to its next file, or closes it;
+`l`/`h` move focus into and out of the table. `:dl full` (or
 `min`, `game`) jumps straight to a size. On other screens `D` still opens the
 separate queue screen, which `:queue` opens from anywhere.
 
@@ -195,7 +198,8 @@ seconds shows as **stalled**. Dropped connections, timeouts, and server errors
 (429/5xx) are retried up to five times with growing waits (2-16 s), resuming
 where the download stopped; the Error column shows `retrying 2/5 after: ...`.
 Expired or refused links (403/404/410) fail at once. Otherwise, `r` retries the selected failed, stalled, or
-waiting download and `c` clears finished entries. Each download writes a small
+waiting download, `x` removes it, `c` clears finished entries, and `C`
+(`:clear-all`) clears all but active transfers. Each download writes a small
 status file to `<storage-root>/downloads/`, which is how the TUI sees
 downloads running in the separate browser-handler process.
 

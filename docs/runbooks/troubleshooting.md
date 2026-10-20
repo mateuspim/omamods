@@ -36,7 +36,15 @@ is the cause when those commands fail with `ModuleNotFoundError` for `omamods`.
 
 - Nexus non-Premium downloads require a browser click on **Mod Manager
   Download** after `n` registers the NXM handler. In the queue, `r` retries a
-  selected failed or stalled item; `c` clears finished entries.
+  selected failed or stalled item; `x` removes one entry; `c` clears finished
+  entries; `C` clears everything not actively downloading.
+- Nexus opens in a normal tab instead of its own window: OmaMods needs a
+  Chromium-family default browser for `--app` windows. On Omarchy it reads the
+  browser behind `omarchy-browser.desktop` through `omarchy-cmd-default-browser`.
+- The browser shows "No Apps available" for an `nxm://` link: the registered
+  handler runs a program that no longer exists, usually after moving the
+  checkout. Starting the TUI rewrites an outdated OmaMods handler; `omamods nxm
+  register` fixes it by hand.
 - AyakaMods may need a fresh login cookie or a manual browser download into
   the system Downloads folder. The TUI waits for one browser download at a
   time; `:stop` cancels that wait.

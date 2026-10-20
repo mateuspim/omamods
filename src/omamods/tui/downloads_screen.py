@@ -27,11 +27,17 @@ class DownloadsScreen(QueueActions, WorkspaceScreen):
     BINDINGS = [
         Binding("r", "retry", "Retry"),
         Binding("c", "clear", "Clear finished"),
+        Binding("x,delete", "remove", "Remove from queue"),
+        Binding("C", "clear_all", "Clear queue"),
         Binding("escape", "app.pop_screen", "Back"),
     ]
     SCREEN_COMMANDS = (
         CommandSpec("retry", ("r",), ":retry", "retry the selected download"),
         CommandSpec("clear", ("c",), ":clear", "clear done and failed downloads"),
+        CommandSpec("remove", ("x",), ":remove", "remove the selected download"),
+        CommandSpec(
+            "clear-all", ("ca",), ":clear-all", "clear all but active downloads"
+        ),
     )
 
     def __init__(self, service: ModsService) -> None:
@@ -45,13 +51,15 @@ class DownloadsScreen(QueueActions, WorkspaceScreen):
         yield DataTable(id="queue", cursor_type="row", zebra_stripes=True)
         yield Static(
             f"Stalled = no data for {STALL_SECONDS:.0f}s. "
-            "r retries the selected download, c clears done and failed ones.",
+            "r retries the selected download, x removes it, c clears done and "
+            "failed ones, C clears everything not actively downloading.",
             id="queue-help",
             markup=False,
         )
         yield WorkspaceStatus("Downloads")
         yield WorkspaceHints(
-            "[b]r[/] retry   [b]c[/] clear finished   [b]j/k[/] navigate   "
+            "[b]r[/] retry   [b]x[/] remove   [b]c[/] clear finished   "
+            "[b]C[/] clear all   [b]j/k[/] navigate   "
             "[b]esc[/] back"
         )
 
@@ -89,7 +97,9 @@ class DownloadsScreen(QueueActions, WorkspaceScreen):
 
     def run_command(self, name: str, args: tuple[str, ...]) -> None:
         """Run a ':' command; for example, ``screen.run_command('retry', ())``."""
-        if name == "retry":
-            self.action_retry()
-        else:
-            self.action_clear()
+        actions = {
+            "retry": self.action_retry,
+            "remove": self.action_remove,
+            "clear-all": self.action_clear_all,
+        }
+        actions.get(name, self.action_clear)()

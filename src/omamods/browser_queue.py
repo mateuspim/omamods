@@ -77,6 +77,23 @@ class BrowserQueue:
         known.update(surprise)
         return surprise
 
+    def drop(self, game_id: str, mod_id: int, file_id: int) -> BrowserStep:
+        """Stop waiting for one file; e.g. ``q.drop('sb', 1, 7)``."""
+        key = (game_id, mod_id)
+        queue = self.pending.get(key, [])
+        remaining = [(queued, url) for queued, url in queue if queued != file_id]
+        if remaining == queue:
+            return BrowserStep(STAY)
+        if not remaining:
+            del self.pending[key]
+            self.known.pop(key, None)
+            return BrowserStep(FINISHED)
+        self.pending[key] = remaining
+        # Only the shown file's removal moves the window on.
+        if queue[0][0] != file_id:
+            return BrowserStep(STAY)
+        return BrowserStep(NEXT, remaining[0][1])
+
     def waiting_for(self, game_id: str, mod_id: int) -> int | None:
         """The file the window shows now; e.g. ``q.waiting_for('sb', 1)``."""
         queue = self.pending.get((game_id, mod_id))

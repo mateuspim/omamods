@@ -166,6 +166,30 @@ class PanelScreenTests(unittest.IsolatedAsyncioTestCase):
             await pilot.pause()
             self.assertEqual(self._rows(panel), ["cyberpunk-2077-4198.zip"])
 
+    async def test_x_removes_the_selected_entry(self) -> None:
+        self.log.write(entry("cronos", 39, "waiting for browser"))
+        app = OmaModsApp(self.service)
+        async with app.run_test(size=(120, 40)) as pilot:
+            panel = await self._open(app, pilot)
+            panel.set_mode(FULL_QUEUE)
+            panel.query_one("#downloads-table", DataTable).focus()
+            await pilot.pause()
+            await pilot.press("x")  # The newest entry is selected first.
+            await pilot.pause()
+            self.assertNotIn("cronos-39.zip", self._rows(panel))
+            self.assertEqual(len(self._rows(panel)), 2)
+
+    async def test_capital_c_clears_all_but_active(self) -> None:
+        self.log.write(entry("cronos", 39, "waiting for browser"))
+        app = OmaModsApp(self.service)
+        async with app.run_test(size=(120, 40)) as pilot:
+            panel = await self._open(app, pilot)
+            panel.set_mode(FULL_QUEUE)
+            panel.query_one("#downloads-table", DataTable).focus()
+            await pilot.press("C")
+            await pilot.pause()
+            self.assertEqual(self._rows(panel), ["cyberpunk-2077-4198.zip"])
+
     async def test_queue_command_still_opens_the_queue_screen(self) -> None:
         app = OmaModsApp(self.service)
         async with app.run_test(size=(120, 40)) as pilot:

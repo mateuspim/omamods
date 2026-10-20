@@ -237,6 +237,21 @@ class TuiTests(TuiFixture):
             self.assertIn("file_id=8", opened[1][1])  # Jumped to the second file.
             self.assertEqual(len(hyprland.closed()), 2)  # After 7, and when done.
 
+    async def test_removing_the_shown_file_moves_the_window_on(self) -> None:
+        self.site.premium = False
+        window = "brave-www.nexusmods.com__stellarblade_mods_1-Default"
+        hyprland = FakeHyprland([{"address": "0xab", "initialClass": window}])
+        app = self._app({}, hyprland)
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._open_stellar_blade_and_add(app, pilot)
+            log = download_log(self.root / "store")
+            shown = next(s for s in log.statuses() if s.file_id == 7)
+            app.service.remove_download(shown)
+            opened = [c for c in self.launcher.launched if c[0] == "brave"]
+            self.assertIn("file_id=8", opened[-1][1])
+            self.assertEqual(len(hyprland.closed()), 1)
+            self.assertNotIn(7, [s.file_id for s in log.statuses()])
+
     def _set_browser_state(self, file_id: int, state: str) -> None:
         log = download_log(self.root / "store")
         current = next(s for s in log.statuses() if s.file_id == file_id)

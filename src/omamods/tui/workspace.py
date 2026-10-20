@@ -117,7 +117,10 @@ class WorkspaceHints(Horizontal):
             action = file_next_action(focused.mod, file)
             hints = f"[b]enter[/] {action}   [b]d[/] download   [b]x[/] remove"
         elif focused is not None and focused.id in ("queue", "downloads-table"):
-            hints = "[b]r[/] retry   [b]c[/] clear finished   [b]h[/] previous pane"
+            hints = (
+                "[b]r[/] retry   [b]x[/] remove   [b]c[/] clear finished   "
+                "[b]C[/] clear all   [b]h[/] previous pane"
+            )
         if hints != self.current_hints:
             self.current_hints = hints
             self.query_one(".hints-context", Static).update(hints)

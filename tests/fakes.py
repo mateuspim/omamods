@@ -361,6 +361,21 @@ class FakeHyprland:
         return self._dispatched("special:omamods")
 
 
+class FakeOmarchyBrowser:
+    """Answer like Omarchy, whose default browser is a launcher wrapper."""
+
+    def __init__(self, resolved: str | None) -> None:
+        self.resolved = resolved
+
+    def run(self, command: tuple[str, ...]) -> tuple[int, str]:
+        """Route by program; e.g. ``fake.run(('omarchy-cmd-default-browser',))``."""
+        if command[0] == "omarchy-cmd-default-browser":
+            return (0, self.resolved) if self.resolved else (127, "")
+        if command[0] == "xdg-settings":
+            return 0, "omarchy-browser.desktop"
+        return 0, ""
+
+
 class FakeSleep:
     """Record retry waits instead of sleeping, keeping tests fast."""
 

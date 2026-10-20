@@ -1,4 +1,4 @@
-"""Retry and clear-finished actions shared by the queue screen and panel."""
+"""Retry, remove, and clear actions shared by the queue screen and panel."""
 
 import time
 
@@ -47,4 +47,21 @@ class QueueActions(DOMNode):
     def action_clear(self) -> None:
         count = self.service.clear_finished_downloads()
         self.notify(f"Cleared {count} finished download(s).")
+        self.refresh_queue()
+
+    def action_remove(self) -> None:
+        status = self.selected_status()
+        if status is None:
+            return
+        try:
+            self.service.remove_download(status)
+        except (OSError, ValueError) as error:
+            self.notify(str(error), severity="warning")
+            return
+        self.notify(f"Removed {status.file_name} from the queue.")
+        self.refresh_queue()
+
+    def action_clear_all(self) -> None:
+        count = self.service.clear_download_queue()
+        self.notify(f"Cleared {count} download(s); active transfers keep going.")
         self.refresh_queue()

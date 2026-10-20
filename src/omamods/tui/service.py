@@ -9,7 +9,7 @@ from omamods.ayaka_download import AyakaSession
 from omamods.ayaka_pages import AyakaPage, AyakaPageTransport
 from omamods.ayaka_pages import mod_page_url as ayaka_page_url
 from omamods.game_shelf import GameShelf, ShelfScanner
-from omamods.download_queue import QUEUED, DownloadStatus
+from omamods.download_queue import DOWNLOADING, QUEUED, DownloadStatus, shown_state
 from omamods.mod_fetch import (
     BrowserDownloadRequired,
     download_log,
@@ -37,7 +37,11 @@ from omamods.browser_hiding import HiddenWindows
 from omamods.browser_queue import STAY, BrowserQueue
 from omamods.browser_windows import NexusWindows
 from omamods.host_programs import CommandRunner, Launcher
-from omamods.nxm_handler import NxmRegistration, register_nxm_handler
+from omamods.nxm_handler import (
+    NxmRegistration,
+    nxm_entry_outdated,
+    register_nxm_handler,
+)
 from omamods.asset_plans import game_variants, plan_game_assets
 from omamods.pak_archive import ArchiveReader, PlannedAsset
 from omamods.detected_games import load_detected_games, save_detected_games
@@ -302,6 +306,42 @@ class ModsService:
         """Drop done and failed entries; e.g. ``service.clear_finished_downloads()``."""
         return download_log(self.settings.storage_root).clear_finished()
 
+    def remove_download(self, status: DownloadStatus) -> None:
+        """Drop one entry and its Nexus popup; e.g. ``service.remove_download(s)``."""
+        log = download_log(self.settings.storage_root)
+        if shown_state(status, log.clock()) == DOWNLOADING:
+            raise ValueError(
+                f"download={status.file_name!r} is still receiving data; "
+                "expected a queued, waiting, stalled, done, or failed entry"
+            )
+        log.remove(status)
+        # Ayaka numbers mods on its own, so its IDs could match a Nexus popup's.
+        if status.site == NEXUS_SITE:
+            self._forget_browser_file(status.game_id, status.mod_id, status.file_id)
+
+    def clear_download_queue(self) -> int:
+        """Drop all but moving downloads; e.g. ``service.clear_download_queue()``."""
+        count = download_log(self.settings.storage_root).clear_idle()
+        live = {
+            (s.game_id, s.mod_id, s.file_id)
+            for s in self.downloads()
+            if s.site == NEXUS_SITE
+        }
+        for (game_id, mod_id), queue in list(self.browser_queue.pending.items()):
+            for file_id, _ in list(queue):
+                if (game_id, mod_id, file_id) not in live:
+                    self._forget_browser_file(game_id, mod_id, file_id)
+        return count
+
+    def _forget_browser_file(self, game_id: str, mod_id: int, file_id: int) -> None:
+        step = self.browser_queue.drop(game_id, mod_id, file_id)
+        if step.action == STAY:
+            return
+        self.close_nexus_window(self.catalog.get(game_id), mod_id)
+        self.hidden_windows.forget((game_id, mod_id))
+        if step.url is not None:
+            self.open_nexus(step.url)
+
     def retry(self, status: DownloadStatus) -> bool:
         """Fetch a queue entry again; True when staged. E.g. ``service.retry(s)``."""
         game = self.catalog.get(status.game_id)
@@ -425,3 +465,9 @@ class ModsService:
         """Receive site download clicks; e.g. ``service.register_nxm()``."""
         host = self.host
         return register_nxm_handler(host.executable, host.applications, host.runner)
+
+    def refresh_outdated_nxm(self) -> NxmRegistration | None:
+        """Re-point an old handler here; e.g. ``service.refresh_outdated_nxm()``."""
+        if not nxm_entry_outdated(self.host.executable, self.host.applications):
+            return None
+        return self.register_nxm()

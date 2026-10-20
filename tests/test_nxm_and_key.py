@@ -15,6 +15,7 @@ from omamods.nxm_handler import (
     DESKTOP_ENTRY_NAME,
     desktop_entry,
     handle_nxm_click,
+    nxm_entry_outdated,
     register_nxm_handler,
 )
 from tests.fakes import FakeCommandRunner, FakeConfigFiles, FakeNexusSite
@@ -49,6 +50,18 @@ class NxmHandlerTests(unittest.TestCase):
             runner.commands[-2][:3], ("xdg-mime", "default", DESKTOP_ENTRY_NAME)
         )
         self.assertEqual(runner.commands[-1][0], "update-desktop-database")
+
+    def test_outdated_entry_is_detected_after_a_move(self) -> None:
+        # Regression: a moved checkout left Exec on a missing program, and the
+        # portal answered nxm clicks with "No Apps available".
+        moved = Path("/home/me/gaming/omamods/.venv/bin/omamods")
+        self.assertFalse(nxm_entry_outdated(moved, self.root))  # Never registered.
+        register_nxm_handler(
+            Path("/home/me/omamods/.venv/bin/omamods"), self.root, FakeCommandRunner()
+        )
+        self.assertTrue(nxm_entry_outdated(moved, self.root))
+        register_nxm_handler(moved, self.root, FakeCommandRunner())
+        self.assertFalse(nxm_entry_outdated(moved, self.root))
 
     def test_register_fails_when_xdg_mime_fails(self) -> None:
         with self.assertRaisesRegex(ValueError, "xdg-mime exit=1"):

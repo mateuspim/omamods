@@ -77,6 +77,17 @@ class OmaModsApp(App[None]):
         self.push_screen(GamesScreen(self.service))
         self.set_interval(BROWSER_POLL_SECONDS, self.advance_browser_downloads)
         self.set_interval(BROWSER_POLL_SECONDS, self.tick_requirements)
+        self.refresh_outdated_nxm()
+
+    def refresh_outdated_nxm(self) -> None:
+        """Fix a handler left behind by a move; e.g. ``app.refresh_outdated_nxm()``."""
+        try:
+            registration = self.service.refresh_outdated_nxm()
+        except (OSError, ValueError) as error:
+            self.notify(f"nxm handler is outdated: {error}", severity="warning")
+            return
+        if registration is not None:
+            self.notify(f"Updated {registration.desktop_file.name} to this OmaMods.")
 
     def refresh_omarchy_theme(self) -> None:
         """Follow desktop changes without restarting; e.g. ``app.refresh_omarchy_theme()``."""

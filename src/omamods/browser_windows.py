@@ -29,10 +29,24 @@ def exec_program(desktop_entry: str) -> str | None:
     return None
 
 
+def default_browser_entry(runner: CommandRunner) -> str | None:
+    """Name the real browser's launcher; e.g. ``default_browser_entry(r)``."""
+    # Omarchy's default is omarchy-browser.desktop, a wrapper whose Exec is
+    # omarchy-launch-browser; its resolver names the browser behind it.
+    for command in (
+        ("omarchy-cmd-default-browser",),
+        ("xdg-settings", "get", "default-web-browser"),
+    ):
+        code, desktop_id = runner.run(command)
+        if code == 0 and desktop_id.endswith(".desktop"):
+            return desktop_id
+    return None
+
+
 def chromium_browser(runner: CommandRunner, data_dirs: tuple[Path, ...]) -> str | None:
     """Find a default browser that supports ``--app``; e.g. ``chromium_browser(r, dirs)``."""
-    code, desktop_id = runner.run(("xdg-settings", "get", "default-web-browser"))
-    if code or not desktop_id.endswith(".desktop"):
+    desktop_id = default_browser_entry(runner)
+    if desktop_id is None:
         return None
     for folder in data_dirs:
         entry = folder / "applications" / desktop_id

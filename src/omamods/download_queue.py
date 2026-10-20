@@ -149,6 +149,19 @@ class DownloadLog:
             (self.folder / f"{status.key}.json").unlink(missing_ok=True)
         return len(finished)
 
+    def remove(self, status: DownloadStatus) -> None:
+        """Forget one entry; for example, ``log.remove(status)``."""
+        (self.folder / f"{status.key}.json").unlink(missing_ok=True)
+
+    def clear_idle(self) -> int:
+        """Forget all but moving downloads; for example, ``log.clear_idle()``."""
+        # A live downloader rewrites its file, so removing it would only flicker.
+        now = self.clock()
+        idle = [s for s in self.statuses() if shown_state(s, now) != DOWNLOADING]
+        for status in idle:
+            self.remove(status)
+        return len(idle)
+
 
 class ProgressRecorder:
     """Feed transport progress into the queue, writing at most twice a second."""
