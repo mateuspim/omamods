@@ -5,7 +5,7 @@ so OmaMods sends the user's ``xf_user`` cookie (XenForo's "stay logged in"
 cookie) to ayakamods.com, and never to another host a download redirects to.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from email.message import Message
 from http.client import HTTPException, HTTPResponse
 import html
@@ -25,6 +25,8 @@ from omamods.cdn_download import (
 LOGGED_OUT_MARKER = 'data-logged-in="false"'
 CHOICE_LINK = re.compile(r'<a\b[^>]*\bhref="([^"]+)"[^>]*>(.*?)</a>', re.DOTALL)
 TAG = re.compile(r"<[^>]+>")
+# Version download pages put the file name in a title beside a generic button.
+ROW_TITLE = re.compile(r'<h3 class="contentRow-title">(.*?)</h3>|<li\b', re.DOTALL)
 
 
 class AyakaHttpError(NexusHttpError):
@@ -107,7 +109,10 @@ def attachment_name(disposition: str | None) -> str | None:
 def _choice(href: str, text: str, mod_id: int) -> AyakaOffer | None:
     url = parse.urljoin(SITE_ROOT, html.unescape(href))
     parsed = parse.urlparse(url)
-    on_mod = re.fullmatch(rf"/mods/(?:[^/]*\.)?{mod_id}/download", parsed.path)
+    # Mods with release history link '/mods/<slug>.<id>/version/<n>/download'.
+    on_mod = re.fullmatch(
+        rf"/mods/(?:[^/]*\.)?{mod_id}(?:/version/[0-9]+)?/download", parsed.path
+    )
     file_ids = parse.parse_qs(parsed.query).get("file", [])
     if parsed.hostname not in SITE_HOSTS or not on_mod or len(file_ids) != 1:
         return None
@@ -117,13 +122,25 @@ def _choice(href: str, text: str, mod_id: int) -> AyakaOffer | None:
     return AyakaOffer(url, label or f"file {file_ids[0]}", int(file_ids[0]))
 
 
+def row_title(page_html: str, position: int) -> str | None:
+    """Name the file a button sits beside; e.g. ``row_title(html, link.end())``."""
+    found = ROW_TITLE.search(page_html, position)
+    if found is None or found.group(1) is None:
+        return None  # The next list row started first: this row has no title.
+    title = " ".join(html.unescape(TAG.sub(" ", found.group(1))).split())
+    return title or None
+
+
 def parse_file_choices(page_html: str, mod_id: int) -> tuple[AyakaOffer, ...]:
     """List a multi-file mod's download links; e.g. ``parse_file_choices(html, 7311)``."""
     offers: dict[int, AyakaOffer] = {}
-    for href, text in CHOICE_LINK.findall(page_html):
-        offer = _choice(href, text, mod_id)
-        if offer is not None and offer.attachment_id is not None:
-            offers.setdefault(offer.attachment_id, offer)
+    for link in CHOICE_LINK.finditer(page_html):
+        offer = _choice(link.group(1), link.group(2), mod_id)
+        if offer is None or offer.attachment_id is None:
+            continue
+        title = row_title(page_html, link.end())
+        named = replace(offer, label=title) if title else offer
+        offers.setdefault(offer.attachment_id, named)
     return tuple(offers.values())
 
 

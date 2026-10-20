@@ -13,6 +13,7 @@ from omamods.ayaka_download import (
     download_url,
     list_offers,
     parse_file_choices,
+    row_title,
 )
 from omamods.ayaka_fetch import stage_ayaka_offer
 from omamods.ayaka_pages import AyakaPage
@@ -30,6 +31,9 @@ CHOOSER = """<html data-logged-in="true"><body>
 <a href="/mods/sample-suit.7311/download?file=60788" class="button">Suit-Black.zip <span>12 MB</span></a>
 <a href="/mods/sample-suit.7311/download?file=60789&amp;v=2">Suit-Red.zip</a>
 <a href="/mods/sample-suit.7311/download?file=60788">Suit-Black.zip</a>
+<li><a href="/mods/sample-suit.7311/version/6098/download?file=60790"><span>Download</span></a>
+<h3 class="contentRow-title">Suit-Blue.zip</h3></li>
+<a href="/mods/sample-suit.7311/version/x/download?file=7">Bad version</a>
 <a href="/mods/other.999/download?file=1">Other mod</a>
 <a href="https://evil.example/mods/7311/download?file=5">Elsewhere</a>
 </body></html>"""
@@ -51,11 +55,22 @@ class AttachmentNameTest(unittest.TestCase):
 class FileChoicesTest(unittest.TestCase):
     def test_lists_this_mods_files_once_each(self) -> None:
         offers = parse_file_choices(CHOOSER, 7311)
-        self.assertEqual([o.attachment_id for o in offers], [60788, 60789])
+        # Regression: versioned links were skipped, so no files showed.
+        self.assertEqual([o.attachment_id for o in offers], [60788, 60789, 60790])
         self.assertEqual(offers[0].label, "Suit-Black.zip 12 MB")
+        self.assertEqual(offers[2].label, "Suit-Blue.zip")  # From the row title.
         self.assertEqual(
             offers[1].url,
             "https://ayakamods.com/mods/sample-suit.7311/download?file=60789&v=2",
+        )
+
+
+class RowTitleTest(unittest.TestCase):
+    def test_reads_the_title_but_not_the_next_rows(self) -> None:
+        page = '<a>x</a><h3 class="contentRow-title"> Fix&amp;.rar </h3>'
+        self.assertEqual(row_title(page, 8), "Fix&.rar")
+        self.assertIsNone(
+            row_title('<a>x</a><li><h3 class="contentRow-title">B</h3>', 8)
         )
 
 
@@ -73,7 +88,7 @@ class ListOffersTest(unittest.TestCase):
     def test_a_chooser_page_lists_its_files(self) -> None:
         session = FakeAyakaSession()
         session.serve_page(URL, CHOOSER)
-        self.assertEqual(len(list_offers(session, PAGE)), 2)
+        self.assertEqual(len(list_offers(session, PAGE)), 3)
 
     def test_a_logged_out_page_asks_for_the_cookie(self) -> None:
         session = FakeAyakaSession()
