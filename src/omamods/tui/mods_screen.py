@@ -45,6 +45,7 @@ from omamods.tui.service import ModsService
 from omamods.tui.requirement_actions import ERROR_TOAST_SECONDS
 from omamods.tui.toast_filter import RepeatedToastFilter
 from omamods.tui.mod_detail import ModDetail
+from omamods.tui.mod_inspector import collision_warning
 from omamods.tui.workspace import WorkspaceHeader, WorkspaceHints, WorkspaceStatus
 
 REFRESH_SECONDS = 3.0
@@ -100,7 +101,7 @@ class ModsScreen(SearchableScreen, AdultScreen):
             )
             # Not focusable, so h/l (and Tab) go straight from the mod list to
             # the file table instead of stopping on this pane first.
-            yield ModDetail()
+            yield ModDetail(self.service, self.game)
         yield DownloadsPanel(self.service, self.game)
         yield Static(id="status", markup=False)
         yield WorkspaceStatus(self.game.name)
@@ -389,9 +390,12 @@ class ModsScreen(SearchableScreen, AdultScreen):
             )
             return
         title = f"Install {len(plans)} file(s) of {mod.title}?"
-        if await self.app.push_screen_wait(
-            ConfirmDialog(title, describe_plans(plans, self.game.folder_label()))
-        ):
+        report = await asyncio.to_thread(
+            self.service.conflicts.for_plans, self.game, mod, plans
+        )
+        details = describe_plans(plans, self.game.folder_label())
+        details += collision_warning(report, mod.title)
+        if await self.app.push_screen_wait(ConfirmDialog(title, details)):
             await asyncio.to_thread(self._install_plans, mod, plans)
             self.reload()
             # A UE4SS bundle or ASI plugin does nothing until Proton loads its

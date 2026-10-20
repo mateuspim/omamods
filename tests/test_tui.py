@@ -1,6 +1,7 @@
 """Drive the TUI headlessly against fake Nexus, archives, and host programs."""
 
 from dataclasses import replace
+import json
 from io import BytesIO, StringIO
 from pathlib import Path
 import tempfile
@@ -26,6 +27,7 @@ from omamods.tui.preview import PicturePreview
 from omamods.tui.downloads_screen import DownloadsScreen
 from omamods.tui.games_screen import GamesScreen
 from omamods.tui.service import ModsService, TuiHost
+from tests.pak_builders import directory_pak_bytes, utoc_bytes
 from tests.fakes import (
     FakeArchiveReader,
     FakeAyakaPages,
@@ -159,6 +161,45 @@ class TuiTests(TuiFixture):
             self.assertEqual((self.paks / "~mods/Black/s.pak").read_bytes(), b"pak")
             await pilot.press("o")
             self.assertEqual(self.launcher.launched[-1][0], "imv")
+
+    def _install_other_mod(self, asset: str) -> None:
+        """Record Ayaka mod 2 as owning ~mods/Other_P.utoc, carrying ``asset``."""
+        (self.root / "store/ayaka/archives/stellar-blade/2").mkdir(parents=True)
+        utoc = self.paks / "~mods/Other_P.utoc"
+        utoc.parent.mkdir(parents=True, exist_ok=True)
+        utoc.write_bytes(utoc_bytes((asset,)))
+        record = self.root / "store/ayaka/state/stellar-blade/2/9.json"
+        record.parent.mkdir(parents=True)
+        owned = {"relative_path": "~mods/Other_P.utoc", "sha256": "x"}
+        record.write_text(json.dumps({"paks": str(self.paks), "assets": [owned]}))
+
+    async def test_install_warns_about_assets_another_mod_replaces(self) -> None:
+        members = {
+            "Black/Zed_P.utoc": utoc_bytes(("Art/Hero/Jacket.uasset",)),
+            "Black/Zed_P.ucas": b"cas",
+            "Black/Zed_P.pak": directory_pak_bytes(()),  # IoStore's stub pak.
+        }
+        app = self._app(members)
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._open_stellar_blade_and_add(app, pilot)
+            # Recorded after the add so the new mod, not this one, is selected.
+            self._install_other_mod("Art/Hero/Jacket.uasset")
+            await pilot.press("i")
+            # The install worker waits on the dialog, so pause instead of joining it.
+            for _ in range(20):
+                await pilot.pause(0.05)
+                if isinstance(app.screen, ConfirmDialog):
+                    break
+            self.assertIsInstance(app.screen, ConfirmDialog)
+            details = app.screen.details
+            self.assertIn("Asset collisions (likely load order):", details)
+            self.assertIn("overrides Mod 2: 1 asset(s) (jacket)", details)
+            self.assertIn("Zed_P loads over Other_P", details)
+            await pilot.press("y")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            inspector = app.screen.query_one("#mod-collisions", Static)
+            self.assertIn("overrides Mod 2", str(inspector.render()))
 
     async def test_every_variant_is_ticked_and_installs(self) -> None:
         app = self._app({"Mod/Black/b.pak": b"b", "Mod/White/w.pak": b"w"})

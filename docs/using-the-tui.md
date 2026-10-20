@@ -93,6 +93,17 @@ beside their installed, staged, or available state. The inspector keeps artwork
 in proportion and describes the highlighted file's next action. Very wide
 terminals center the workspace at a comfortable reading width.
 
+For Unreal games, the inspector's **COLLISIONS** section lists installed mods
+that replace the same game assets as the selected mod, or two of its own files
+that overlap, for example `overrides Body Tweaks: 8 asset(s) (...);
+Outfit_P loads over BodyTweaks_P`. The install confirmation shows the
+same warning before anything is written. OmaMods reads each container's
+`.utoc` or `.pak` index, not the whole file. Which mod is shown follows
+Unreal's load order (see [ADR 5](adr/0005-predict-unreal-asset-load-order.md)):
+a `_<n>_P` number wins, then the name that sorts later, so renaming a mod with
+a `z_` prefix makes it load last and win. Treat the order as likely, not
+certain. Some games change it.
+
 `j`/`k` move, `gg`/`G` jump to the top/bottom, `Ctrl+d`/`Ctrl+u` page, and
 `h`/`l` switch panes. `/` filters the games or mods list as you type, like a
 LazyVim picker: only names containing every typed word stay, with the words

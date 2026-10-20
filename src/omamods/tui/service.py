@@ -50,6 +50,9 @@ from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.tui.ayaka_site import AyakaSite
 from omamods.tui.release_site import ReleaseSite
 from omamods.tui.steam_setup import SteamSetup
+from omamods.tui.asset_conflicts import AssetConflicts
+from omamods.byte_ranges import FileRanges
+from omamods.installed_containers import OpenRanges
 from omamods.steam_process import SteamProcess
 from omamods.tui.requirement_flow import RequirementFlow
 from omamods.variant_choices import exclusive_variants, nested_archives
@@ -105,6 +108,8 @@ class TuiHost:
     release_transport: ReleaseTransport | None = None
     write_launch_options: LaunchOptionsWriter | None = None
     steam: SteamProcess | None = None
+    # Reads pak and utoc indexes for asset collision checks.
+    open_ranges: OpenRanges = FileRanges
 
 
 class ModsService:
@@ -122,6 +127,7 @@ class ModsService:
         self.ayaka = AyakaSite(self)
         self.release = ReleaseSite(self)
         self.steam_setup = SteamSetup(self)
+        self.conflicts = AssetConflicts(self)
 
     def _load_settings(self) -> UserSettings:
         host = self.host
@@ -193,6 +199,10 @@ class ModsService:
         if site == RELEASE_SITE:
             return self.release.staged_mod(game, mod_id)
         return load_staged_mod(self.settings.storage_root, game, mod_id)
+
+    def state_root(self, site: str) -> Path:
+        """Where a site's archives and records live; e.g. ``state_root('ayaka')``."""
+        return self._root(site)
 
     def _root(self, site: str) -> Path:
         if site == RELEASE_SITE:

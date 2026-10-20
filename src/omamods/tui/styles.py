@@ -91,7 +91,7 @@ DataTable:focus > .datatable--cursor { background: $primary 30%; color: $text; }
     border-top: solid $panel; height: 3; margin-top: 1;
     padding-top: 1; color: $secondary; text-style: bold;
 }
-#mod-overview, #file-inspector { height: auto; padding: 0 1; }
+#mod-overview, #file-inspector, #mod-collisions { height: auto; padding: 0 1; }
 .nsfw-note { dock: top; color: $error; text-style: bold; height: 2; }
 #status { display: none; }
 .placeholder { color: $text-muted; content-align: center middle; height: 100%; }
