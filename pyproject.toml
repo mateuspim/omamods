@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "omamods"
-version = "0.1.0"
+version = "0.1.1"
 description = "Terminal mod manager for Linux game libraries, with safe install and revert"
 requires-python = ">=3.12"
 license = "MIT"
