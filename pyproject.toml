@@ -5,8 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "omamods"
 version = "0.1.0"
-description = "Reproducible game-mod profiles with a TUI for staging and installing Nexus mods"
+description = "Terminal mod manager for Linux game libraries, with safe install and revert"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = ["PyYAML>=6.0,<7", "textual>=8,<9", "textual-image>=0.14,<0.15"]
 
 [project.optional-dependencies]

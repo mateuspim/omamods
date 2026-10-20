@@ -1,0 +1,28 @@
+<div id="mod-architecture" style="font-family:system-ui,sans-serif;color:var(--foreground);max-width:900px;margin:auto">
+  <style>
+    #mod-architecture .flow{display:grid;grid-template-columns:1fr 48px 1.25fr 48px 1fr;gap:10px;align-items:stretch}
+    #mod-architecture .box{border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--background);min-height:180px}
+    #mod-architecture h3{font-size:15px;margin:0 0 10px} #mod-architecture p{font-size:13px;line-height:1.35;margin:7px 0}
+    #mod-architecture .arrow{align-self:center;text-align:center;font-size:25px;color:var(--muted-foreground)}
+    #mod-architecture button{display:block;width:100%;text-align:left;padding:8px;margin:5px 0;border:1px solid var(--border);border-radius:7px;background:transparent;color:inherit;cursor:pointer}
+    #mod-architecture button[aria-pressed=true]{border-color:var(--viz-series-1);background:color-mix(in srgb,var(--viz-series-1) 13%,transparent)}
+    #mod-architecture .detail{margin-top:13px;border-left:3px solid var(--viz-series-1);padding:9px 12px;font-size:13px;line-height:1.4}
+    @media(max-width:600px){#mod-architecture .flow{grid-template-columns:1fr;gap:7px}#mod-architecture .arrow{transform:rotate(90deg);min-height:24px}}
+  </style>
+  <div class="flow">
+    <section class="box"><h3>1. Preserve sources</h3><p>Versioned manifest</p><p>Original mod archives</p><p>Hashes and upstream URLs</p><p>Per-game profiles</p></section>
+    <div class="arrow" aria-hidden="true">→</div>
+    <section class="box"><h3>2. Per-game adapters</h3>
+      <button type="button" data-kind="overlay" aria-pressed="true">Overlay / loader mods</button>
+      <button type="button" data-kind="manager" aria-pressed="false">Existing GUI manager</button>
+      <button type="button" data-kind="patcher" aria-pressed="false">Archive patcher</button>
+      <button type="button" data-kind="ingame" aria-pressed="false">Game’s own mod manager</button>
+    </section>
+    <div class="arrow" aria-hidden="true">→</div>
+    <section class="box"><h3>3. Reliable result</h3><p>Apply / remove</p><p>Backups before changes</p><p>Steam launch settings</p><p>Rebuild after deleting box</p></section>
+  </div>
+  <div class="detail" id="mod-detail">Overlay / loader: the best first target. A declarative install rule copies known files to known locations, applies loader settings, and records exactly what changed.</div>
+  <script>
+    (() => { const root=document.getElementById('mod-architecture'); const detail=root.querySelector('#mod-detail'); const copy={overlay:'Overlay / loader: the best first target. A declarative install rule copies known files to known locations, applies loader settings, and records exactly what changed.',manager:'Existing GUI manager: install and launch the manager inside the distrobox. Keep its own profile and downloaded archives persistent; do not reimplement its format.',patcher:'Archive patcher: stage the tool and mod files, then guide the one manual GUI pass. Save a backup or use Steam Verify as the recovery route.',ingame:'Game’s own mod manager: keep it authoritative. The outer tool can preserve mod files and launch the game, but should not write its private database unless the format is documented and stable.'}; root.querySelectorAll('button[data-kind]').forEach(b=>b.addEventListener('click',()=>{root.querySelectorAll('button[data-kind]').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');detail.textContent=copy[b.dataset.kind];})); })();
+  </script>
+</div>
