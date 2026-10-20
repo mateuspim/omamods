@@ -1,9 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 256" role="img" aria-label="OmaMods logo">
   <rect x="5" y="5" width="246" height="246" rx="48" fill="#10231e" stroke="#39d98a" stroke-width="6"/>
   <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M128 42 209 88 128 134 47 88Z" stroke="#39d98a" stroke-width="15"/>
-    <path d="M47 125 128 171 209 125" stroke="#29c984" stroke-width="17"/>
-    <path d="M47 163 128 209 209 163" stroke="#1da773" stroke-width="17"/>
+    <path d="M58 40H172L198 66V216H58Z" stroke="#1da773" stroke-width="16"/>
+    <rect x="80" y="68" width="96" height="88" rx="10" fill="#39d98a"/>
+    <path d="M100 92 122 112 100 132" stroke="#10231e" stroke-width="14"/>
+    <path d="M132 132H156" stroke="#10231e" stroke-width="14"/>
+    <path d="M98 182V198M128 182V198M158 182V198" stroke="#29c984" stroke-width="14"/>
   </g>
   <text x="300" y="198" fill="#18252d" font-family="DejaVu Sans,Arial,sans-serif" font-size="184" font-weight="700" letter-spacing="-8">Oma<tspan fill="#39d98a">Mods</tspan></text>
 </svg>

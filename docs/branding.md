@@ -1,10 +1,11 @@
 # OmaMods brand assets
 
-The mark uses three stacked layers to suggest game asset overlays and load
-order. Its open center keeps the silhouette clear at small icon sizes. It is
-drawn as vector paths. The icon uses `#39d98a`, `#29c984`, and `#1da773`
-for its three layers, on a `#10231e` square. The preview uses nearby greens
-for text and accents.
+The mark is a game cartridge with a terminal prompt (`>_`) on its label:
+game mods, managed from the terminal. The solid label keeps the cartridge
+readable at 32 px; at 16 px it reduces to a notched block. It is drawn as
+vector paths. The icon uses `#39d98a` for the label, `#29c984` for the pins,
+and `#1da773` for the outline, on a `#10231e` square. The preview uses nearby
+greens for text and accents.
 
 | Asset | Use |
 | --- | --- |
