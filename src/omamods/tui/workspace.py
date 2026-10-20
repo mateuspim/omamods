@@ -116,6 +116,8 @@ class WorkspaceHints(Horizontal):
             ]
             action = file_next_action(focused.mod, file)
             hints = f"[b]enter[/] {action}   [b]d[/] download   [b]x[/] remove"
+            if file.file_id in focused.mod.installed:
+                hints += "   [b]P[/] load last"
         elif focused is not None and focused.id in ("queue", "downloads-table"):
             hints = (
                 "[b]r[/] retry   [b]x[/] remove   [b]c[/] clear finished   "

@@ -73,6 +73,7 @@ root` can change those locations. The important paths are:
   state/<game>/<mod-id>/<file-id>.<variant-digest>.json
   state/<game>/<mod-id>/*.config.json
   state/<game>/<mod-id>/*.config.originals/
+  state/<game>/<mod-id>/<file-id>.load-order  # containers renamed to load last
   state/<game>/<mod-id>.json  # older per-mod record
   state/requirement_chain.json
   backups/steam-localconfig/

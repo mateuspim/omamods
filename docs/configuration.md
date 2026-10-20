@@ -36,6 +36,7 @@ password. See [the AyakaMods workflow](using-the-tui.md#ayakamods).
 | `state/<game>/<mod-id>/` | Per-file records (`<file-id>.json`) and variant records (`<file-id>.<digest>.json`). |
 | `state/<game>/<mod-id>.json` | Older per-mod records, still readable and revertible. |
 | `state/<game>/<mod-id>/*.config.json` and `*.config.originals/` | UE4SS prefix configuration records and saved originals. |
+| `state/<game>/<mod-id>/<file-id>[.<digest>].load-order` | Containers renamed to load last (`P`), reapplied on reinstall. |
 | `state/requirement_chain.json` | In-progress Nexus requirement installation chain. |
 | `backups/steam-localconfig/` | Copies made before writing Steam launch options. |
 | `downloads/` | Cross-process queue status for the TUI and browser handler. |

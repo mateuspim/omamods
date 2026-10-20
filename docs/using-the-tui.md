@@ -110,6 +110,17 @@ a `_<n>_P` number wins, then the name that sorts later, so renaming a mod with
 a `z_` prefix makes it load last and win. Treat the order as likely, not
 certain. Some games change it.
 
+To make an installed file win, highlight it and press `P` (or `:load-last`).
+OmaMods renames each of its colliding containers with the next `_<n>_P` number,
+for example `Fix_P` to `Fix_1_P`, after a confirmation that lists every old and
+new file name and the mods it will then load over. All files of a container
+(`.pak`, `.utoc`, `.ucas`) move together, and the ownership record follows, so
+uninstalling still removes them. The choice is remembered: reinstalling or
+updating the same file installs it under the chosen name. `:load-default`
+renames it back and forgets the choice. Renaming is refused if a file was
+changed since install or the new name is taken, and is only offered for
+Unreal games (see [ADR 6](adr/0006-rename-containers-to-choose-load-order.md)).
+
 `j`/`k` move, `gg`/`G` jump to the top/bottom, `Ctrl+d`/`Ctrl+u` page, and
 `h`/`l` switch panes. `/` filters the games or mods list as you type, like a
 LazyVim picker: only names containing every typed word stay, with the words

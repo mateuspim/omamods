@@ -52,6 +52,7 @@ from omamods.tui.release_site import ReleaseSite
 from omamods.tui.steam_setup import SteamSetup
 from omamods.tui.asset_conflicts import AssetConflicts
 from omamods.tui.game_uninstall import GameUninstall
+from omamods.tui.load_order_choices import LoadOrderChoices
 from omamods.byte_ranges import FileRanges
 from omamods.installed_containers import OpenRanges
 from omamods.steam_process import SteamProcess
@@ -130,6 +131,7 @@ class ModsService:
         self.steam_setup = SteamSetup(self)
         self.conflicts = AssetConflicts(self)
         self.game_uninstall = GameUninstall(self)
+        self.load_order = LoadOrderChoices(self)
 
     def _load_settings(self) -> UserSettings:
         host = self.host

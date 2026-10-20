@@ -21,8 +21,7 @@ INDEX_READERS: dict[str, Callable[[ByteRanges], tuple[str, ...]]] = {
 }
 
 
-def recorded_containers(record: Path) -> tuple[Path, ...]:
-    """List a record's .utoc/.pak files; e.g. ``recorded_containers(state)``."""
+def _recorded_relative(record: Path) -> tuple[Path, tuple[str, ...]]:
     try:
         state = json.loads(record.read_text(encoding="utf-8"))
         paks = Path(state["paks"])
@@ -31,12 +30,30 @@ def recorded_containers(record: Path) -> tuple[Path, ...]:
         raise ValueError(
             f"install state={str(record)!r}: expected paks and assets[].relative_path"
         ) from error
-    return tuple(
-        paks / path
+    return paks, tuple(
+        path
         for path in relative
         if PurePosixPath(path).suffix.lower() in INDEX_READERS
         and ".." not in PurePosixPath(path).parts
     )
+
+
+def recorded_containers(record: Path) -> tuple[Path, ...]:
+    """List a record's .utoc/.pak files; e.g. ``recorded_containers(state)``."""
+    paks, relative = _recorded_relative(record)
+    return tuple(paks / path for path in relative)
+
+
+def recorded_stems(record: Path) -> dict[str, frozenset[str]]:
+    """Map container names to Paks-relative stems; e.g. ``recorded_stems(state)``.
+
+    A name maps to several stems only when variants share a file name.
+    """
+    stems: dict[str, set[str]] = {}
+    for path in _recorded_relative(record)[1]:
+        pure = PurePosixPath(path)
+        stems.setdefault(pure.stem, set()).add(pure.with_suffix("").as_posix())
+    return {name: frozenset(found) for name, found in stems.items()}
 
 
 class ContainerIndexes:

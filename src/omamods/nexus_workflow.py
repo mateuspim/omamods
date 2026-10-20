@@ -15,6 +15,11 @@ from omamods.install_records import (
     mod_state_records,
     recorded_file_id,
 )
+from omamods.load_order_store import (
+    apply_load_order,
+    load_order_path,
+    read_load_order,
+)
 from omamods.mod_fetch import stage_file
 from omamods.nexus_config import RequestedMod, UserSettings
 from omamods.asset_plans import plan_game_assets
@@ -133,6 +138,8 @@ def _install_cached(
         planned = number_patches(planned, paks, game.patch_chain)
     root = settings.storage_root
     record = file_state_path(root, game, local.mod_id, local.file_id, local.option)
+    # Keeps a container the user moved to load last under its chosen name.
+    planned = apply_load_order(planned, read_load_order(load_order_path(record)))
     install = _FileInstall(game, paks, archive, record, local.file_id, reader)
     return _install_planned(install, planned)
 

@@ -11,11 +11,16 @@ from omamods.asset_collisions import (
     find_collisions,
     internal_collisions,
 )
-from omamods.install_records import mod_state_records
+from omamods.install_records import file_state_path, mod_state_records
 from omamods.installed_containers import (
     INDEX_READERS,
     ContainerIndexes,
     recorded_containers,
+)
+from omamods.load_order_store import (
+    apply_load_order,
+    load_order_path,
+    read_load_order,
 )
 from omamods.mod_plan import FilePlan
 from omamods.pak_archive import PlannedAsset
@@ -97,7 +102,7 @@ class AssetConflicts:
         unreadable: list[str] = []
         with tempfile.TemporaryDirectory(prefix="omamods-index-") as folder:
             try:
-                files = self._extract_planned(mod, plans, Path(folder))
+                files = self._extract_planned(game, mod, plans, Path(folder))
             except (OSError, ValueError) as error:
                 # A failed check must not block the install it only advises on.
                 return CollisionReport((), (f"{mod.title}: {error}",))
@@ -120,8 +125,20 @@ class AssetConflicts:
         installed = self._read(mod.title, self._installed_files(game, mod), unreadable)
         return tuple(c for c in installed if c.name not in planned)
 
+    def _chosen_targets(
+        self, game: PakOverlayGame, mod: StagedMod, plan: FilePlan
+    ) -> tuple[PlannedAsset, ...]:
+        # The install renames containers the user moved to load last; so does this.
+        root = self.service.state_root(mod.site)
+        record = file_state_path(root, game, mod.mod_id, plan.file.file_id, plan.option)
+        return apply_load_order(plan.assets, read_load_order(load_order_path(record)))
+
     def _extract_planned(
-        self, mod: StagedMod, plans: tuple[FilePlan, ...], folder: Path
+        self,
+        game: PakOverlayGame,
+        mod: StagedMod,
+        plans: tuple[FilePlan, ...],
+        folder: Path,
     ) -> list[Path]:
         files: list[Path] = []
         for number, plan in enumerate(plans):
@@ -131,7 +148,7 @@ class AssetConflicts:
             target_folder.mkdir()
             files.extend(
                 self._extract_index(archive, asset, target_folder)
-                for asset in plan.assets
+                for asset in self._chosen_targets(game, mod, plan)
                 if asset.target.suffix.lower() in INDEX_READERS
             )
         return files

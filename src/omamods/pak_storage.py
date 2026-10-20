@@ -430,3 +430,23 @@ def _is_removable_ue4ss_folder(binaries: Path, folder: Path) -> bool:
     if folder == binaries or not folder.is_relative_to(binaries / UE4SS_FOLDER):
         return False
     return folder.is_dir() and not any(folder.iterdir())
+
+
+def read_ownership(
+    record: Path, game: PakOverlayGame
+) -> tuple[Path, tuple[InstalledAsset, ...]]:
+    """Validate a record and list what it owns, for tools that change it later.
+
+    Example: ``paks, assets = read_ownership(state / "7.json", mgs_delta)``.
+    """
+    return _recorded_assets(record, game)
+
+
+def owned_target(paks: Path, relative: str) -> Path:
+    """Resolve an owned path, refusing escapes; e.g. ``owned_target(paks, '~mods/A_P.pak')``."""
+    return _safe_target(paks, Path(relative))
+
+
+def file_sha256(path: Path) -> str:
+    """Hash a file the way records do; e.g. ``file_sha256(paks / '~mods/A_P.pak')``."""
+    return _digest(path)

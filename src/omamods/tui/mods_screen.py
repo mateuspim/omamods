@@ -34,6 +34,7 @@ from omamods.tui.mod_rows import (
     visible_mods,
 )
 from omamods.tui.list_search import SearchableScreen
+from omamods.tui.load_order_actions import LoadOrderScreen
 from omamods.tui.downloads_panel import (
     FULL_QUEUE,
     MINIMIZED,
@@ -56,7 +57,7 @@ BROWSER_HINT = (
 )
 
 
-class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen):
+class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScreen):
     """Show and change one game's mods; e.g. ``app.push_screen(ModsScreen(s, sb))``."""
 
     BINDINGS = [

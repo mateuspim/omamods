@@ -38,6 +38,12 @@ MODS_COMMANDS = (
     ),
     CommandSpec("stop", (), ":stop", "stop waiting for an AyakaMods download"),
     CommandSpec(
+        "load-last", (), ":load-last", "rename the file so it wins asset clashes (P)"
+    ),
+    CommandSpec(
+        "load-default", (), ":load-default", "give the file its original names back"
+    ),
+    CommandSpec(
         "nsfw",
         (),
         ":nsfw [blur|hide|show|mark|unmark]",
@@ -148,6 +154,8 @@ HANDLERS: dict[str, Callable[["ModsScreen", tuple[str, ...]], None]] = {
     "dl": _resize_downloads,
     "stop": lambda screen, args: screen.cancel_ayaka(),
     "nsfw": _nsfw,
+    "load-last": lambda screen, args: screen.action_load_last(),
+    "load-default": lambda screen, args: screen.action_load_default(),
 }
 
 
