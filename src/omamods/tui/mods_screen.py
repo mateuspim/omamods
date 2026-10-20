@@ -44,6 +44,7 @@ from omamods.tui.preview import PicturePreview
 from omamods.tui.service import ModsService
 from omamods.tui.requirement_actions import ERROR_TOAST_SECONDS
 from omamods.tui.toast_filter import RepeatedToastFilter
+from omamods.tui.uninstall_all_actions import UninstallAllScreen
 from omamods.tui.mod_detail import ModDetail
 from omamods.tui.mod_inspector import collision_warning
 from omamods.tui.workspace import WorkspaceHeader, WorkspaceHints, WorkspaceStatus
@@ -55,7 +56,7 @@ BROWSER_HINT = (
 )
 
 
-class ModsScreen(SearchableScreen, AdultScreen):
+class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen):
     """Show and change one game's mods; e.g. ``app.push_screen(ModsScreen(s, sb))``."""
 
     BINDINGS = [
@@ -63,6 +64,7 @@ class ModsScreen(SearchableScreen, AdultScreen):
         Binding("d", "download", "Download file"),
         Binding("i", "install_mod", "Install mod"),
         Binding("u", "uninstall_mod", "Uninstall mod"),
+        Binding("U", "uninstall_all", "Uninstall all mods"),
         Binding("x", "remove_staged", "Remove download"),
         Binding("o", "open_picture", "Full picture"),
         Binding("w", "open_page", "Web page"),
@@ -107,7 +109,7 @@ class ModsScreen(SearchableScreen, AdultScreen):
         yield WorkspaceStatus(self.game.name)
         yield WorkspaceHints(
             "[b]a[/] add   [b]i[/] install   [b]enter[/] file   [b]/[/] find   "
-            "[b]p[/] preview   [b]D[/] downloads"
+            "[b]p[/] preview   [b]D[/] downloads   [b]U[/] uninstall all"
         )
 
     def action_toggle_preview(self) -> None:

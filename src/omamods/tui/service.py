@@ -51,6 +51,7 @@ from omamods.tui.ayaka_site import AyakaSite
 from omamods.tui.release_site import ReleaseSite
 from omamods.tui.steam_setup import SteamSetup
 from omamods.tui.asset_conflicts import AssetConflicts
+from omamods.tui.game_uninstall import GameUninstall
 from omamods.byte_ranges import FileRanges
 from omamods.installed_containers import OpenRanges
 from omamods.steam_process import SteamProcess
@@ -128,6 +129,7 @@ class ModsService:
         self.release = ReleaseSite(self)
         self.steam_setup = SteamSetup(self)
         self.conflicts = AssetConflicts(self)
+        self.game_uninstall = GameUninstall(self)
 
     def _load_settings(self) -> UserSettings:
         host = self.host

@@ -64,6 +64,12 @@ OmaMods Night as a fallback; `Ctrl+P` → *Change theme* selects a session palet
    a main file for an optional one. `u` uninstalls the whole mod, `x` deletes
    the selected download from staging (not if installed), `o` opens
    the picture in `imv`, and `w` opens the mod page.
+6. `U` (or `:uninstall-all`) uninstalls every mod of the game, from every
+   site. A confirmation lists each mod with its installed file count and the
+   total. A file that cannot be removed, for example one a game update
+   changed, is skipped and named in the summary; the rest are still removed.
+   RE Engine patches are removed highest first, and prefix config files such
+   as `Engine.ini` newest install first, so the game's own files come back.
 
 ## Vim keys and commands
 
@@ -125,6 +131,7 @@ lists the commands for the current screen.
 | `:game <name>` | open a game by ID prefix, name, or initials (`:game sb`) |
 | `:add <url>` | add a Nexus or AyakaMods mod; opens the URL's game |
 | `:install [file]`, `:uninstall [file]` | the whole mod, or one file |
+| `:uninstall-all` | every mod of this game (`U`) |
 | `:download [file\|all]` | the selected file, one file, or every current file |
 | `:rm <file>` | delete a download from staging |
 | `:queue`, `:retry`, `:clear` | the download queue |

@@ -18,6 +18,12 @@ MODS_COMMANDS = (
         "uninstall", ("u",), ":uninstall [file]", "uninstall the mod, or one file"
     ),
     CommandSpec(
+        "uninstall-all",
+        (),
+        ":uninstall-all",
+        "uninstall every mod of this game (U)",
+    ),
+    CommandSpec(
         "download",
         ("d",),
         ":download [file|all]",
@@ -133,6 +139,7 @@ def _nsfw(screen: "ModsScreen", args: tuple[str, ...]) -> None:
 HANDLERS: dict[str, Callable[["ModsScreen", tuple[str, ...]], None]] = {
     "install": _install,
     "uninstall": _uninstall,
+    "uninstall-all": lambda screen, args: screen.action_uninstall_all(),
     "download": _download,
     "rm": _remove,
     "web": lambda screen, args: screen.action_open_page(),

@@ -49,7 +49,8 @@ patch. Packing needs a version 4 base pak;
 older builds such as RE7's non-RT branch are refused. Mods installed later
 override earlier ones that change the same files. Uninstalling a mod that
 sits below another leaves an empty patch in its place, because the chain must
-not have gaps. REFramework scripts and
+not have gaps. `U` uninstalls every mod highest patch first, so no empty
+patches are left unless a mod above could not be removed. REFramework scripts and
 DLL loaders are refused.
 
 A game update can add an official patch with a number a mod already uses and

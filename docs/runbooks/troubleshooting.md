@@ -69,7 +69,8 @@ is the cause when those commands fail with `ModuleNotFoundError` for `omamods`.
    before manual repair. The ownership record links a staged archive to actual
    target files; keep them paired.
 2. Use the TUI's `u` or CLI `omamods nexus revert <game-id> <mod-id>` for a
-   supported Nexus CLI game. Add `--file-id` to target one staged file.
+   supported Nexus CLI game. Add `--file-id` to target one staged file. The
+   TUI's `U` reverts every mod of the game and lists the files it refused.
 3. If revert reports a changed target, inspect the named path and record under
    `<storage-root>/state/` before changing anything. A hash mismatch protects
    local edits or game updates from deletion. Original prefix files and Steam

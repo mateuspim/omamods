@@ -44,6 +44,14 @@ class CommandParsingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "balanced quotes"):
             parse_command(':add "x')
 
+    def test_uninstall_all_never_shadows_uninstall(self) -> None:
+        self.assertEqual(resolve_command("uninstall", ALL).name, "uninstall")
+        self.assertEqual(resolve_command("u", ALL).name, "uninstall")
+        self.assertEqual(resolve_command("uninstall-", ALL).name, "uninstall-all")
+        # A short prefix of the destructive command must not pick one silently.
+        with self.assertRaisesRegex(ValueError, "Ambiguous"):
+            resolve_command("unin", ALL)
+
     def test_resolve_aliases_prefixes_and_errors(self) -> None:
         self.assertEqual(resolve_command("q", ALL).name, "quit")
         self.assertEqual(resolve_command("inst", ALL).name, "install")
