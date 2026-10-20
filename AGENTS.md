@@ -1,62 +1,65 @@
 # OmaMods contributor guide
 
-## Git
+OmaMods is a Python 3.12+ Textual application. Read the relevant user guide and
+[architecture](docs/architecture.md) before changing a workflow. Keep the
+README short; put detailed usage in `docs/` and game-specific rules in
+`games/<id>/README.md`.
+
+## Git and scope
 
 - Always use `master` as the default branch. Never assume, create, switch to,
-  or recreate `main`.
-- Base new work from `master`.
+  or recreate `main`. Base new work from `master`.
+- Preserve user-created files and local state. `docs/mod-manager-architecture.html`
+  may be an untracked working draft; do not overwrite it without a task that
+  explicitly calls for it.
+- Do not put credentials, downloaded archives, personal paths, or Steam data in
+  tracked files. Use fake library data for screenshots and examples.
+
+## Architecture
+
+- CLI entry: `src/omamods/cli.py`; host wiring: `host_cli.py` and
+  `nexus_cli.py`; TUI screens: `src/omamods/tui/`.
+- Discovery uses `games/<id>/game.yml` and read-only filesystem adapters.
+  A manifest does not enable an installer. See the [manifest spec](docs/specs/game-manifest.md).
+- TUI screens call `ModsService` through an injected `TuiHost`. Keep network,
+  filesystem, archive, browser, and Steam operations behind project-owned
+  interfaces. Inject dependencies through constructors or parameters, never
+  globals or imports. See [architecture](docs/architecture.md) and
+  [ADRs](docs/adr/README.md).
+- Keep archives and install records in the configured host storage root.
+  Preflight target paths, record ownership, and preserve revert behavior when
+  changing an installer. See [storage](docs/configuration.md).
 
 ## Code style
 
-- Functions: 4–20 lines. Split longer functions.
-- Files: under 500 lines. Split by responsibility.
-- One thing per function and one responsibility per module (SRP).
-- Names: specific and unique. Avoid `data`, `handler`, and `Manager`.
-  Prefer names with fewer than five grep hits in the codebase.
-- Types: explicit. No `any`, `Dict`, or untyped functions.
-- No code duplication. Extract shared logic into a function or module.
-- Prefer early returns over nested conditionals. Use at most two indentation
-  levels.
-- Exception messages must include the offending value and expected shape.
-
-## Comments
-
-- Keep existing comments during refactors because they carry intent and
-  provenance.
-- Write why, not what. Skip comments such as `// increment counter` above
-  `i++`.
+- Functions: 4–20 lines. Split longer functions. Files: under 500 lines.
+- One thing per function and one responsibility per module. Use specific,
+  greppable names (prefer fewer than five codebase hits); avoid generic
+  `data`, `handler`, and `Manager` names.
+- Use explicit types: no `any`, `Dict`, or untyped functions. Follow the
+  framework conventions in use. Extract shared logic instead of duplicating it. Prefer early returns and at most two
+  indentation levels.
+- Exception messages include the offending value and expected shape.
+- Preserve existing comments in refactors. New comments explain why, and
+  mention an issue or commit when a line exists for that constraint.
 - Public functions need docstrings with intent and one usage example.
-- Reference issue numbers or commit SHAs when a line exists because of a
-  specific bug or upstream constraint.
 
-## Tests
+## Tests and formatting
 
-- Tests must run through one documented project command. Define and document
-  that command when the first implementation is added.
-- Every new function gets a test. Bug fixes get a regression test.
-- Mock external I/O (API, database, filesystem) with named fake classes, not
-  inline stubs.
-- Tests must be F.I.R.S.T.: fast, independent, repeatable, self-validating,
-  and timely.
+- Run all tests with `PYTHONPATH=src .venv/bin/python -m unittest discover -s tests`.
+  Create `.venv` and install `.[dev]` as shown in the README if needed.
+- Every new function gets a test; bug fixes get a regression test. Use named
+  fake classes for external I/O. Tests stay fast, independent, repeatable,
+  self-validating, and timely.
+- Format with `python -m black src tests`.
+- Use structured JSON for diagnostic logs and plain text for user-facing CLI
+  output.
 
-## Dependencies
+## Documentation changes
 
-- Inject dependencies through a constructor or parameter, not a global or
-  import.
-- Wrap third-party libraries behind a thin interface owned by this project.
-
-## Structure
-
-- Follow the framework convention in use.
-- Prefer small, focused modules over god files.
-- Use predictable paths such as `controller/model/view` or `src/lib/test`.
-
-## Formatting
-
-- Use the language default formatter (`cargo fmt`, `gofmt`, `prettier`,
-  `black`, or `rubocop -A`). Do not discuss style beyond that.
-
-## Logging
-
-- Use structured JSON for debugging and observability logs.
-- Use plain text only for user-facing CLI output.
+- Update the focused guide when behavior changes; update the README only when
+  the entry point or project summary changes.
+- Add an ADR for a durable design choice, with context, decision, and
+  consequences. Update the index in `docs/adr/README.md`.
+- Check relative links and examples against the implementation. Keep any
+  screenshot based on fake data, never the user's live desktop.

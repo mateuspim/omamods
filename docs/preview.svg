@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160">
+<defs>
+  <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#0b1015"/><stop offset=".58" stop-color="#0a111b"/><stop offset="1" stop-color="#102236"/>
+  </linearGradient>
+  <radialGradient id="greenGlow" cx="0" cy="1" r="1">
+    <stop offset="0" stop-color="#16a46b" stop-opacity=".27"/><stop offset=".64" stop-color="#16a46b" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="blueGlow" cx="1" cy="0" r="1">
+    <stop offset="0" stop-color="#264d78" stop-opacity=".27"/><stop offset=".7" stop-color="#264d78" stop-opacity="0"/>
+  </radialGradient>
+  <pattern id="dots" width="56" height="56" patternUnits="userSpaceOnUse">
+    <circle cx="5" cy="5" r="2.4" fill="#7a8f9d" opacity=".16"/>
+  </pattern>
+  <linearGradient id="line" x1="0" x2="1"><stop stop-color="#38da89"/><stop offset="1" stop-color="#38da89" stop-opacity="0"/></linearGradient>
+  <filter id="shadow" x="-.2" y="-.2" width="1.5" height="1.6"><feGaussianBlur stdDeviation="45"/></filter>
+  <filter id="glow" x="-.5" y="-.5" width="2" height="2"><feGaussianBlur stdDeviation="22"/></filter>
+</defs>
+<rect width="3840" height="2160" fill="url(#background)"/>
+<rect width="3840" height="2160" fill="url(#greenGlow)"/>
+<rect width="3840" height="2160" fill="url(#blueGlow)"/>
+<rect width="3840" height="2160" fill="url(#dots)"/>
+<rect x="0" y="0" width="3840" height="2160" fill="#070b0f" opacity=".13"/>
+<!-- The icon paths are inlined so the standalone SVG renders without external references. -->
+<g transform="translate(198 418) scale(0.90625)">
+  <rect x="5" y="5" width="246" height="246" rx="48" fill="#10231e" stroke="#39d98a" stroke-width="6"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 42 209 88 128 134 47 88Z" stroke="#39d98a" stroke-width="15"/>
+    <path d="M47 125 128 171 209 125" stroke="#29c984" stroke-width="17"/>
+    <path d="M47 163 128 209 209 163" stroke="#1da773" stroke-width="17"/>
+  </g>
+</g>
+<text x="478" y="616" font-family="DejaVu Sans,sans-serif" font-size="242" font-weight="700" letter-spacing="-12" fill="#eff4f7">Oma<tspan fill="#37da88">Mods</tspan></text>
+<text x="208" y="836" font-family="DejaVu Sans Mono,monospace" font-size="88" font-weight="700" fill="#e9f0f5">Game mods in your terminal.</text>
+<text x="208" y="952" font-family="DejaVu Sans Mono,monospace" font-size="48" fill="#9ca9b4">Find your games. Stage the mods you want.</text>
+<text x="208" y="1020" font-family="DejaVu Sans Mono,monospace" font-size="48" fill="#9ca9b4">Track every file so you can revert safely.</text>
+<g font-family="DejaVu Sans Mono,monospace" font-size="34" fill="#e6edf0">
+  <rect x="208" y="1115" width="390" height="104" fill="#101b22" stroke="#35454d" stroke-width="3"/>
+  <circle cx="250" cy="1167" r="11" fill="#37da88"/><text x="280" y="1181">Steam + Heroic</text>
+  <rect x="620" y="1115" width="475" height="104" fill="#101b22" stroke="#35454d" stroke-width="3"/>
+  <circle cx="664" cy="1167" r="11" fill="#37da88"/><text x="695" y="1181">Nexus + AyakaMods</text>
+  <rect x="208" y="1240" width="457" height="104" fill="#101b22" stroke="#35454d" stroke-width="3"/>
+  <circle cx="250" cy="1292" r="11" fill="#37da88"/><text x="280" y="1306">Install + revert</text>
+  <rect x="687" y="1240" width="500" height="104" fill="#101b22" stroke="#35454d" stroke-width="3"/>
+  <circle cx="730" cy="1292" r="11" fill="#37da88"/><text x="761" y="1306">Mod-ready detection</text>
+</g>
+<rect x="208" y="1460" width="1260" height="152" fill="#0b1218" stroke="#3c505c" stroke-width="3"/>
+<text x="263" y="1560" font-family="DejaVu Sans Mono,monospace" font-size="60" fill="#38da89">$</text>
+<text x="350" y="1560" font-family="DejaVu Sans Mono,monospace" font-size="60" fill="#e8eff4">omamods</text>
+<path d="M209 1732H1395" stroke="url(#line)" stroke-width="5"/>
+<text x="208" y="1815" font-family="DejaVu Sans Mono,monospace" font-size="36" letter-spacing="3" fill="#71838f">LINUX  /  STEAM  /  HEROIC  /  PROTON</text>
+<!-- Behind each real TUI capture, a wide soft shadow adds depth without altering UI text. -->
+<g transform="translate(1980 280) rotate(-4 790 450)">
+  <rect x="30" y="42" width="1580" height="865" rx="22" fill="#000" opacity=".55" filter="url(#shadow)"/>
+  <rect width="1580" height="857" rx="18" fill="#151a20" stroke="#516371" stroke-width="7"/>
+  <image x="7" y="7" width="1566" height="843" href="assets/library.png"/>
+</g>
+<g transform="translate(2110 1100) rotate(3 825 475)">
+  <rect x="35" y="47" width="1650" height="907" rx="24" fill="#000" opacity=".67" filter="url(#shadow)"/>
+  <rect width="1650" height="895" rx="19" fill="#151a20" stroke="#5a6e76" stroke-width="7"/>
+  <image x="7" y="7" width="1636" height="881" href="assets/workspace.png"/>
+</g>
+</svg>
