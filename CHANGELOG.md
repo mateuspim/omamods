@@ -21,6 +21,8 @@ boundary below is inferred from what landed just before the 0.1.1 bump
 
 ### Changed
 
+- The README is a short landing page with features, install, remove, and
+  security sections.
 - Uninstalling everything orders reverts so RE Engine patch chains and stacked
   `Engine.ini` copies restore cleanly.
 
