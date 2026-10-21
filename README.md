@@ -2,8 +2,10 @@
 
 ![OmaMods hero graphic with a sample game library and mod workspace](docs/preview.png)
 
-OmaMods is a terminal mod manager for Linux game libraries. It discovers Steam
-and Heroic games, stages downloads from Nexus Mods and AyakaMods, and installs
+**A terminal mod manager for Steam and Heroic games on Linux that records
+every file it installs, so each mod can be reverted.**
+
+OmaMods discovers Steam and Heroic games, stages downloads from Nexus Mods and AyakaMods, and installs
 supported archive layouts with per-file ownership records so they can be
 reverted. It also supports selected GitHub and Codeberg release mods.
 
@@ -32,6 +34,48 @@ uninstall. Use `:help` for screen-specific commands. `omamods game list` and
 Install `bsdtar` for ZIP, 7z, and RAR archives; some RAR5 files also need `7z`.
 Close the game before installing or reverting mods.
 
+## Features
+
+- A home screen that sorts Steam and Heroic games into mod-ready, catalog,
+  and other games ([using the TUI](docs/using-the-tui.md)).
+- Downloads from Nexus Mods (API key or Mod Manager Download) and AyakaMods,
+  plus selected GitHub and Codeberg release mods, in one queue.
+- Game-specific installers for Unreal, RE Engine, Cyberpunk 2077, and the
+  catalog games ([game workflows](docs/game-workflows.md)).
+- Per-file ownership records: uninstall removes only unchanged files a mod
+  owns ([configuration and storage](docs/configuration.md)).
+- Read-only Steam discovery from the CLI ([discovery](docs/discovery.md)).
+- Vim-style keys and `:` commands, themed from your Omarchy theme.
+
+## Install
+
+The [Get started](#get-started) virtual environment runs OmaMods from the
+checkout. To put `omamods` on your `PATH` instead, install it as an editable
+[uv](https://docs.astral.sh/uv/) tool from the repository root:
+
+```sh
+uv tool install --editable .
+```
+
+## Remove
+
+Revert the mods you no longer want first (`U` on a game uninstalls all of
+its mods), then:
+
+```sh
+uv tool uninstall omamods
+```
+
+This keeps config (`~/.config/omamods`), storage (`~/.local/share/omamods`),
+and the `nxm://` handler (`~/.local/share/applications/omamods-nxm.desktop`).
+Removing storage loses the records needed for a safe revert.
+
+## Security and privileges
+
+OmaMods runs unsandboxed as your user and never asks for root. It writes only
+planned, recorded files into game folders and talks to Nexus, AyakaMods,
+GitHub, and Codeberg over HTTPS. Details in [SECURITY.md](SECURITY.md).
+
 ## Documentation
 
 Browse the [documentation index](docs/README.md) or start here:
@@ -46,8 +90,14 @@ Browse the [documentation index](docs/README.md) or start here:
 - [Security and privileges](SECURITY.md): what OmaMods reads, writes, runs, and sends.
 - [Changelog](CHANGELOG.md).
 
-Game-specific notes live under [`games/`](games/). The test command is:
+Game-specific notes live under [`games/`](games/).
 
-```sh
-PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
-```
+## Development
+
+Run the tests with
+`PYTHONPATH=src .venv/bin/python -m unittest discover -s tests`. Setup,
+formatting, and releases are in the [development runbook](docs/runbooks/development.md).
+
+## License
+
+MIT. See [LICENSE](LICENSE).
