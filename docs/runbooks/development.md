@@ -18,8 +18,10 @@ command:
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
 ```
 
-Format code with `python -m black src tests`. CI has no separate workflow in
-this checkout, so report the exact local command and result with a change.
+Format code with `python -m black src tests`. CI
+([`.github/workflows/test.yml`](../../.github/workflows/test.yml)) runs the
+same tests on Python 3.12 and `black --check src tests`; report the exact local
+command and result with a change.
 
 ## Make a game change
 
@@ -59,3 +61,14 @@ rsvg-convert -o docs/preview.png docs/preview.svg
 ```
 
 Keep the README alt text accurate.
+
+## Release
+
+Ask the owner before tagging or pushing.
+
+1. Bump `version` in `pyproject.toml` and refresh `uv.lock` (`uv lock`).
+2. Move the `CHANGELOG.md` Unreleased entries under `## X.Y.Z - YYYY-MM-DD`.
+3. Check the README and the guides in `docs/` cover the change.
+4. Run the tests and `python -m black --check src tests`.
+5. Commit `Release X.Y.Z`; after the owner approves, add an annotated tag
+   `vX.Y.Z`.

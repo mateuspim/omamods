@@ -42,7 +42,9 @@ Browse the [documentation index](docs/README.md) or start here:
 - [Configuration and storage](docs/configuration.md): credentials, archives, records, and backups.
 - [Troubleshooting](docs/runbooks/troubleshooting.md): downloads, installs, and recovery.
 - [Architecture](docs/architecture.md), [decisions](docs/adr/README.md), [catalog manifest spec](docs/specs/game-manifest.md), and [glossary](docs/glossary.md).
-- [Contributing](docs/runbooks/development.md), [brand assets](docs/branding.md), and [AGENTS.md](AGENTS.md).
+- [Contributing](CONTRIBUTING.md), the [development runbook](docs/runbooks/development.md), [brand assets](docs/branding.md), and [AGENTS.md](AGENTS.md).
+- [Security and privileges](SECURITY.md): what OmaMods reads, writes, runs, and sends.
+- [Changelog](CHANGELOG.md).
 
 Game-specific notes live under [`games/`](games/). The test command is:
 

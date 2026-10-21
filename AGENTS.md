@@ -12,6 +12,7 @@ README short; put detailed usage in `docs/` and game-specific rules in
 - Preserve user-created files and local state. `docs/mod-manager-architecture.html`
   may be an untracked working draft; do not overwrite it without a task that
   explicitly calls for it.
+- `HANDOFF.md` is local-only and stays gitignored.
 - Do not put credentials, downloaded archives, personal paths, or Steam data in
   tracked files. Use fake library data for screenshots and examples.
 
@@ -63,3 +64,14 @@ README short; put detailed usage in `docs/` and game-specific rules in
   consequences. Update the index in `docs/adr/README.md`.
 - Check relative links and examples against the implementation. Keep any
   screenshot based on fake data, never the user's live desktop.
+
+## Commits and releases
+
+- Commit subjects are plain imperative sentences with a body that says why.
+  Ask the owner before pushing commits or tags, and before publishing a
+  GitHub release.
+- Release: bump `version` in `pyproject.toml` (and `uv.lock`), add the
+  `CHANGELOG.md` entry, check the README and `docs/` cover the change, run the
+  tests and `black --check src tests` (CI runs the same), commit
+  `Release X.Y.Z`, then add an annotated tag `vX.Y.Z` only after the owner
+  approves. See the [development runbook](docs/runbooks/development.md#release).

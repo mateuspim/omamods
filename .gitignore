@@ -3,6 +3,9 @@
 archives/
 backups/
 
+# Local agent notes
+HANDOFF.md
+
 # Editor and system files
 .DS_Store
 .idea/
