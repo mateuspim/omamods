@@ -10,6 +10,8 @@
 - [Configuration and storage](configuration.md): private settings and records.
 - [Troubleshooting and recovery](runbooks/troubleshooting.md).
 - [Glossary](glossary.md).
+- [Security and privileges](../SECURITY.md).
+- [Changelog](../CHANGELOG.md).
 - [Brand assets](branding.md): icon, wordmarks, and README hero.
 
 ## Develop OmaMods
@@ -19,7 +21,7 @@
 - [Game manifest specification](specs/game-manifest.md).
 - [Profile workflow proposal](specs/profile-workflow.md): future profile commands and required safeguards.
 - [Development runbook](runbooks/development.md).
-- [Contributor instructions](../AGENTS.md).
+- [Contributing](../CONTRIBUTING.md) and [agent instructions](../AGENTS.md).
 
 Game-specific constraints are in each [`games/<id>/README.md`](../games/).
 Catalog discovery and mod installation are separate capabilities: a visible
