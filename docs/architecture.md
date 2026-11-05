@@ -95,8 +95,8 @@ records need to stay in sync.
 adapters. Screens render service results and dispatch commands; they do not
 implement site protocols or archive writes. The service splits per concern
 into helpers it constructs with itself, such as `tui/browser_downloads.py`
-(the download queue and Nexus windows) and `tui/library_clean.py` (`X`, backed
-by `untracked_mods.py`); `TuiHost` lives in
+(the download queue and Nexus windows) and `tui/library_clean.py` (`X` and
+`C`, backed by `untracked_mods.py` and `clean_all.py`); `TuiHost` lives in
 `tui/host.py`. `tui/workspace.py` provides the
 shared chrome; `tui/file_table.py` and `tui/mod_detail.py` own responsive file
 and artwork panes. The action picker and `:` commands share command specs.

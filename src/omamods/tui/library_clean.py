@@ -1,4 +1,4 @@
-"""Library-wide clean-ups for the TUI: set aside strays (X).
+"""Library-wide clean-ups for the TUI: set aside strays (X), clean everything (C).
 
 Split from service.py, which passed the 500-line limit.
 """
@@ -7,6 +7,8 @@ from pathlib import Path
 import time
 from typing import TYPE_CHECKING
 
+from omamods.clean_all import CleanOutcome, GameClean, describe_clean, plan_clean
+from omamods.clean_all import run_clean
 from omamods.game_shelf import GameShelf
 from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE, RELEASE_SITE
 from omamods.pak_games import PakOverlayGame
@@ -20,7 +22,7 @@ SITES = (NEXUS_SITE, AYAKA_SITE, RELEASE_SITE)
 
 
 class LibraryClean:
-    """Find and clear mod files across games; e.g. ``service.library_clean.untracked``."""
+    """Find and clear mod files across games; e.g. ``service.library_clean.plan()``."""
 
     def __init__(self, service: "ModsService") -> None:
         self.service = service
@@ -52,3 +54,16 @@ class LibraryClean:
     def untracked_description(self) -> str:
         """Describe what X would move; e.g. ``library_clean.untracked_description()``."""
         return describe_found(self.untracked, self.game_names)
+
+    def plan(self) -> tuple[GameClean, ...]:
+        """Plan cleaning every game; e.g. ``plan = library_clean.plan()``."""
+        roots = self.site_roots()
+        return plan_clean(self.pak_games, self.game_names, roots, self.untracked)
+
+    def describe(self, plan: tuple[GameClean, ...]) -> str:
+        """List what a clean moves; e.g. ``library_clean.describe(plan)``."""
+        return describe_clean(plan)
+
+    def run(self, plan: tuple[GameClean, ...]) -> CleanOutcome:
+        """Reset every planned game to no mods; e.g. ``library_clean.run(plan)``."""
+        return run_clean(plan, self.removed_folder())
