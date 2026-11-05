@@ -26,9 +26,16 @@ class ParsedCommand:
     args: tuple[str, ...]
 
 
+# OmaMods saves every change as it happens, so Neovim's write-and-quit spellings
+# (:wq, :wqa) just quit. :x stays out: it is already :rm on the mods screen.
+QUIT_ALIASES = ("q", "q!", "wq", "wq!")
+QUITALL_ALIASES = ("qa", "qa!", "qall", "qall!", "wqa", "wqa!", "wqall", "xa", "xall")
+
 GLOBAL_COMMANDS = (
-    CommandSpec("quit", ("q",), ":q", "close this screen (quit on the home screen)"),
-    CommandSpec("quitall", ("qa", "qa!"), ":qa", "quit OmaMods"),
+    CommandSpec(
+        "quit", QUIT_ALIASES, ":q", "close this screen (quit on the home screen)"
+    ),
+    CommandSpec("quitall", QUITALL_ALIASES, ":qa", "quit OmaMods"),
     CommandSpec("help", ("h",), ":help", "list the commands for this screen"),
     CommandSpec("game", ("e",), ":game <name>", "open a game, e.g. :game sb"),
     CommandSpec("queue", ("downloads",), ":queue", "open the download queue"),
