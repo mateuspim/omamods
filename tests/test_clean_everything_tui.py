@@ -2,7 +2,7 @@ import unittest
 
 from textual.widgets import SelectionList, Static
 
-from omamods.tui.clean_picker import CleanPicker
+from omamods.tui.clean_picker import INDENT, CleanPicker
 from tests.test_tui import TuiFixture
 
 
@@ -26,7 +26,7 @@ class CleanEverythingTuiTests(TuiFixture):
             await pilot.pause()
             self.assertIsInstance(app.screen, CleanPicker)
             shown = str(app.screen.query_one("#clean-files", Static).content)
-            self.assertIn("SB/Content/Paks/~mods/hand.pak", shown)
+            self.assertIn(f"SB/Content/Paks/~mods/\n{INDENT * 2}hand.pak", shown)
             await pilot.press("j", "k")
             await pilot.pause()
             self.assertEqual(app.screen.query_one(SelectionList).highlighted, 0)
