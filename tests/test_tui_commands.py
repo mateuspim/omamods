@@ -52,6 +52,12 @@ class CommandParsingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Ambiguous"):
             resolve_command("unin", ALL)
 
+    def test_neovim_quit_spellings_resolve(self) -> None:
+        for word in ("q", "q!", "wq", "wq!"):
+            self.assertEqual(resolve_command(word, ALL).name, "quit", word)
+        for word in ("qa", "qall", "qall!", "wqa", "wqall", "xa", "xall"):
+            self.assertEqual(resolve_command(word, ALL).name, "quitall", word)
+
     def test_resolve_aliases_prefixes_and_errors(self) -> None:
         self.assertEqual(resolve_command("q", ALL).name, "quit")
         self.assertEqual(resolve_command("inst", ALL).name, "install")

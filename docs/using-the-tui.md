@@ -162,7 +162,7 @@ lists the commands for the current screen.
 
 | Command | Does |
 | --- | --- |
-| `:q`, `:qa` | close this screen, quit OmaMods |
+| `:q`, `:qa` | close this screen, quit OmaMods; Neovim spellings work too (`:q!`, `:wq`, `:qall`, `:wqa`, `:xa`) |
 | `:game <name>` | open a game by ID prefix, name, or initials (`:game sb`) |
 | `:add <url>` | add a Nexus or AyakaMods mod; opens the URL's game |
 | `:install [file]`, `:uninstall [file]` | the whole mod, or one file |
