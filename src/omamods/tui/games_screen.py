@@ -11,6 +11,7 @@ from textual.widgets.option_list import OptionDoesNotExist
 
 from omamods.clean_all import GameClean, summarize_clean
 from omamods.game_shelf import GameShelf, ShelfEntry
+from omamods.tui.clean_picker import CleanPicker
 from omamods.tui.dialogs import ConfirmDialog, InfoDialog
 from omamods.tui.list_filter import no_match_option, search_title
 from omamods.tui.list_search import SearchableScreen
@@ -106,7 +107,7 @@ class GamesScreen(SearchableScreen):
         self.app.call_from_thread(self.notify, note, timeout=15)
 
     def action_clean_everything(self) -> None:
-        """Ask, then reset every game to no mods, keeping copies (C)."""
+        """Pick games, then reset them to no mods, keeping copies (C)."""
         cleaner = self.service.library_clean
         try:
             plan = cleaner.plan()
@@ -116,9 +117,8 @@ class GamesScreen(SearchableScreen):
         if not plan:
             self.notify("No mods found in any game; press R to recheck.")
             return
-        title = f"Remove every mod from {len(plan)} game(s)?"
-        dialog = ConfirmDialog(title, cleaner.describe(plan))
-        self.app.push_screen(dialog, lambda yes: yes and self._clean_all(plan))
+        picker = CleanPicker(plan, cleaner.mod_titles(plan))
+        self.app.push_screen(picker, lambda chosen: chosen and self._clean_all(chosen))
 
     @work(thread=True, exclusive=True, group="shelf")
     def _clean_all(self, plan: tuple[GameClean, ...]) -> None:

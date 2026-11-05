@@ -3,6 +3,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from omamods.clean_all import GameClean
+from omamods.game_revert import OwnedRecord
 from omamods.pak_games import PAK_SUFFIXES, PakOverlayGame
 from omamods.tui.library_clean import LibraryClean
 
@@ -20,6 +22,16 @@ class FakeCleanService:
 
     def state_root(self, site: str) -> Path:
         return self.settings.storage_root
+
+    def staged_mod(self, game: PakOverlayGame, mod_id: int, site: str) -> StagedTitle:
+        if mod_id != 1:
+            raise FileNotFoundError(f"mod_id={mod_id}: expected staging for mod 1")
+        return StagedTitle("Nano Suit")
+
+
+@dataclass
+class StagedTitle:
+    title: str
 
 
 class LibraryCleanTest(unittest.TestCase):
@@ -44,6 +56,14 @@ class LibraryCleanTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             cleaner = LibraryClean(FakeCleanService(Path(raw)))  # type: ignore[arg-type]
             self.assertEqual(cleaner.plan(), ())
+
+    def test_mod_titles_skip_mods_without_staging(self) -> None:
+        records = (OwnedRecord("nexus", 1, Path("1.json")),)
+        records += (OwnedRecord("nexus", 2, Path("2.json")),)
+        game = PakOverlayGame("g", "G", "g", Path("Paks"), "Mods", (PAK_SUFFIXES,))
+        plan = (GameClean("g", "G", game, records, (), ()),)
+        cleaner = LibraryClean(FakeCleanService(Path("/s")))  # type: ignore[arg-type]
+        self.assertEqual(cleaner.mod_titles(plan), {("nexus", 1): "Nano Suit"})
 
 
 if __name__ == "__main__":

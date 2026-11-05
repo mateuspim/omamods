@@ -20,6 +20,12 @@ from omamods.untracked_clean import set_aside
 from omamods.untracked_mods import record_files
 
 PREVIEW_FILES = 5
+CLEAN_NOTE = (
+    "Every file goes to a dated 'removed' folder in OmaMods storage with "
+    "a moved.json of its original path; nothing is deleted. Tracked mods "
+    "are copied there before they are uninstalled, and folders left empty "
+    "are removed. If a game breaks, verify its files in Steam."
+)
 
 
 @dataclass(frozen=True)
@@ -111,12 +117,7 @@ def describe_clean(plan: tuple[GameClean, ...]) -> str:
         lines.append(f"{game.name}: {len(game.records)} install record(s)")
         lines.extend(_file_lines("uninstall", game.tracked))
         lines.extend(_file_lines("set aside, no record", game.untracked))
-    lines.append(
-        "\nEvery file goes to a dated 'removed' folder in OmaMods storage with "
-        "a moved.json of its original path; nothing is deleted. Tracked mods "
-        "are copied there before they are uninstalled, and folders left empty "
-        "are removed. If a game breaks, verify its files in Steam."
-    )
+    lines.append("\n" + CLEAN_NOTE)
     return "\n".join(lines)
 
 

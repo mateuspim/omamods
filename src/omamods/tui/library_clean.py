@@ -60,6 +60,22 @@ class LibraryClean:
         roots = self.site_roots()
         return plan_clean(self.pak_games, self.game_names, roots, self.untracked)
 
+    def mod_titles(self, plan: tuple[GameClean, ...]) -> dict[tuple[str, int], str]:
+        """Name each planned mod from staging; e.g. ``library_clean.mod_titles(plan)``."""
+        titles: dict[tuple[str, int], str] = {}
+        for game in plan:
+            for site, mod_id in {(o.site, o.mod_id) for o in game.records}:
+                title = self._staged_title(game.game, mod_id, site)
+                if title:
+                    titles[(site, mod_id)] = title
+        return titles
+
+    def _staged_title(self, game: PakOverlayGame, mod_id: int, site: str) -> str:
+        try:
+            return self.service.staged_mod(game, mod_id, site).title
+        except (OSError, KeyError, ValueError):
+            return ""  # Staging was deleted; the picker shows the mod ID.
+
     def describe(self, plan: tuple[GameClean, ...]) -> str:
         """List what a clean moves; e.g. ``library_clean.describe(plan)``."""
         return describe_clean(plan)

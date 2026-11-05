@@ -134,6 +134,12 @@ Input { border: tall $panel; background: $background; }
 Input:focus { border: tall $primary; }
 SelectionList { border: none; background: $background; }
 SelectionList:focus { border: none; }
+#clean-picker { height: auto; max-height: 60vh; }
+#clean-games { width: 1fr; height: auto; max-height: 60vh; }
+#clean-detail {
+    width: 1fr; height: auto; max-height: 60vh; padding: 0 1;
+    border-left: solid $panel;
+}
 #action-picker {
     width: 88; max-width: 94%; height: auto; max-height: 85%;
     padding: 1 2; border: round $primary; background: $surface;

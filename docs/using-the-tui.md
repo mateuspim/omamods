@@ -18,15 +18,17 @@ uv tool uninstall omamods
 The home screen scans for games each time it opens (press `r` to rescan; press
 `R` for a full recheck that also refreshes the Nexus game list and warns about
 mod files that no OmaMods record owns) and lists them in three groups, below.
-Two keys clear mods from the whole library, after a confirmation that lists
-the files:
+Two keys clear mods from the library, after showing the files they move:
 
 - `X` moves the unrecorded mod files, for every game including ones with no
   Nexus match, into a dated `removed/` folder in the storage root, with a
   `moved.json` map back to their original paths.
 - `C` cleans everything: it does `X`, then uninstalls every recorded mod of
   every game, the way `U` does for one game, and removes the folders left
-  empty. Recorded files are copied into the same dated folder first (a hard
+  empty. It first lists the games that have mods, all ticked; the panel
+  beside the list shows the highlighted game's mods and files. Space ticks a
+  game in or out, `a` ticks all or none, and Enter cleans only the ticked
+  games. Recorded files are copied into the same dated folder first (a hard
   link when storage is on the game's drive), so nothing is lost; a file you
   edited since installing is copied and removed too.
 
