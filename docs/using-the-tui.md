@@ -15,7 +15,11 @@ uv tool install --editable --reinstall . # after dependency changes
 uv tool uninstall omamods
 ```
 
-The home screen scans for games each time it opens (press `r` to rescan) and
+The home screen scans for games each time it opens (press `r` to rescan; press `R` for a full
+recheck that also refreshes the Nexus game list and warns about mod files in a
+game's mods folder that no OmaMods record owns; press `X` to move those
+files, for every game including ones with no Nexus match, into a dated
+`removed/` folder in the storage root with a `moved.json` map back) and
 lists them in three groups:
 
 - **Mod-ready**: catalog games OmaMods can install mods for (Cronos, Stellar
