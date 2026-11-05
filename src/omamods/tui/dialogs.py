@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Input, Label, SelectionList, Static
 
@@ -163,7 +163,9 @@ class ConfirmDialog(ModalScreen[bool]):
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog wide"):
             yield Label(self.title_text, classes="dialog-title")
-            yield Static(self.details, markup=False)
+            # Scrolls so long lists never push the y/n hint off a small panel.
+            with VerticalScroll(classes="dialog-body"):
+                yield Static(self.details, markup=False)
             yield Static("y to confirm, n to cancel", classes="hint")
 
     def action_answer(self, accepted: bool) -> None:

@@ -126,7 +126,7 @@ ModalScreen { align: center middle; background: $background 75%; }
 }
 .dialog.wide { width: 100; max-height: 90%; }
 .dialog.large { width: 90%; max-width: 180; max-height: 90%; }
-#requirement-body { height: auto; max-height: 70vh; }
+#requirement-body, .dialog-body { height: auto; max-height: 70vh; }
 #requirement-body .notes { margin-top: 1; }
 .dialog-title { text-style: bold; color: $primary; margin-bottom: 1; }
 .hint { color: $text-muted; margin-top: 1; }
