@@ -21,7 +21,8 @@ from omamods.tui.requirements_dialog import (
     requirement_notes,
     requirement_table,
 )
-from omamods.tui.service import ModsService, TuiHost
+from omamods.tui.host import TuiHost
+from omamods.tui.service import ModsService
 from tests.fakes import (
     FakeDllFiles,
     FakeCommandRunner,

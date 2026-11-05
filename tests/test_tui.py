@@ -26,7 +26,8 @@ from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.preview import PicturePreview
 from omamods.tui.downloads_screen import DownloadsScreen
 from omamods.tui.games_screen import GamesScreen
-from omamods.tui.service import ModsService, TuiHost
+from omamods.tui.host import TuiHost
+from omamods.tui.service import ModsService
 from tests.pak_builders import directory_pak_bytes, utoc_bytes
 from tests.fakes import (
     FakeArchiveReader,
@@ -287,7 +288,7 @@ class TuiTests(TuiFixture):
             await self._open_stellar_blade_and_add(app, pilot)
             log = download_log(self.root / "store")
             shown = next(s for s in log.statuses() if s.file_id == 7)
-            app.service.remove_download(shown)
+            app.service.browser_downloads.remove_download(shown)
             opened = [c for c in self.launcher.launched if c[0] == "brave"]
             self.assertIn("file_id=8", opened[-1][1])
             self.assertEqual(len(hyprland.closed()), 1)

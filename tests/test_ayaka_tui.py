@@ -161,7 +161,7 @@ class AyakaLoginTuiTests(AyakaTuiFixture):
             self.assertEqual(staged.read_bytes(), b"zip")
             self.assertEqual(self.launcher.launched, [])  # No browser.
             self.assertEqual(self.session.cookies[-1], COOKIE)
-            (status,) = app.service.downloads()
+            (status,) = app.service.browser_downloads.downloads()
             self.assertEqual((status.site, status.file_name), ("ayaka", "Outfit.zip"))
             await pilot.press("i", "y")
             await self._settle(app, pilot)
@@ -189,7 +189,9 @@ class AyakaLoginTuiTests(AyakaTuiFixture):
             await self._settle(app, pilot)
             red = self.root / "store/ayaka/archives/stellar-blade/7322/12/Red.zip"
             red.unlink()
-            status = next(s for s in app.service.downloads() if s.file_id == 12)
+            status = next(
+                s for s in app.service.browser_downloads.downloads() if s.file_id == 12
+            )
             self.assertTrue(app.service.retry(status))
             self.assertEqual(red.read_bytes(), b"Red.zip")
 

@@ -82,17 +82,19 @@ class GamesScreen(SearchableScreen):
 
     def action_clean_untracked(self) -> None:
         """Ask, then set aside every mod file OmaMods does not track (X)."""
-        if not self.service.untracked:
+        if not self.service.library_clean.untracked:
             self.notify("No untracked mod files found; press R to recheck.")
             return
         title = "Set aside untracked mod files from all games?"
-        dialog = ConfirmDialog(title, self.service.untracked_description())
+        dialog = ConfirmDialog(
+            title, self.service.library_clean.untracked_description()
+        )
         self.app.push_screen(dialog, lambda yes: yes and self._clean())
 
     @work(thread=True, exclusive=True, group="shelf")
     def _clean(self) -> None:
         try:
-            count, folder = self.service.clean_untracked()
+            count, folder = self.service.library_clean.clean_untracked()
             shelf = self.service.shelf()
         except (OSError, ValueError) as error:
             self.app.call_from_thread(self._scan_failed, error)
@@ -138,7 +140,9 @@ class GamesScreen(SearchableScreen):
         """List the games matching ``search_query``; e.g. ``screen.rebuild_list(True)``."""
         games = self.query_one("#games", OptionList)
         options = (
-            shelf_options(self.shelf, self.search_query, self.service.untracked)
+            shelf_options(
+                self.shelf, self.search_query, self.service.library_clean.untracked
+            )
             if self.shelf
             else []
         )
@@ -187,7 +191,7 @@ class GamesScreen(SearchableScreen):
             self.query_one("#game-info", Static).update(card)
 
     def _untracked(self, entry: ShelfEntry) -> tuple[Path, ...]:
-        return self.service.untracked.get(entry.key, ())
+        return self.service.library_clean.untracked.get(entry.key, ())
 
     def _staged_count(self, entry: ShelfEntry) -> int | None:
         if entry.pak_game is None:

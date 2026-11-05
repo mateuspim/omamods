@@ -133,7 +133,7 @@ class OmaModsApp(App[None]):
     def advance_browser_downloads(self) -> None:
         """Step Nexus windows through queued files; runs on a timer on every screen."""
         try:
-            messages = self.service.advance_browser_downloads()
+            messages = self.service.browser_downloads.advance_browser_downloads()
         except (OSError, ValueError) as error:
             self.notify(str(error), severity="error")
             return

@@ -120,7 +120,7 @@ class ServiceChainHost:
         """Stage details, then download; e.g. ``host.request_step(step)``."""
         url = self.service.mod_page_url(self.game, step.mod_id)
         self.service.fetch_mod(self.game, url)
-        self.service.mark_queued(self.game, step.mod_id, step.files)
+        self.service.browser_downloads.mark_queued(self.game, step.mod_id, step.files)
         fetched = [
             self.service.fetch_file(self.game, step.mod_id, f) for f in step.files
         ]
