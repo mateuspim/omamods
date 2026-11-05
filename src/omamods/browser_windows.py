@@ -136,6 +136,10 @@ class NexusWindows:
         """Close a mod's windows; e.g. ``windows.close_mod('stellarblade', 1)``."""
         return self.close_class(nexus_window_class(domain, mod_id))
 
+    def has_mod_window(self, domain: str, mod_id: int) -> bool:
+        """True when a mod's window is open; e.g. ``windows.has_mod_window('cronos', 38)``."""
+        return bool(self._addresses(nexus_window_class(domain, mod_id)))
+
     def hide_mod(self, domain: str, mod_id: int) -> int:
         """Move a mod's windows off screen; e.g. ``windows.hide_mod('stellarblade', 1)``."""
         addresses = self._addresses(nexus_window_class(domain, mod_id))

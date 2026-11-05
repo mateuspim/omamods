@@ -61,7 +61,7 @@ class CommandParsingTests(unittest.TestCase):
     def test_resolve_aliases_prefixes_and_errors(self) -> None:
         self.assertEqual(resolve_command("q", ALL).name, "quit")
         self.assertEqual(resolve_command("inst", ALL).name, "install")
-        self.assertEqual(resolve_command("x", ALL).name, "rm")
+        self.assertEqual(resolve_command("x", ALL).name, "quit")
         with self.assertRaisesRegex(ValueError, "E464: Ambiguous use of :qu"):
             resolve_command("qu", ALL)
         with self.assertRaisesRegex(ValueError, "E492"):

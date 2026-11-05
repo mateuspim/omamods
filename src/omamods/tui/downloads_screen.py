@@ -34,7 +34,7 @@ class DownloadsScreen(QueueActions, WorkspaceScreen):
     SCREEN_COMMANDS = (
         CommandSpec("retry", ("r",), ":retry", "retry the selected download"),
         CommandSpec("clear", ("c",), ":clear", "clear done and failed downloads"),
-        CommandSpec("remove", ("x",), ":remove", "remove the selected download"),
+        CommandSpec("remove", (), ":remove", "remove the selected download"),
         CommandSpec(
             "clear-all", ("ca",), ":clear-all", "clear all but active downloads"
         ),

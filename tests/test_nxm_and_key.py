@@ -15,6 +15,7 @@ from omamods.nxm_handler import (
     DESKTOP_ENTRY_NAME,
     desktop_entry,
     handle_nxm_click,
+    nxm_entry_missing,
     nxm_entry_outdated,
     register_nxm_handler,
 )
@@ -62,6 +63,18 @@ class NxmHandlerTests(unittest.TestCase):
         self.assertTrue(nxm_entry_outdated(moved, self.root))
         register_nxm_handler(moved, self.root, FakeCommandRunner())
         self.assertFalse(nxm_entry_outdated(moved, self.root))
+
+    def test_missing_entry_is_detected_only_when_mimeapps_names_it(self) -> None:
+        mimeapps = self.root / "mimeapps.list"
+        self.assertFalse(nxm_entry_missing(self.root, mimeapps))  # No file at all.
+        mimeapps.write_text("x-scheme-handler/nxm=vortex.desktop;\n", encoding="utf-8")
+        self.assertFalse(nxm_entry_missing(self.root, mimeapps))
+        mimeapps.write_text(
+            f"x-scheme-handler/nxm={DESKTOP_ENTRY_NAME};\n", encoding="utf-8"
+        )
+        self.assertTrue(nxm_entry_missing(self.root, mimeapps))
+        register_nxm_handler(Path("/bin/omamods"), self.root, FakeCommandRunner())
+        self.assertFalse(nxm_entry_missing(self.root, mimeapps))
 
     def test_register_fails_when_xdg_mime_fails(self) -> None:
         with self.assertRaisesRegex(ValueError, "xdg-mime exit=1"):

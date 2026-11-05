@@ -29,7 +29,7 @@ MODS_COMMANDS = (
         ":download [file|all]",
         "download selected, one, or all files",
     ),
-    CommandSpec("rm", ("x",), ":rm <file>", "delete a download from staging"),
+    CommandSpec("rm", (), ":rm <file>", "delete a download from staging"),
     CommandSpec("web", ("w",), ":web", "open the mod's web page"),
     CommandSpec("picture", ("o",), ":picture", "open the full picture in imv"),
     CommandSpec("preview", ("p",), ":preview", "toggle the artwork split"),

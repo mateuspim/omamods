@@ -69,6 +69,25 @@ def nxm_entry_outdated(executable: Path, applications: Path) -> bool:
     return written != desktop_entry(executable)
 
 
+def nxm_entry_missing(applications: Path, mimeapps: Path) -> bool:
+    """True when nxm still names our entry but it is gone; e.g. ``nxm_entry_missing(apps, m)``."""
+    # Seen 2026-11-05: mimeapps.list named omamods-nxm.desktop but the file was
+    # deleted, so clicks went nowhere. xdg-mime then answers "" just as it does
+    # when OmaMods was never registered, so read mimeapps.list itself.
+    if (applications / DESKTOP_ENTRY_NAME).is_file():
+        return False
+    try:
+        lines = mimeapps.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    prefix = f"{NXM_MIME_TYPE}="
+    return any(
+        DESKTOP_ENTRY_NAME in line.removeprefix(prefix).split(";")
+        for line in lines
+        if line.startswith(prefix)
+    )
+
+
 def log_nxm_event(log: Path, event: dict[str, object]) -> None:
     """Append one JSON line; e.g. ``log_nxm_event(path, {'status': 'staged'})``."""
     log.parent.mkdir(parents=True, exist_ok=True)

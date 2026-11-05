@@ -63,7 +63,9 @@ OmaMods Night as a fallback; `Ctrl+P` → *Change theme* selects a session palet
    (nexusmods.com/users/myaccount?tab=api). It is saved to the private config.
 2. Press `n` once so the site's **Mod Manager Download** button hands files
    to OmaMods (registers `omamods-nxm.desktop` as the `nxm://` handler with
-   `xdg-mime`; it reports the handler it replaced).
+   `xdg-mime`; it reports the handler it replaced). At startup the TUI
+   registers it again if the entry points at a moved OmaMods, or if
+   `mimeapps.list` still names it but the file was deleted.
 3. Pick a game, press `a`, paste a mod page URL, and choose files. Every
    current file is preselected (old and archived versions are not). They
    download into the staging folder,
@@ -162,7 +164,7 @@ lists the commands for the current screen.
 
 | Command | Does |
 | --- | --- |
-| `:q`, `:qa` | close this screen, quit OmaMods; Neovim spellings work too (`:q!`, `:wq`, `:qall`, `:wqa`, `:xa`) |
+| `:q`, `:qa` | close this screen, quit OmaMods; Neovim spellings work too (`:q!`, `:wq`, `:x`, `:qall`, `:wqa`, `:xa`) |
 | `:game <name>` | open a game by ID prefix, name, or initials (`:game sb`) |
 | `:add <url>` | add a Nexus or AyakaMods mod; opens the URL's game |
 | `:install [file]`, `:uninstall [file]` | the whole mod, or one file |
@@ -227,7 +229,8 @@ out of sight to Hyprland's hidden `special:omamods` workspace (Hyprland has no
 minimise; `hyprctl dispatch togglespecialworkspace omamods` peeks at it). As
 each file arrives, the TUI opens the next file's popup in a fresh window, and
 closes it once every file you chose has arrived. If a download fails, the
-popup comes back so you can click again. To float
+popup comes back so you can click again. If you closed the window before
+clicking, retry the "waiting for browser" entry to open the page again. To float
 and centre that window (and AyakaMods' page window), add Omarchy window rules to
 `~/.config/hypr/hyprland.lua`:
 
