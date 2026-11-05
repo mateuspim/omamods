@@ -129,6 +129,7 @@ class TuiFixture(unittest.IsolatedAsyncioTestCase):
             ayaka_pages=ayaka_pages,
             ayaka_session=ayaka_session.opener if ayaka_session else None,
             downloads=self.root / "Downloads",
+            mimeapps=self.root / "mimeapps.list",
         )
         return OmaModsApp(ModsService(host))
 
@@ -278,6 +279,27 @@ class TuiTests(TuiFixture):
             self.assertEqual(len(opened), 2)
             self.assertIn("file_id=8", opened[1][1])  # Jumped to the second file.
             self.assertEqual(len(hyprland.closed()), 2)  # After 7, and when done.
+
+    async def test_retry_reopens_a_closed_nexus_window(self) -> None:
+        # Regression: retrying a "waiting for browser" file after its window was
+        # closed did nothing, because the file was already queued.
+        self.site.premium = False
+        window = "brave-www.nexusmods.com__stellarblade_mods_1-Default"
+        hyprland = FakeHyprland([{"address": "0xab", "initialClass": window}])
+        app = self._app({}, hyprland)
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._open_stellar_blade_and_add(app, pilot)
+            shown = next(
+                s for s in app.service.browser_downloads.downloads() if s.file_id == 7
+            )  # The file the window shows.
+            app.service.retry(shown)  # Window still open: no second window.
+            opened = [c for c in self.launcher.launched if c[0] == "brave"]
+            self.assertEqual(len(opened), 1)
+            hyprland.clients.clear()  # The user closed it.
+            app.service.retry(shown)
+            opened = [c for c in self.launcher.launched if c[0] == "brave"]
+            self.assertEqual(len(opened), 2)
+            self.assertIn("file_id=7", opened[-1][1])
 
     async def test_removing_the_shown_file_moves_the_window_on(self) -> None:
         self.site.premium = False
@@ -721,6 +743,22 @@ if __name__ == "__main__":
 
 
 class ScannedGameServiceTests(TuiFixture):
+    def test_deleted_nxm_entry_is_registered_again(self) -> None:
+        # Regression: mimeapps.list still named our entry after it was deleted,
+        # so browser clicks went nowhere and startup said nothing.
+        (self.root / "mimeapps.list").write_text(
+            "[Default Applications]\nx-scheme-handler/nxm=omamods-nxm.desktop\n",
+            encoding="utf-8",
+        )
+        service = self._app({}).service
+        registration = service.refresh_outdated_nxm()
+        self.assertIsNotNone(registration)
+        self.assertTrue((self.root / "applications/omamods-nxm.desktop").is_file())
+        self.assertIsNone(service.refresh_outdated_nxm())
+
+    def test_never_registered_nxm_is_left_alone(self) -> None:
+        self.assertIsNone(self._app({}).service.refresh_outdated_nxm())
+
     def test_scan_remembers_unreal_games_for_the_nxm_handler(self) -> None:
         game = PakOverlayGame(
             "remnant2",

@@ -87,7 +87,8 @@ class OmaModsApp(App[None]):
             self.notify(f"nxm handler is outdated: {error}", severity="warning")
             return
         if registration is not None:
-            self.notify(f"Updated {registration.desktop_file.name} to this OmaMods.")
+            name = registration.desktop_file.name
+            self.notify(f"Re-registered {name} so nxm links reach this OmaMods.")
 
     def refresh_omarchy_theme(self) -> None:
         """Follow desktop changes without restarting; e.g. ``app.refresh_omarchy_theme()``."""

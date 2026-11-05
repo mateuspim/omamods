@@ -31,9 +31,16 @@ class BrowserDownloads:
     def await_file(
         self, game: PakOverlayGame, mod_id: int, file_id: int, url: str
     ) -> None:
-        """Open a file's Nexus page once; e.g. browser_downloads.await_file(sb, 1, 7, url)."""
+        """Open a file's Nexus page, again if closed; e.g. browser_downloads.await_file(sb, 1, 7, url)."""
         staged = self.service.staged_mod(game, mod_id).archives.keys()
         if self.browser_queue.add(game.game_id, mod_id, file_id, url, staged):
+            self.service.open_nexus(url)
+            return
+        # Seen 2026-11-05: a retry after the window was closed queued nothing new,
+        # so the page never came back and the file sat at "waiting for browser".
+        shown = self.browser_queue.waiting_for(game.game_id, mod_id) == file_id
+        if shown and not self.service.windows.has_mod_window(game.nexus_domain, mod_id):
+            self.hidden_windows.forget((game.game_id, mod_id))
             self.service.open_nexus(url)
 
     def advance_browser_downloads(self) -> tuple[str, ...]:

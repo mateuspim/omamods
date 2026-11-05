@@ -27,8 +27,8 @@ class ParsedCommand:
 
 
 # OmaMods saves every change as it happens, so Neovim's write-and-quit spellings
-# (:wq, :wqa) just quit. :x stays out: it is already :rm on the mods screen.
-QUIT_ALIASES = ("q", "q!", "wq", "wq!")
+# (:wq, :x, :wqa) just quit. :x used to alias :rm; the x key still removes.
+QUIT_ALIASES = ("q", "q!", "wq", "wq!", "x")
 QUITALL_ALIASES = ("qa", "qa!", "qall", "qall!", "wqa", "wqa!", "wqall", "xa", "xall")
 
 GLOBAL_COMMANDS = (

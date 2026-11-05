@@ -65,3 +65,5 @@ class TuiHost:
     steam: SteamProcess | None = None
     # Reads pak and utoc indexes for asset collision checks.
     open_ranges: OpenRanges = FileRanges
+    # The user's mimeapps.list, to spot an nxm default whose entry was deleted.
+    mimeapps: Path | None = None

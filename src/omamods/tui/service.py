@@ -27,6 +27,7 @@ from omamods.nexus_workflow import (
 from omamods.browser_windows import NexusWindows
 from omamods.nxm_handler import (
     NxmRegistration,
+    nxm_entry_missing,
     nxm_entry_outdated,
     register_nxm_handler,
 )
@@ -328,7 +329,12 @@ class ModsService:
         return register_nxm_handler(host.executable, host.applications, host.runner)
 
     def refresh_outdated_nxm(self) -> NxmRegistration | None:
-        """Re-point an old handler here; e.g. ``service.refresh_outdated_nxm()``."""
-        if not nxm_entry_outdated(self.host.executable, self.host.applications):
+        """Re-point an old or deleted handler here; e.g. ``service.refresh_outdated_nxm()``."""
+        host = self.host
+        outdated = nxm_entry_outdated(host.executable, host.applications)
+        missing = host.mimeapps is not None and nxm_entry_missing(
+            host.applications, host.mimeapps
+        )
+        if not (outdated or missing):
             return None
         return self.register_nxm()

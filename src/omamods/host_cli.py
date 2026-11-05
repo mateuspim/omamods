@@ -169,7 +169,13 @@ def tui_host(
         release_transport=UrlReleaseTransport(),
         write_launch_options=SteamLaunchOptionsWriter(args, sources),
         steam=SteamProcess(runtime.runner, runtime.launcher),
+        mimeapps=_mimeapps_path(runtime),
     )
+
+
+def _mimeapps_path(runtime: NexusRuntime) -> Path:
+    config_home = runtime.environment.get("XDG_CONFIG_HOME")
+    return Path(config_home or runtime.home / ".config") / "mimeapps.list"
 
 
 def _handle_nxm(args: Namespace, runtime: NexusRuntime, stdout: TextIO) -> int:
