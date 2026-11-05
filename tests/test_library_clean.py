@@ -14,6 +14,12 @@ class FakeSettings:
     storage_root: Path
 
 
+# Defined before FakeCleanService: Python 3.12 evaluates annotations eagerly.
+@dataclass
+class StagedTitle:
+    title: str
+
+
 class FakeCleanService:
     """Stands in for ModsService: one storage root for every site."""
 
@@ -27,11 +33,6 @@ class FakeCleanService:
         if mod_id != 1:
             raise FileNotFoundError(f"mod_id={mod_id}: expected staging for mod 1")
         return StagedTitle("Nano Suit")
-
-
-@dataclass
-class StagedTitle:
-    title: str
 
 
 class LibraryCleanTest(unittest.TestCase):
