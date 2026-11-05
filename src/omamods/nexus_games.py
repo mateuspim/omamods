@@ -17,6 +17,8 @@ DOMAIN_PATTERN = re.compile(r"[a-z0-9]+")
 TRAILING_QUALIFIER = re.compile(r"\s*\([^()]*\)\s*$")
 # Steam bundles name their DLC, e.g. "KINGDOM HEARTS III + Re Mind (DLC)".
 BUNDLE_SUFFIX = re.compile(r"\s+\+\s.*$")
+# Steam titles RE7 "Resident Evil 7 Biohazard"; Nexus and Ayaka say "Resident Evil 7".
+REGIONAL_SUBTITLE = re.compile(r"(?<=\d)\s+biohazard$", re.IGNORECASE)
 # NFKD leaves Greek letters alone; Nexus spells them out (Metal Gear Solid Δ).
 SPELLED_SYMBOLS = {"™": "", "®": "", "Δ": "Delta"}
 
@@ -32,6 +34,7 @@ def title_key(title: str) -> str:
 def title_keys(title: str) -> tuple[str, ...]:
     """List keys, exact first; e.g. ``title_keys('Silent Hill 2 (2024)')``."""
     trimmed = BUNDLE_SUFFIX.sub("", TRAILING_QUALIFIER.sub("", title))
+    trimmed = REGIONAL_SUBTITLE.sub("", trimmed)
     keys = (title_key(title), title_key(trimmed))
     return tuple(dict.fromkeys(key for key in keys if key))
 

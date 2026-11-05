@@ -37,6 +37,7 @@ class TitleKeyTests(unittest.TestCase):
             title_keys("Silent Hill 2 (2024)"), ("silenthill22024", "silenthill2")
         )
         self.assertEqual(title_keys("KH III + Re Mind (DLC)")[-1], "khiii")
+        self.assertEqual(title_keys("Resident Evil 7 Biohazard")[-1], "residentevil7")
 
 
 class DirectoryTests(unittest.TestCase):
