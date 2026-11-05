@@ -1,5 +1,6 @@
 """Everything the TUI does, behind one injectable object the screens call."""
 
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -57,9 +58,13 @@ from omamods.byte_ranges import FileRanges
 from omamods.installed_containers import OpenRanges
 from omamods.steam_process import SteamProcess
 from omamods.tui.requirement_flow import RequirementFlow
-from omamods.variant_choices import exclusive_variants, nested_archives
+from omamods.variant_choices import addon_bases, exclusive_variants, nested_archives
 from omamods.omarchy_palette import OmarchyPalette, PaletteReader
 from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE, RELEASE_SITE
+from omamods.untracked_clean import describe_found, set_aside
+from omamods.untracked_mods import audit_shelf
+
+SITES = (NEXUS_SITE, AYAKA_SITE, RELEASE_SITE)
 from omamods.release_api import ReleaseTransport
 from omamods.staging import (
     StagedMod,
@@ -125,6 +130,9 @@ class ModsService:
         self.hidden_windows = HiddenWindows()
         # Until the first scan, reuse the last one so queued downloads resolve.
         self.catalog = PakGameCatalog(load_detected_games(self.settings.storage_root))
+        # Mod files found in games with no install record, by game ID.
+        self.untracked: dict[str, tuple[Path, ...]] = {}
+        self.game_names: dict[str, str] = {}
         self.requirements = RequirementFlow(self)
         self.ayaka = AyakaSite(self)
         self.release = ReleaseSite(self)
@@ -161,9 +169,32 @@ class ModsService:
         shelf = self.host.scan_shelf(self.settings)
         scanned = scanned_pak_games(shelf)
         self.catalog = PakGameCatalog(scanned)
+        roots = (self.state_root(site) for site in SITES)
+        self.untracked = audit_shelf(shelf, roots)
+        self.game_names = {entry.key: entry.name for entry in shelf.entries}
         # The nxm handler runs in its own process and reads this file.
         save_detected_games(self.settings.storage_root, scanned)
         return shelf
+
+    def full_recheck(self) -> GameShelf:
+        """Rescan from scratch; e.g. ``shelf = service.full_recheck()``.
+
+        Drops the cached Nexus game list so titles match again; the scan also
+        refreshes ``untracked``.
+        """
+        cache = self.settings.storage_root / "cache" / "nexus_games.json"
+        cache.unlink(missing_ok=True)
+        return self.shelf()
+
+    def clean_untracked(self) -> tuple[int, Path]:
+        """Set aside every untracked mod file; e.g. ``count, folder = service.clean_untracked()``."""
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        folder = self.settings.storage_root / "removed" / stamp
+        return set_aside(self.untracked, folder)
+
+    def untracked_description(self) -> str:
+        """Describe what cleaning would move; e.g. ``service.untracked_description()``."""
+        return describe_found(self.untracked, self.game_names)
 
     def has_api_key(self) -> bool:
         """Report whether Nexus calls can work; e.g. ``service.has_api_key()``."""
@@ -417,6 +448,12 @@ class ModsService:
     ) -> Mapping[str, frozenset[str]]:
         """Pair alternatives; e.g. ``service.exclusive_variants(archive, ('A', 'B'))``."""
         return exclusive_variants(self.host.reader.members(archive), variants)
+
+    def addon_variants(
+        self, archive: Path, variants: tuple[str, ...]
+    ) -> Mapping[str, frozenset[str]]:
+        """Find optional add-ons; e.g. ``service.addon_variants(archive, ('A', 'B'))``."""
+        return addon_bases(self.host.reader.members(archive), variants)
 
     def nested_archives(self, archive: Path) -> tuple[str, ...]:
         """List archives an install skips; e.g. ``service.nested_archives(archive)``."""

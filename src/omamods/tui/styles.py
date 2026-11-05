@@ -21,8 +21,6 @@ WORKSPACE_THEME = Theme(
 
 APP_CSS = """
 Screen { background: $background; }
-WorkspaceScreen { align-horizontal: center; }
-.workspace-header, .workspace-status, .workspace-hints { max-width: 220; }
 .workspace-header {
     height: 2; padding: 0 2; align: left middle;
     background: $background; border-bottom: solid $panel;
@@ -53,7 +51,7 @@ WorkspaceScreen { align-horizontal: center; }
 #games:focus, #mods:focus, #queue:focus, #detail:focus-within {
     border: solid $primary; border-title-color: $primary;
 }
-#home, #mods-body { height: 1fr; margin: 0 1; max-width: 220; }
+#home, #mods-body { height: 1fr; margin: 0 1; }
 #games { width: 43%; min-width: 28; max-width: 60; height: 1fr; padding: 0 1; }
 #games > .option-list--option, #mods > .option-list--option { padding: 0 1; }
 #games > .option-list--option-highlighted,
@@ -96,13 +94,12 @@ DataTable:focus > .datatable--cursor { background: $primary 30%; color: $text; }
 #status { display: none; }
 .placeholder { color: $text-muted; content-align: center middle; height: 100%; }
 
-#queue { height: 1fr; margin: 1; max-width: 220; }
+#queue { height: 1fr; margin: 1; }
 #queue-help { height: 2; color: $text-muted; padding: 0 2; }
 #downloads-panel {
     border-top: solid $panel; border-title-color: $secondary;
     border-title-style: bold; background: $background;
     padding: 0 1; margin: 0 1; height: auto;
-    max-width: 220;
 }
 #downloads-panel:focus-within { border-top: solid $primary; }
 #downloads-panel.minimized #downloads-table { display: none; }
@@ -129,7 +126,7 @@ ModalScreen { align: center middle; background: $background 75%; }
 }
 .dialog.wide { width: 100; max-height: 90%; }
 .dialog.large { width: 90%; max-width: 180; max-height: 90%; }
-#requirement-body { height: auto; max-height: 70vh; }
+#requirement-body, .dialog-body { height: auto; max-height: 70vh; }
 #requirement-body .notes { margin-top: 1; }
 .dialog-title { text-style: bold; color: $primary; margin-bottom: 1; }
 .hint { color: $text-muted; margin-top: 1; }

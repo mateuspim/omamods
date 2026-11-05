@@ -45,7 +45,7 @@ def install_dot(entry: ShelfEntry) -> tuple[str, str]:
     return READY_DOT if install.ready else INCOMPLETE_DOT
 
 
-def entry_prompt(entry: ShelfEntry, query: str = "") -> Table:
+def entry_prompt(entry: ShelfEntry, query: str = "", untracked: int = 0) -> Table:
     """Render one list row as mark, name, store; e.g. ``Option(entry_prompt(e, 'sb'))``."""
     dot, colour = install_dot(entry)
     install = entry.install
@@ -55,7 +55,10 @@ def entry_prompt(entry: ShelfEntry, query: str = "") -> Table:
     row.add_column(ratio=1, no_wrap=True, overflow="ellipsis", style="bold")
     row.add_column(justify="right", no_wrap=True, style="dim italic")
     name = mark_matches(entry.name, query)
-    row.add_row(f" {dot}", name, install.store if install else "not installed")
+    store = install.store if install else "not installed"
+    if untracked:
+        store = f"{untracked} mod file(s) need redownload"
+    row.add_row(f" {dot}", name, store)
     return row
 
 
@@ -65,7 +68,11 @@ def section_heading(section: str, count: int) -> Option:
     return Option(label, id=f"{SECTION_PREFIX}{section}", disabled=True)
 
 
-def shelf_options(shelf: GameShelf, query: str = "") -> list[Option]:
+def shelf_options(
+    shelf: GameShelf,
+    query: str = "",
+    untracked: dict[str, tuple[Path, ...]] | None = None,
+) -> list[Option]:
     """List each section's games matching query; e.g. ``shelf_options(s, 'blade')``."""
     options: list[Option] = []
     for section in SECTION_TITLES:
@@ -73,7 +80,13 @@ def shelf_options(shelf: GameShelf, query: str = "") -> list[Option]:
         if not entries:
             continue
         options.append(section_heading(section, len(entries)))
-        options.extend(Option(entry_prompt(e, query), id=e.key) for e in entries)
+        for entry in entries:
+            count = (
+                len(untracked.get(entry.pak_game.game_id, ()))
+                if untracked and entry.pak_game
+                else 0
+            )
+            options.append(Option(entry_prompt(entry, query, count), id=entry.key))
     return options
 
 
@@ -181,7 +194,24 @@ def _notes(entry: ShelfEntry) -> Text:
     return Text("\n".join(f"• {note}" for note in notes), style="dim")
 
 
-def entry_detail(entry: ShelfEntry, staged_mods: int | None) -> RenderableType:
+def untracked_note(files: tuple[Path, ...]) -> Text:
+    """Explain mods installed without a record; e.g. ``untracked_note((Path('a.pak'),))``."""
+    if not files:
+        return Text()
+    names = "\n".join(f"  {file.name}" for file in files[:8])
+    more = f"\n  … and {len(files) - 8} more" if len(files) > 8 else ""
+    return Text(
+        f"\nInstalled, but needs redownloading: {len(files)} mod file(s) have no "
+        "OmaMods record, so they cannot be reverted. Pak names rarely carry the "
+        "Nexus mod ID, so re-add each mod from its page (a) and reinstall.\n"
+        f"{names}{more}",
+        style="yellow",
+    )
+
+
+def entry_detail(
+    entry: ShelfEntry, staged_mods: int | None, untracked: tuple[Path, ...] = ()
+) -> RenderableType:
     """Render the right-hand card; e.g. ``detail.update(entry_detail(entry, 3))``."""
     return Group(
         Text(entry.name, style="bold"),
@@ -190,6 +220,7 @@ def entry_detail(entry: ShelfEntry, staged_mods: int | None) -> RenderableType:
         _facts(entry, entry.install),
         Text(),
         _mod_support(entry, staged_mods),
+        untracked_note(untracked),
         _notes(entry),
     )
 
