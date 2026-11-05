@@ -57,7 +57,7 @@ from omamods.byte_ranges import FileRanges
 from omamods.installed_containers import OpenRanges
 from omamods.steam_process import SteamProcess
 from omamods.tui.requirement_flow import RequirementFlow
-from omamods.variant_choices import exclusive_variants, nested_archives
+from omamods.variant_choices import addon_bases, exclusive_variants, nested_archives
 from omamods.omarchy_palette import OmarchyPalette, PaletteReader
 from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE, RELEASE_SITE
 from omamods.release_api import ReleaseTransport
@@ -449,6 +449,12 @@ class ModsService:
 
     def fetch_missing_picture(self, game: PakOverlayGame, mod: StagedMod) -> Path:
         """Download a mod's picture if Nexus lists one; e.g. ``service.fetch_missing_picture(sb, mod)``."""
+    def addon_variants(
+        self, archive: Path, variants: tuple[str, ...]
+    ) -> Mapping[str, frozenset[str]]:
+        """Find optional add-ons; e.g. ``service.addon_variants(archive, ('A', 'B'))``."""
+        return addon_bases(self.host.reader.members(archive), variants)
+
         if mod.info is None:
             # Staging page details also saves the picture.
             url = self.mod_page_url(game, mod.mod_id, mod.site)

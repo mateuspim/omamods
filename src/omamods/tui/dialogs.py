@@ -95,22 +95,38 @@ class VariantPicker(ModalScreen[tuple[str, ...] | None]):
         title: str,
         variants: tuple[str, ...],
         exclusive: Mapping[str, frozenset[str]] | None = None,
+        addons: Mapping[str, frozenset[str]] | None = None,
     ) -> None:
         super().__init__()
         self.title_text = title
         self.variants = variants
         self.exclusive = exclusive or {}
+        self.addons = addons or {}
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog"):
             yield Label(self.title_text, classes="dialog-title")
             yield SelectionList[str](
-                *((v, v, not self.exclusive.get(v)) for v in self.variants)
+                *((self._label(v), v, self._ticked(v)) for v in self.variants)
             )
             hint = "Space toggles, Enter installs selected, Esc cancels"
             if any(self.exclusive.values()):
                 hint += "\nVariants with the same files are alternatives: pick one"
+            if any(self._ticked(v) for v in self.variants):
+                hint += "\nParts share no files, so they belong to one mod: keep them ticked"
             yield Static(hint, classes="hint")
+
+    def _ticked(self, variant: str) -> bool:
+        """Start parts ticked; add-ons and alternatives are opt-in."""
+        return not self.exclusive.get(variant) and not self.addons.get(variant)
+
+    def _label(self, variant: str) -> str:
+        """Tag folders that clash with none as parts; e.g. ``self._label('Main')``."""
+        if self.addons.get(variant):
+            return f"{variant}  (optional add-on to {', '.join(sorted(self.addons[variant]))})"
+        if self.exclusive.get(variant):
+            return f"{variant}  (alternative)"
+        return f"{variant}  (part of this mod)"
 
     def on_selection_list_selection_toggled(
         self, event: SelectionList.SelectionToggled[str]

@@ -336,7 +336,8 @@ class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScr
         exclusive = self._attempt(
             lambda: self.service.exclusive_variants(archive, variants)
         )
-        picker = VariantPicker(title, variants, exclusive)
+        addons = self._attempt(lambda: self.service.addon_variants(archive, variants))
+        picker = VariantPicker(title, variants, exclusive, addons)
         return await self.app.push_screen_wait(picker)
 
     def _warn_nested(self, file: NexusFile, archive: Path) -> None:

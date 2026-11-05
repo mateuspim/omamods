@@ -2,7 +2,7 @@
 
 import unittest
 
-from omamods.variant_choices import exclusive_variants, nested_archives
+from omamods.variant_choices import addon_bases, exclusive_variants, nested_archives
 
 COLOURS = ("Mod/hero/black", "Mod/hero/red", "Mod/knight/black")
 MEMBERS = (
@@ -35,6 +35,23 @@ class ExclusiveVariantsTest(unittest.TestCase):
             exclusive_variants(members, ("Red", "Red2"))["Red"], frozenset({"Red2"})
         )
         self.assertEqual(exclusive_variants(("Red2/x.pak",), ("Red",))["Red"], set())
+
+
+class AddonTest(unittest.TestCase):
+    MEMBERS = ("Main/a.pak", "Main/b.pak", "Tweak/a.pak", "Other/a.pak", "Other/b.pak")
+    NAMES = ("Main", "Tweak", "Other")
+
+    def test_a_variant_inside_another_is_an_addon_not_a_rival(self) -> None:
+        self.assertEqual(
+            addon_bases(self.MEMBERS, self.NAMES),
+            {"Tweak": frozenset({"Main", "Other"})},
+        )
+        self.assertNotIn("Tweak", exclusive_variants(self.MEMBERS, self.NAMES)["Main"])
+
+    def test_identical_variants_stay_alternatives(self) -> None:
+        self.assertEqual(
+            exclusive_variants(self.MEMBERS, self.NAMES)["Main"], frozenset({"Other"})
+        )
 
 
 class NestedArchivesTest(unittest.TestCase):

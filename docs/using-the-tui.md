@@ -52,7 +52,9 @@ OmaMods Night as a fallback; `Ctrl+P` → *Change theme* selects a session palet
    often alternatives. For any archive with several variant folders, a list
    shows them: Space toggles, Enter installs every ticked variant. Variants
    holding the same file names (colours of one outfit, say) are alternatives:
-   they start unticked, and ticking one unticks the others. Only the innermost
+   they start unticked, and ticking one unticks the others. The list tags
+   folders that clash with none as "part of this mod" (a main part and its
+   dependencies, say) and the clashing ones as "alternative". Only the innermost
    folders are variants; paks in a folder above a variant (an outfit's shared
    "Addons", say) install with it. Unreal variants keep their folder path
    under `~mods` (`~mods/hero/armor/black/`). Archives packed inside the
