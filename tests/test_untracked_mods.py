@@ -4,7 +4,15 @@ import tempfile
 import unittest
 
 from omamods.pak_games import PAK_SUFFIXES, PakOverlayGame
-from omamods.untracked_mods import audit_games, owned_paths, untracked_mod_files
+from omamods.untracked_mods import (
+    audit_games,
+    audit_keyed,
+    mod_candidates,
+    owned_paths,
+    record_files,
+    shelf_pak_games,
+    untracked_mod_files,
+)
 
 GAME = PakOverlayGame("g", "G", "g", Path("Paks"), "Mods", (PAK_SUFFIXES,))
 
@@ -71,6 +79,50 @@ class UntrackedModsTest(unittest.TestCase):
             (root / "Paks" / "Mods" / "x.pak").write_bytes(b"")
             found = audit_games([replace(GAME, install_root=root)], (root,))
         self.assertEqual(list(found), ["g"])
+
+    def test_unreal_logic_mods_count_as_mods(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            paks = Path(raw) / "Paks"
+            (paks / "LogicMods").mkdir(parents=True)
+            (paks / "LogicMods" / "bp.pak").write_bytes(b"")
+            (paks / "game.pak").write_bytes(b"")
+            found = mod_candidates(GAME, paks)
+        self.assertEqual([p.name for p in found], ["bp.pak"])
+
+    def test_cyberpunk_mods_folder_is_scanned(self) -> None:
+        red = PakOverlayGame(
+            "c", "C", "c", Path("."), "archive/pc/mod", (), redengine=True
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            (root / "archive/pc/mod").mkdir(parents=True)
+            (root / "archive/pc/mod/a.archive").write_bytes(b"")
+            found = mod_candidates(red, root)
+        self.assertEqual([p.name for p in found], ["a.archive"])
+
+    def test_record_files_ignores_other_record_shapes(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            record = Path(raw) / "chain.json"
+            record.write_text("{}", encoding="utf-8")
+            self.assertEqual(record_files(record), ())
+
+    def test_audit_keyed_reports_by_shelf_key(self) -> None:
+        from dataclasses import replace
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            (root / "Paks" / "Mods").mkdir(parents=True)
+            (root / "Paks" / "Mods" / "x.pak").write_bytes(b"")
+            games = {"shelf-key": replace(GAME, install_root=root)}
+            found = audit_keyed(games, (root,))
+        self.assertEqual(list(found), ["shelf-key"])
+
+    def test_built_in_games_get_their_install_folder(self) -> None:
+        # Regression: built-ins had no install_root, so X never audited them.
+        from tests.test_tui import home_shelf
+
+        games = shelf_pak_games(home_shelf(Path("/library")))
+        self.assertEqual(games["stellar-blade"].install_root, Path("/library/SB"))
 
 
 if __name__ == "__main__":

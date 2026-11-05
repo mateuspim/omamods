@@ -4,11 +4,13 @@ After the storage folder is deleted or a mod was copied by hand, the files stay
 in the game but OmaMods can no longer revert them; this lists them.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from dataclasses import replace
 import json
 from pathlib import Path
 
 from omamods.game_shelf import GameShelf, ShelfEntry
+from omamods.loose_mod_files import asi_loose_files, red_loose_files, ue4ss_loose_files
 from omamods.pak_detection import scanned_pak_game
 from omamods.pak_games import PakOverlayGame
 from omamods.re_engine_detection import scanned_re_engine_game
@@ -21,11 +23,12 @@ def owned_paths(state_folder: Path) -> frozenset[Path]:
     """Read every file the records under a folder own; e.g. ``owned_paths(root / 'state' / 're7')``."""
     owned: set[Path] = set()
     for record in state_folder.rglob("*.json") if state_folder.is_dir() else ():
-        owned.update(_record_paths(record))
+        owned.update(record_files(record))
     return frozenset(owned)
 
 
-def _record_paths(record: Path) -> tuple[Path, ...]:
+def record_files(record: Path) -> tuple[Path, ...]:
+    """List the files one install record owns; e.g. ``record_files(state / '7' / '1.json')``."""
     try:
         state = json.loads(record.read_text(encoding="utf-8"))
         paks = Path(state["paks"])
@@ -36,19 +39,34 @@ def _record_paths(record: Path) -> tuple[Path, ...]:
 
 def mod_candidates(game: PakOverlayGame, paks: Path) -> tuple[Path, ...]:
     """List files that look like mods; e.g. ``mod_candidates(game, paks)``."""
-    if game.redengine or game.asi_loader or game.mods_dirname in ("", "."):
-        # The game's own files mix with mods there; no safe filter exists.
-        if game.patch_chain is None:
-            return ()
     if game.patch_chain is not None:
         patches = paks.glob(f"{game.patch_chain}.patch_*.pak")
         # RE7 ships 0-byte placeholder patches; they are the game's, not mods.
         return tuple(sorted(p for p in patches if not is_empty_patch(p)))
-    folder = paks / game.mods_dirname if game.mods_dirname else paks
-    if not folder.is_dir():
+    if game.redengine:
+        return red_loose_files(paks)
+    if game.asi_loader:
+        return asi_loose_files(paks)
+    if game.mods_dirname in ("", "."):
+        # The game's own files mix with mods there; no safe filter exists.
         return ()
-    found = (p for p in folder.rglob("*") if p.suffix.lower() in CONTAINER_SUFFIXES)
-    return tuple(sorted(p for p in found if p.is_file()))
+    return _unreal_candidates(game, paks)
+
+
+def _unreal_candidates(game: PakOverlayGame, paks: Path) -> tuple[Path, ...]:
+    folder = paks / game.mods_dirname
+    found: list[Path] = []
+    if folder.is_dir():
+        found = [p for p in folder.rglob("*") if p.suffix.lower() in CONTAINER_SUFFIXES]
+    loose = (*ue4ss_loose_files(paks), *_logic_mods(paks))
+    return tuple(sorted({*(p for p in found if p.is_file()), *loose}))
+
+
+def _logic_mods(paks: Path) -> tuple[Path, ...]:
+    # UE4SS blueprint mods load from Paks/LogicMods, beside the mods folder.
+    folder = paks / "LogicMods"
+    found = folder.rglob("*") if folder.is_dir() else ()
+    return tuple(p for p in found if p.suffix.lower() in CONTAINER_SUFFIXES)
 
 
 def untracked_mod_files(
@@ -74,10 +92,11 @@ def shelf_pak_games(shelf: GameShelf) -> dict[str, PakOverlayGame]:
 
 def _entry_game(entry: ShelfEntry) -> PakOverlayGame | None:
     install = entry.install
-    if entry.pak_game is not None:
-        return entry.pak_game
     if install is None or not install.ready:
-        return None
+        return entry.pak_game
+    if entry.pak_game is not None:
+        # Built-in games carry no install_root, so the audit skipped them all.
+        return _rooted(entry.pak_game, install.install_path)
     if entry.patch_chain is not None:
         return scanned_re_engine_game(entry.key, install, "", entry.patch_chain)
     if entry.unreal is not None:
@@ -85,11 +104,24 @@ def _entry_game(entry: ShelfEntry) -> PakOverlayGame | None:
     return None
 
 
+def _rooted(game: PakOverlayGame, install_path: Path) -> PakOverlayGame:
+    if game.install_root is not None:
+        return game
+    return replace(game, install_root=install_path)
+
+
 def audit_shelf(shelf: GameShelf, roots: Iterable[Path]) -> dict[str, tuple[Path, ...]]:
     """Map shelf keys to mod files without records; e.g. ``audit_shelf(shelf, (root,))``."""
+    return audit_keyed(shelf_pak_games(shelf), roots)
+
+
+def audit_keyed(
+    games: Mapping[str, PakOverlayGame], roots: Iterable[Path]
+) -> dict[str, tuple[Path, ...]]:
+    """Map shelf keys to mod files without records; e.g. ``audit_keyed(games, (root,))``."""
     roots = tuple(roots)
     found: dict[str, tuple[Path, ...]] = {}
-    for key, game in shelf_pak_games(shelf).items():
+    for key, game in games.items():
         files = audit_games([game], roots).get(game.game_id, ())
         if files:
             found[key] = files
