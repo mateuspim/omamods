@@ -13,7 +13,8 @@ from omamods.tui.app import OmaModsApp
 from omamods.tui.dialogs import ConfirmDialog
 from omamods.tui.launch_options_dialog import LaunchOptionsDialog
 from omamods.tui.mods_screen import ModsScreen
-from omamods.tui.service import ModsService, TuiHost
+from omamods.tui.host import TuiHost
+from omamods.tui.service import ModsService
 from tests.fakes import (
     FakeConfigFiles,
     FakeModArchives,

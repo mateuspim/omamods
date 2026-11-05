@@ -280,7 +280,9 @@ class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScr
 
     @work(thread=True)
     def download_files(self, mod_id: int, files: tuple[NexusFile, ...]) -> None:
-        self._attempt(lambda: self.service.mark_queued(self.game, mod_id, files))
+        self._attempt(
+            lambda: self.service.browser_downloads.mark_queued(self.game, mod_id, files)
+        )
         self.notify(f"Downloading {len(files)} file(s); press D to watch the queue.")
         for file in files:
             staged = self._attempt(

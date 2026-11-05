@@ -25,7 +25,8 @@ from omamods.tui.downloads_panel import (
 )
 from omamods.tui.downloads_screen import DownloadsScreen
 from omamods.tui.mods_screen import ModsScreen
-from omamods.tui.service import ModsService, TuiHost
+from omamods.tui.host import TuiHost
+from omamods.tui.service import ModsService
 from tests.fakes import (
     FakeArchiveReader,
     FakeCommandRunner,

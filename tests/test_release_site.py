@@ -13,7 +13,8 @@ from omamods.nexus_config import UserSettings
 from omamods.release_staging import pending_update
 from omamods.tui.app import OmaModsApp
 from omamods.tui.mods_screen import ModsScreen
-from omamods.tui.service import ModsService, TuiHost
+from omamods.tui.host import TuiHost
+from omamods.tui.service import ModsService
 from tests.fakes import (
     FakeCommandRunner,
     FakeConfigFiles,

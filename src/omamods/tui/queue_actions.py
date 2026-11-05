@@ -45,7 +45,7 @@ class QueueActions(DOMNode):
             self.notify(message)
 
     def action_clear(self) -> None:
-        count = self.service.clear_finished_downloads()
+        count = self.service.browser_downloads.clear_finished_downloads()
         self.notify(f"Cleared {count} finished download(s).")
         self.refresh_queue()
 
@@ -54,7 +54,7 @@ class QueueActions(DOMNode):
         if status is None:
             return
         try:
-            self.service.remove_download(status)
+            self.service.browser_downloads.remove_download(status)
         except (OSError, ValueError) as error:
             self.notify(str(error), severity="warning")
             return
@@ -62,6 +62,6 @@ class QueueActions(DOMNode):
         self.refresh_queue()
 
     def action_clear_all(self) -> None:
-        count = self.service.clear_download_queue()
+        count = self.service.browser_downloads.clear_download_queue()
         self.notify(f"Cleared {count} download(s); active transfers keep going.")
         self.refresh_queue()

@@ -32,7 +32,8 @@ from omamods.shelf_scan import ShelfSources, scan_shelf
 from omamods.steam_launch_options import steam_launch_options
 from omamods.steam_launch_writer import localconfig_paths, save_launch_options
 from omamods.steam_process import SteamProcess
-from omamods.tui.service import ModsService, TuiHost
+from omamods.tui.host import TuiHost
+from omamods.tui.service import ModsService
 from omamods.omarchy_palette import OmarchyPaletteReader, omarchy_palette_paths
 
 

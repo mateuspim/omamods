@@ -74,7 +74,7 @@ class DownloadsScreen(QueueActions, WorkspaceScreen):
     def refresh_queue(self) -> None:
         """Re-read the queue folder; for example, ``screen.refresh_queue()``."""
         try:
-            self.statuses = self.service.downloads()
+            self.statuses = self.service.browser_downloads.downloads()
         except (OSError, ValueError) as error:
             self.notify(str(error), severity="error")
             return

@@ -9,7 +9,9 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import OptionList, Static
 from textual.widgets.option_list import OptionDoesNotExist
 
+from omamods.clean_all import GameClean, summarize_clean
 from omamods.game_shelf import GameShelf, ShelfEntry
+from omamods.tui.clean_picker import CleanPicker
 from omamods.tui.dialogs import ConfirmDialog, InfoDialog
 from omamods.tui.list_filter import no_match_option, search_title
 from omamods.tui.list_search import SearchableScreen
@@ -33,6 +35,7 @@ class GamesScreen(SearchableScreen):
         Binding("r", "rescan", "Rescan"),
         Binding("R", "force_recheck", "Full recheck"),
         Binding("X", "clean_untracked", "Clean untracked mods"),
+        Binding("C", "clean_everything", "Clean everything"),
         Binding("w", "show_warnings", "Warnings", show=False),
         Binding("K", "app.prompt_api_key", "API key"),
         Binding("n", "app.register_nxm", "Handle nxm links"),
@@ -59,7 +62,7 @@ class GamesScreen(SearchableScreen):
         yield WorkspaceStatus("Library")
         yield WorkspaceHints(
             "[b]enter[/] open   [b]/[/] find   [b]r[/] rescan   [b]R[/] full recheck   [b]X[/] clean untracked   "
-            "[b]o[/] folder"
+            "[b]C[/] clean everything   [b]o[/] folder"
         )
 
     def on_mount(self) -> None:
@@ -82,17 +85,19 @@ class GamesScreen(SearchableScreen):
 
     def action_clean_untracked(self) -> None:
         """Ask, then set aside every mod file OmaMods does not track (X)."""
-        if not self.service.untracked:
+        if not self.service.library_clean.untracked:
             self.notify("No untracked mod files found; press R to recheck.")
             return
         title = "Set aside untracked mod files from all games?"
-        dialog = ConfirmDialog(title, self.service.untracked_description())
+        dialog = ConfirmDialog(
+            title, self.service.library_clean.untracked_description()
+        )
         self.app.push_screen(dialog, lambda yes: yes and self._clean())
 
     @work(thread=True, exclusive=True, group="shelf")
     def _clean(self) -> None:
         try:
-            count, folder = self.service.clean_untracked()
+            count, folder = self.service.library_clean.clean_untracked()
             shelf = self.service.shelf()
         except (OSError, ValueError) as error:
             self.app.call_from_thread(self._scan_failed, error)
@@ -100,6 +105,33 @@ class GamesScreen(SearchableScreen):
         self.app.call_from_thread(self.show_shelf, shelf)
         note = f"Set aside {count} file(s) in {folder}"
         self.app.call_from_thread(self.notify, note, timeout=15)
+
+    def action_clean_everything(self) -> None:
+        """Pick games, then reset them to no mods, keeping copies (C)."""
+        cleaner = self.service.library_clean
+        try:
+            plan = cleaner.plan()
+        except (OSError, ValueError) as error:
+            self.notify(f"Clean everything: {error}", severity="error", timeout=10)
+            return
+        if not plan:
+            self.notify("No mods found in any game; press R to recheck.")
+            return
+        picker = CleanPicker(plan, cleaner.mod_titles(plan))
+        self.app.push_screen(picker, lambda chosen: chosen and self._clean_all(chosen))
+
+    @work(thread=True, exclusive=True, group="shelf")
+    def _clean_all(self, plan: tuple[GameClean, ...]) -> None:
+        try:
+            outcome = self.service.library_clean.run(plan)
+            shelf = self.service.shelf()
+        except (OSError, ValueError) as error:
+            self.app.call_from_thread(self._scan_failed, error)
+            return
+        self.app.call_from_thread(self.show_shelf, shelf)
+        severity = "warning" if outcome.failures else "information"
+        note = summarize_clean(outcome)
+        self.app.call_from_thread(self.notify, note, severity=severity, timeout=20)
 
     @work(thread=True, exclusive=True, group="shelf")
     def _recheck(self) -> None:
@@ -138,7 +170,9 @@ class GamesScreen(SearchableScreen):
         """List the games matching ``search_query``; e.g. ``screen.rebuild_list(True)``."""
         games = self.query_one("#games", OptionList)
         options = (
-            shelf_options(self.shelf, self.search_query, self.service.untracked)
+            shelf_options(
+                self.shelf, self.search_query, self.service.library_clean.untracked
+            )
             if self.shelf
             else []
         )
@@ -187,7 +221,7 @@ class GamesScreen(SearchableScreen):
             self.query_one("#game-info", Static).update(card)
 
     def _untracked(self, entry: ShelfEntry) -> tuple[Path, ...]:
-        return self.service.untracked.get(entry.key, ())
+        return self.service.library_clean.untracked.get(entry.key, ())
 
     def _staged_count(self, entry: ShelfEntry) -> int | None:
         if entry.pak_game is None:

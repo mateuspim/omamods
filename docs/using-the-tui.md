@@ -15,12 +15,30 @@ uv tool install --editable --reinstall . # after dependency changes
 uv tool uninstall omamods
 ```
 
-The home screen scans for games each time it opens (press `r` to rescan; press `R` for a full
-recheck that also refreshes the Nexus game list and warns about mod files in a
-game's mods folder that no OmaMods record owns; press `X` to move those
-files, for every game including ones with no Nexus match, into a dated
-`removed/` folder in the storage root with a `moved.json` map back) and
-lists them in three groups:
+The home screen scans for games each time it opens (press `r` to rescan; press
+`R` for a full recheck that also refreshes the Nexus game list and warns about
+mod files that no OmaMods record owns) and lists them in three groups, below.
+Two keys clear mods from the library, after showing the files they move:
+
+- `X` moves the unrecorded mod files, for every game including ones with no
+  Nexus match, into a dated `removed/` folder in the storage root, with a
+  `moved.json` map back to their original paths.
+- `C` cleans everything: it does `X`, then uninstalls every recorded mod of
+  every game, the way `U` does for one game, and removes the folders left
+  empty. It first lists the games that have mods, all ticked; the panel
+  beside the list shows the highlighted game's mods and files. Space ticks a
+  game in or out, `a` ticks all or none, and Enter cleans only the ticked
+  games. Recorded files are copied into the same dated folder first (a hard
+  link when storage is on the game's drive), so nothing is lost; a file you
+  edited since installing is copied and removed too.
+
+The scan looks only where the game does not ship files of its own: the mods
+folder, `Paks/LogicMods`, and UE4SS beside the executable for Unreal games;
+the numbered patch paks for RE Engine; `archive/pc/mod`, `r6/scripts`,
+`r6/tweaks`, `red4ext`, `bin/x64/plugins`, `mods`, and the RED4ext and CET
+loader DLLs for Cyberpunk 2077; and ASI plugins, their `.ini` files, and the
+loader DLL beside MGSV's executable. Anything else a mod changed stays put; if
+a game misbehaves afterwards, verify its files in Steam.
 
 - **Mod-ready**: catalog games OmaMods can install mods for (Cronos, Stellar
   Blade, Cyberpunk 2077, METAL GEAR SOLID Δ, METAL GEAR SOLID V: THE PHANTOM

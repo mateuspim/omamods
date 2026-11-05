@@ -41,6 +41,7 @@ password. See [the AyakaMods workflow](using-the-tui.md#ayakamods).
 | `backups/steam-localconfig/` | Copies made before writing Steam launch options. |
 | `downloads/` | Cross-process queue status for the TUI and browser handler. |
 | `cache/nexus_games.json` | Cached Nexus game mapping for auto-detection. |
+| `removed/<stamp>/` | Mod files `X` and `C` took out of games: `untracked/` and `tracked/`, each with a `moved.json` of original paths. Delete it once the games run fine. |
 | `detected_games.json` | Last detected games for the separate NXM process. |
 | `adult_marks.json` | Hand-marked adult content and visibility setting. |
 | `ayaka/`, `release/` | Separate staging and records for sources with their own mod IDs. |
