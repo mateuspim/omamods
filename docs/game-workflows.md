@@ -138,6 +138,23 @@ Steam launch options; the mods screen warns when it is missing and `L` shows
 the line to paste. See the
 [METAL GEAR SOLID Δ adapter](../games/metalgearsoliddeltasnakeeater/README.md).
 
+## METAL GEAR RISING: REVENGEANCE
+
+The game renders 16:9 only. OmaMods patches its executable for an ultrawide
+resolution, with no download and no MGROverride or Flawless Widescreen:
+
+```sh
+omamods patch apply metalgearrising --resolution 3440x1440
+omamods patch revert metalgearrising
+```
+
+The patch refuses any exe but the untouched Steam build and keeps the original
+in storage. In the game, choose 1920x1080 (16:9); that entry becomes the
+patched size. The 3D fills the screen, menus and cutscene movies stay 16:9 and
+centred, and the gameplay HUD still stretches. See the
+[METAL GEAR RISING adapter](../games/metalgearrising/README.md) and
+[ADR 8](adr/0008-patch-executables-from-verified-bytes.md).
+
 ## METAL GEAR SOLID V: THE PHANTOM PAIN
 
 The game has no ultrawide support of its own. Its mods list always shows

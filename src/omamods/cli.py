@@ -16,6 +16,7 @@ from omamods.manifests import GameManifest, load_catalog
 from omamods.host_cli import run_host_command
 from omamods.nexus_cli import CatalogSources, NexusRuntime, run_nexus_command
 from omamods.pak_games import PAK_OVERLAY_GAMES
+from omamods.patch_cli import add_patch_commands, run_patch_command
 from omamods.reporting import render_game_list, render_inspection
 from omamods.steam_apps import GameInspection, inspect_game
 from omamods.steam_libraries import LibraryScan, default_steam_roots, discover_libraries
@@ -38,6 +39,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, help="private user TOML path")
     _nexus_options(commands)
     _host_options(commands)
+    add_patch_commands(commands)
     return parser
 
 
@@ -181,6 +183,9 @@ def run_cli(
         if args.command in ("tui", "nxm"):
             sources = CatalogSources(files, decoder, steam_roots)
             return run_host_command(args, runtime, sources, stdout)
+        if args.command == "patch":
+            sources = CatalogSources(files, decoder, steam_roots)
+            return run_patch_command(args, runtime, sources, stdout)
         catalog = load_catalog(args.games_dir, files, decoder)
         selected = _select_games(catalog, getattr(args, "game_id", None))
         scan = _scan_roots(args.steam_root, steam_roots, files)

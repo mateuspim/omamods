@@ -22,7 +22,7 @@ notes:
 | `name` | Required nonempty string | Display name. |
 | `status` | `discovery` or `ready` | Catalog status, separate from actual installer support. |
 | `platforms` | Exactly `[steam]` | Discovery platform supported by this schema. |
-| `adapter` | `undecided`, `direct-overlay`, `external-manager`, `archive-patcher`, or `game-native` | Proposed workflow family. |
+| `adapter` | `undecided`, `direct-overlay`, `external-manager`, `archive-patcher`, `exe-patcher`, or `game-native` | Proposed workflow family. |
 | `steam_app_id` | Positive integer or null | Exact Steam match when configured. |
 | `notes` | Optional list of nonempty strings | Game-specific constraints and provenance. |
 
@@ -35,6 +35,7 @@ install support exists:
 | `direct-overlay` | Copy declared files, set loader options, track ownership, revert. |
 | `external-manager` | Install or launch the established manager in the correct environment. |
 | `archive-patcher` | Stage sources and tool, create a backup, guide the necessary GUI step. |
+| `exe-patcher` | Patch the game executable in place from verified bytes, keep the original in storage, restore it on revert. |
 | `game-native` | Preserve sources and launch the game's manager; do not edit undocumented state. |
 
 Unknown fields, duplicate YAML keys, unsafe YAML tags, a mismatched directory
