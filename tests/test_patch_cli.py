@@ -24,7 +24,7 @@ def _fake_build(image: bytes, option: str) -> bytes:
 
 
 FAKE_GAME = ExePatchGame(
-    "metalgearrising", "Demo Rising", "Game.exe", "WxH", _fake_build
+    "metalgearrising", "Demo Rising", "Game.exe", "WxH", "Pick 1080p.", _fake_build
 )
 
 

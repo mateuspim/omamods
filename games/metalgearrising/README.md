@@ -12,6 +12,10 @@ are not needed. The patch is computed from the untouched Steam build
 and refuses any other file. Every changed byte is checked against the
 original before anything is written.
 
+In the TUI, the game is listed as Mod-ready. Enter on it asks for your
+resolution and patches the exe. Once it is patched, Enter offers to restore the
+original. The same works from the command line:
+
 ```sh
 omamods patch apply metalgearrising --resolution 3440x1440
 omamods patch status metalgearrising

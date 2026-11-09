@@ -28,7 +28,7 @@ Steam + Heroic ──> discovery ──> game shelf ──> Textual screens
 | Site integrations | `nexus_api.py`, `ayaka_pages.py`, `release_api.py`, `mod_fetch.py` | Obtain metadata and downloads, then stage them. |
 | Install planning | `asset_plans.py`, `pak_archive.py`, `red_archive.py`, `re_pak_archive.py`, `asi_archive.py`, `ue4ss_archive.py` | Recognize supported layouts and name target paths. |
 | Apply and revert | `pak_storage.py`, `install_records.py`, `original_files.py` | Preflight targets, write files, record hashes, and restore or remove owned files. |
-| Exe patches | `exe_byte_patches.py`, `exe_patch_install.py`, `exe_patch_games.py`, `patch_cli.py` | Build verified byte patches from a game's own exe, keep the original, and restore it. |
+| Exe patches | `exe_byte_patches.py`, `exe_patch_install.py`, `exe_patch_games.py`, `patch_cli.py`, `tui/exe_patch_site.py`, `tui/exe_patch_actions.py` | Build verified byte patches from a game's own exe, keep the original, and restore it. |
 
 The `game list` and `inspect` commands read manifests and Steam metadata. They
 neither install mods nor mutate a game. The TUI starts with a shelf scan that

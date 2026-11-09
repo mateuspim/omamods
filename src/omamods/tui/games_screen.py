@@ -13,8 +13,8 @@ from omamods.clean_all import GameClean, summarize_clean
 from omamods.game_shelf import GameShelf, ShelfEntry
 from omamods.tui.clean_picker import CleanPicker
 from omamods.tui.dialogs import ConfirmDialog, InfoDialog
+from omamods.tui.exe_patch_actions import ExePatchScreen
 from omamods.tui.list_filter import no_match_option, search_title
-from omamods.tui.list_search import SearchableScreen
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
 from omamods.tui.shelf_view import entry_detail, setup_summary, shelf_options
@@ -27,7 +27,7 @@ WELCOME = (
 )
 
 
-class GamesScreen(SearchableScreen):
+class GamesScreen(ExePatchScreen):
     """Choose a game; e.g. ``app.push_screen(GamesScreen(service))``."""
 
     BINDINGS = [
@@ -238,6 +238,9 @@ class GamesScreen(SearchableScreen):
         """Manage the highlighted game's mods, when OmaMods can install them."""
         entry = self.selected_entry()
         if entry is None:
+            return
+        if entry.exe_patch is not None:
+            self.open_exe_patch(entry)
             return
         if entry.pak_game is None:
             self.notify(f"{entry.name}: installing mods is not supported yet.")

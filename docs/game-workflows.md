@@ -141,7 +141,9 @@ the line to paste. See the
 ## METAL GEAR RISING: REVENGEANCE
 
 The game renders 16:9 only. OmaMods patches its executable for an ultrawide
-resolution, with no download and no MGROverride or Flawless Widescreen:
+resolution, with no download and no MGROverride or Flawless Widescreen. In
+the TUI it is Mod-ready: Enter asks for the resolution and patches, and Enter
+on a patched game offers to restore the original. From the command line:
 
 ```sh
 omamods patch apply metalgearrising --resolution 3440x1440

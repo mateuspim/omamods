@@ -19,6 +19,7 @@ class ExePatchGame:
     name: str
     exe_name: str
     option_help: str
+    after_apply: str
     build: Callable[[bytes, str], bytes]
 
     def describe(self, option: str) -> str:
@@ -36,6 +37,7 @@ EXE_PATCH_GAMES: dict[str, ExePatchGame] = {
         name="METAL GEAR RISING: REVENGEANCE",
         exe_name=EXE_NAME,
         option_help="display resolution WIDTHxHEIGHT, 16:9 or wider, e.g. 3440x1440",
+        after_apply="In the game, choose 1920x1080 (16:9); it now runs at your size.",
         build=_build_mgr,
     ),
 }

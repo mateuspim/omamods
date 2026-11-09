@@ -40,6 +40,7 @@ from omamods.tui.ayaka_site import AyakaSite
 from omamods.tui.browser_downloads import BrowserDownloads
 from omamods.tui.host import TuiHost
 from omamods.tui.library_clean import LibraryClean
+from omamods.tui.exe_patch_site import ExePatchSite
 from omamods.tui.release_site import ReleaseSite
 from omamods.tui.steam_setup import SteamSetup
 from omamods.tui.asset_conflicts import AssetConflicts
@@ -71,6 +72,7 @@ class ModsService:
         self.requirements = RequirementFlow(self)
         self.ayaka = AyakaSite(self)
         self.release = ReleaseSite(self)
+        self.exe_patch = ExePatchSite(self)
         self.steam_setup = SteamSetup(self)
         self.conflicts = AssetConflicts(self)
         self.game_uninstall = GameUninstall(self)
