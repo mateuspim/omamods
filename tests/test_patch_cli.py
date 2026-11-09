@@ -72,6 +72,12 @@ class PatchCliTests(unittest.TestCase):
         self.assertEqual(self._run("revert", "metalgearrising"), 0)
         self.assertEqual(self.exe.read_bytes(), b"original")
 
+    def test_second_apply_says_revert_first(self) -> None:
+        self.assertEqual(self._run("apply", "metalgearrising", "--resolution", "x"), 0)
+        self.assertEqual(self._run("apply", "metalgearrising", "--resolution", "x"), 2)
+        self.assertIn("already patched; revert it first", self.stderr.getvalue())
+        self.assertEqual(self.exe.read_bytes(), b"ORIGINALx")
+
     def test_missing_exe_is_an_error(self) -> None:
         self.exe.unlink()
         self.assertEqual(self._run("status", "metalgearrising"), 2)

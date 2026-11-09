@@ -12,6 +12,7 @@ from omamods.exe_patch_install import (
     ExePatchTarget,
     apply_exe_patch,
     describe_patch_state,
+    ensure_unpatched,
     revert_exe_patch,
 )
 from omamods.manifests import load_catalog
@@ -85,6 +86,7 @@ def run_patch_command(
 def _apply(
     game: ExePatchGame, target: ExePatchTarget, option: str, stdout: TextIO
 ) -> None:
+    ensure_unpatched(target)
     original = target.exe.read_bytes()
     patched = game.build(original, option)
     apply_exe_patch(target, original, patched, game.describe(option))

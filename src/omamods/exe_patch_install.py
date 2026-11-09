@@ -80,12 +80,17 @@ def _keep_original(target: ExePatchTarget) -> None:
     shutil.copy2(target.exe, target.backup)
 
 
+def ensure_unpatched(target: ExePatchTarget) -> None:
+    """Refuse a second patch before building one; e.g. ``ensure_unpatched(t)``."""
+    if load_patch_record(target) is not None:
+        raise ValueError(f"{target.exe.name}: already patched; revert it first")
+
+
 def apply_exe_patch(
     target: ExePatchTarget, original: bytes, patched: bytes, description: str
 ) -> ExePatchRecord:
     """Back up, then replace the exe; e.g. ``apply_exe_patch(t, old, new, '3440x1440')``."""
-    if load_patch_record(target) is not None:
-        raise ValueError(f"{target.exe.name}: already patched; revert it first")
+    ensure_unpatched(target)
     if sha256_hex(target.exe.read_bytes()) != sha256_hex(original):
         raise ValueError(f"{target.exe.name}: changed while the patch was built")
     record = ExePatchRecord(

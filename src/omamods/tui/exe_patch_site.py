@@ -12,6 +12,7 @@ from omamods.exe_patch_install import (
     ExePatchTarget,
     apply_exe_patch,
     describe_patch_state,
+    ensure_unpatched,
     load_patch_record,
     revert_exe_patch,
 )
@@ -52,6 +53,7 @@ class ExePatchSite:
     def apply(self, entry: ShelfEntry, option: str) -> str:
         """Back up and patch; e.g. ``service.exe_patch.apply(mgr, '3440x1440')``."""
         game, target = self._game(entry), self.target(entry)
+        ensure_unpatched(target)
         original = target.exe.read_bytes()
         patched = game.build(original, option)
         apply_exe_patch(target, original, patched, game.describe(option))
