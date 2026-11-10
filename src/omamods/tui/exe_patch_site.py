@@ -2,7 +2,8 @@
 
 Games such as METAL GEAR RISING have a fix that is a patch of the game's own
 exe (see exe_patch_games). It is listed first in the game's mods like any
-other mod, so i installs it and u restores the original, but nothing is
+other mod, so i installs it and u restores the original. x also deletes the stored
+backup and takes the patch off the list until a adds it back. Nothing is
 downloaded and no archive is staged.
 """
 
@@ -22,6 +23,7 @@ from omamods.exe_patch_install import (
     describe_patch_state,
     ensure_unpatched,
     load_patch_record,
+    remove_patch_files,
     revert_exe_patch,
 )
 from omamods.mod_sites import PATCH_SITE
@@ -84,9 +86,25 @@ class ExePatchSite:
         installed = self._installed(game)
         return StagedMod(mod_id, info, (file,), archives, None, installed, PATCH_SITE)
 
+    def _removed_marker(self, game: PakOverlayGame) -> Path:
+        root = self.service.settings.storage_root
+        return root / "state" / game.game_id / "exe-patch.removed"
+
     def staged_mods(self, game: PakOverlayGame) -> tuple[StagedMod, ...]:
-        """List the game's patch, if it has one; e.g. ``site.staged_mods(mgr)``."""
-        return (self.staged_mod(game),) if game.game_id in EXE_PATCH_GAMES else ()
+        """List the game's patch unless x removed it; e.g. ``site.staged_mods(mgr)``."""
+        if game.game_id not in EXE_PATCH_GAMES:
+            return ()
+        return () if self._removed_marker(game).exists() else (self.staged_mod(game),)
+
+    def list_again(self, game: PakOverlayGame) -> bool:
+        """Undo x's unlisting; e.g. ``site.list_again(mgr)`` is True if it was off."""
+        marker = self._removed_marker(game)
+        if not marker.exists():
+            return False
+        marker.unlink()
+        if not any(marker.parent.iterdir()):
+            marker.parent.rmdir()
+        return True
 
     def monitors(self) -> tuple[Monitor, ...]:
         """Read the connected monitors, or none; e.g. ``site.monitors()``."""
@@ -114,6 +132,14 @@ class ExePatchSite:
     def revert(self, game: PakOverlayGame) -> str:
         """Restore the original; e.g. ``service.exe_patch.revert(mgr)``."""
         return revert_exe_patch(self.target(game))
+
+    def remove(self, game: PakOverlayGame) -> str:
+        """Restore if patched, delete stored files, unlist; e.g. ``site.remove(mgr)``."""
+        message = remove_patch_files(self.target(game))
+        marker = self._removed_marker(game)
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch()
+        return f"{message}; a lists the patch again"
 
     def after_apply(self, game: PakOverlayGame) -> str:
         """What to do in the game next; e.g. ``site.after_apply(mgr)``."""

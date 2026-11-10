@@ -10,6 +10,7 @@ downloads stay staged)::
 
 from dataclasses import asdict, dataclass
 import json
+import shutil
 from pathlib import Path, PurePosixPath
 from urllib import parse
 
@@ -142,3 +143,28 @@ def remove_staged_archive(
     if not any(archive.parent.iterdir()):
         archive.parent.rmdir()
     return archive
+
+
+def remove_staged_mod(root: Path, game: PakOverlayGame, mod_id: int) -> Path:
+    """Delete a mod's downloads and details; e.g. ``remove_staged_mod(root, sb, 1)``.
+
+    Refuses an installed mod, and a file folder with no finished archive, since
+    that is a download still arriving (partial files start with a dot).
+    """
+    folder = mod_folder(root, game, mod_id)
+    if installed_file_ids(root, game, mod_id):
+        raise ValueError(
+            f"mod_id={mod_id}: expected nothing installed; uninstall first"
+        )
+    arriving = sorted(
+        path.name
+        for path in folder.glob("*/")
+        if path.name.isdecimal() and int(path.name) not in staged_archives(folder)
+    )
+    if arriving:
+        raise ValueError(
+            f"mod_id={mod_id}: expected finished downloads, files {arriving!r} "
+            "are still arriving"
+        )
+    shutil.rmtree(folder)
+    return folder

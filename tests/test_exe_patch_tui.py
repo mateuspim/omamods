@@ -15,6 +15,7 @@ from omamods.pak_games import PAK_OVERLAY_GAMES, PakGameCatalog
 from omamods.tui.dialogs import ConfirmDialog
 from omamods.tui.exe_patch_actions import PatchModsScreen
 from omamods.tui.resolution_picker import ResolutionPicker
+from omamods.tui.workspace import WorkspaceHints, WorkspaceStatus
 from tests.fakes import FakeCommandRunner, FakeShelfScanner
 from tests.test_patch_cli import FAKE_GAME
 from tests.test_tui import TuiFixture
@@ -117,7 +118,7 @@ class PatchModsScreenTests(TuiFixture):
             screen = await self._open(app, pilot)
             self.assertEqual(screen.current.site, PATCH_SITE)
             self.assertEqual(screen.current.title, "Ultrawide patch (built in)")
-            await pilot.press("d", "x")
+            await pilot.press("d")
             await pilot.pause()
             self.assertTrue(self.exe.is_file())
             messages = [str(n.message) for n in app._notifications]
@@ -148,6 +149,46 @@ class PatchModsScreenTests(TuiFixture):
             self.assertEqual(self.exe.read_bytes(), b"original")
             messages = [str(n.message) for n in app._notifications]
             self.assertIn("Pick 1080p.", messages)
+
+    async def test_remove_download_restores_and_deletes_storage(self) -> None:
+        app = self._app({}, runner=FakeCommandRunner(output=MONITORS))
+        async with app.run_test(size=(140, 45)) as pilot:
+            screen = await self._open(app, pilot)
+            await pilot.press("i")
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.press("y")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            target = self.service_of(app).exe_patch.target(screen.game)
+            self.assertTrue(target.backup.is_file())
+            await pilot.press("x")
+            await pilot.pause()
+            self.assertIsInstance(app.screen, ConfirmDialog)
+            await pilot.press("y")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            self.assertEqual(self.exe.read_bytes(), b"original")
+            self.assertFalse(target.backup.exists())
+            self.assertFalse(target.record.exists())
+            self.assertEqual(screen.mods, ())
+            await pilot.press("a")
+            await pilot.pause()
+            self.assertEqual(screen.current.site, PATCH_SITE)
+            self.assertEqual(screen.current.installed, frozenset())
+            state = target.record.parent
+            self.assertFalse((state / "exe-patch.removed").exists())
+
+    async def test_hints_name_the_patch_keys(self) -> None:
+        app = self._app({}, runner=FakeCommandRunner(127))
+        async with app.run_test(size=(140, 45)) as pilot:
+            screen = await self._open(app, pilot)
+            screen.query_one(WorkspaceStatus).refresh_state()
+            hints = screen.query_one(WorkspaceHints).current_hints
+            self.assertIn("[b]i[/] patch exe", hints)
+            self.assertIn("[b]x[/] remove from list", hints)
+            self.assertNotIn("[b]u[/]", hints)
 
     async def test_other_size_prefills_a_real_example(self) -> None:
         app = self._app({}, runner=FakeCommandRunner(127))

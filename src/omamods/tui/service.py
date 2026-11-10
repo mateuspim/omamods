@@ -56,6 +56,7 @@ from omamods.staging import (
     load_staged_mod,
     mod_folder,
     remove_staged_archive,
+    remove_staged_mod,
 )
 
 
@@ -323,6 +324,14 @@ class ModsService:
     ) -> Path:
         """Delete a downloaded file; e.g. ``service.remove_staged(sb, 365, 1028)``."""
         return remove_staged_archive(self._root(site), game, mod_id, file_id)
+
+    def remove_mod(
+        self, game: PakOverlayGame, mod_id: int, site: str = NEXUS_SITE
+    ) -> Path:
+        """Delete a mod's downloads, unlisting it; e.g. ``service.remove_mod(sb, 1)``."""
+        if site not in (NEXUS_SITE, AYAKA_SITE):
+            raise ValueError(f"site={site!r}: expected a Nexus or AyakaMods mod")
+        return remove_staged_mod(self._root(site), game, mod_id)
 
     def revert(
         self, game: PakOverlayGame, mod_id: int, file_id: int, site: str = NEXUS_SITE

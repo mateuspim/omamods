@@ -35,8 +35,8 @@ class ModFilesTable(DataTable):
             self.column_layout = layout
             self._fill_files()
 
-    def show_mod(self, mod: StagedMod) -> None:
-        """Show a mod's file choices; e.g. ``table.show_mod(staged)``."""
+    def show_mod(self, mod: StagedMod | None) -> None:
+        """Show a mod's file choices, or none; e.g. ``table.show_mod(staged)``."""
         self.mod = mod
         self._fill_files()
 

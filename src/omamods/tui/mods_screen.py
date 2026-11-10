@@ -18,7 +18,7 @@ from omamods.mod_plan import (
     describe_plans,
 )
 from omamods.ayaka_pages import is_ayaka_url
-from omamods.nexus_api import NexusFile, describe_nexus_file
+from omamods.nexus_api import NexusFile
 from omamods.pak_games import PakOverlayGame
 from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE, RELEASE_SITE
 from omamods.staging import StagedMod
@@ -48,6 +48,8 @@ from omamods.tui.toast_filter import RepeatedToastFilter
 from omamods.tui.uninstall_all_actions import UninstallAllScreen
 from omamods.tui.mod_detail import ModDetail
 from omamods.tui.mod_inspector import collision_warning
+from omamods.tui.context_hints import ModListHints
+from omamods.tui.mod_removal import RemoveDownloadActions
 from omamods.tui.workspace import WorkspaceHeader, WorkspaceHints, WorkspaceStatus
 
 REFRESH_SECONDS = 3.0
@@ -57,7 +59,14 @@ BROWSER_HINT = (
 )
 
 
-class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScreen):
+class ModsScreen(
+    ModListHints,
+    RemoveDownloadActions,
+    SearchableScreen,
+    UninstallAllScreen,
+    AdultScreen,
+    LoadOrderScreen,
+):
     """Show and change one game's mods; e.g. ``app.push_screen(ModsScreen(s, sb))``."""
 
     BINDINGS = [
@@ -108,10 +117,7 @@ class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScr
         yield DownloadsPanel(self.service, self.game)
         yield Static(id="status", markup=False)
         yield WorkspaceStatus(self.game.name)
-        yield WorkspaceHints(
-            "[b]a[/] add   [b]i[/] install   [b]enter[/] file   [b]/[/] find   "
-            "[b]p[/] preview   [b]D[/] downloads   [b]U[/] uninstall all"
-        )
+        yield WorkspaceHints("[b]a[/] add   [b]/[/] find   [b]D[/] downloads")
 
     def action_toggle_preview(self) -> None:
         """Make room for artwork or files; e.g. ``screen.action_toggle_preview()``."""
@@ -169,9 +175,11 @@ class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScr
         self._title_mod_list(mod_list, len(hidden))
         ids = [mod_key(m) for m in self.shown]
         selected = mod_key(self.current) if self.current else None
-        if ids:
-            keep = selected in ids and not jump_to_first
-            mod_list.highlighted = ids.index(selected) if keep else 0
+        if not ids:
+            self._show_nothing()  # So no key or pane acts on a stale mod.
+            return 0
+        keep = selected in ids and not jump_to_first
+        mod_list.highlighted = ids.index(selected) if keep else 0
         return len(ids)
 
     def _mod_options(self) -> list[Option]:
@@ -208,6 +216,11 @@ class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScr
         if event.option.id in by_key:
             self._show(by_key[event.option.id])
 
+    def _show_nothing(self) -> None:
+        self.current = None
+        self.query_one("#picture", PicturePreview).show(None)
+        self.query_one(ModDetail).clear()
+
     def _show(self, mod: StagedMod) -> None:
         self.current = mod
         blurred = self.adult.mode == BLUR and self.mod_is_adult(mod)
@@ -242,11 +255,18 @@ class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScr
             return
         self.app.call_from_thread(self.reload)
 
-    def _selected_file(self) -> NexusFile | None:
+    def highlighted_file(self) -> NexusFile | None:
+        """The file under the files cursor, quietly; e.g. ``screen.highlighted_file()``."""
         if self.current is None or not self.current.files:
-            self.notify("Add a mod first (a) and pick one of its files.")
             return None
-        return self.current.files[self.query_one("#files", DataTable).cursor_row]
+        row = self.query_one("#files", DataTable).cursor_row
+        return self.current.files[min(row, len(self.current.files) - 1)]
+
+    def _selected_file(self) -> NexusFile | None:
+        file = self.highlighted_file()
+        if file is None:
+            self.notify("Add a mod first (a) and pick one of its files.")
+        return file
 
     def action_add(self) -> None:
         prompt = TextPrompt(
@@ -449,34 +469,6 @@ class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScr
             if count is None:
                 break
             self.notify(f"Removed {count} files of {file.file_name}")
-        self.reload()
-
-    def action_remove_staged(self) -> None:
-        file = self._selected_file()
-        if file is None or self.current is None:
-            return
-        self.confirm_remove(file)
-
-    def confirm_remove(self, file: NexusFile) -> None:
-        """Ask, then delete a download; for example, ``screen.confirm_remove(file)``."""
-        if self.current is None or file.file_id not in self.current.archives:
-            self.notify("This file is not downloaded.")
-            return
-        mod = self.current
-        dialog = ConfirmDialog(
-            f"Delete the download {file.file_name}?",
-            f"{describe_nexus_file(file)}\nThe game is not touched.",
-        )
-        self.app.push_screen(dialog, lambda yes: yes and self._remove(mod, file))
-
-    def _remove(self, mod: StagedMod, file: NexusFile) -> None:
-        removed = self._attempt(
-            lambda: self.service.remove_staged(
-                self.game, mod.mod_id, file.file_id, mod.site
-            )
-        )
-        if removed is not None:
-            self.notify(f"Deleted {removed.name}")
         self.reload()
 
     def run_command(self, name: str, args: tuple[str, ...]) -> None:

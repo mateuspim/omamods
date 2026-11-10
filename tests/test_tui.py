@@ -21,6 +21,8 @@ from omamods.nexus_config import UserSettings
 from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.tui.app import OmaModsApp
 from omamods.tui.dialogs import ConfirmDialog, InfoDialog
+from omamods.nexus_api import NexusFile, NexusModInfo
+from omamods.staging import save_mod_details
 from omamods.tui.mod_rows import describe_mod
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.preview import PicturePreview
@@ -526,6 +528,57 @@ class TuiTests(TuiFixture):
             await pilot.pause()
             self.assertIsNone(app.screen.current.info)
             self.assertEqual(app._notifications.__len__(), 0)
+
+    async def test_x_on_the_list_removes_the_whole_mod(self) -> None:
+        # Regression: x acted on the files-table row, an undownloaded file
+        # there left a mod with another downloaded file stuck on the list.
+        folder = self.root / "store/archives/stellar-blade/9"
+        info = NexusModInfo("Page only", "s", "a", "", None)
+        files = (NexusFile(1, "a.zip", "MAIN", 1), NexusFile(2, "b.zip", "MAIN", 1))
+        save_mod_details(folder, info, files)
+        (folder / "2").mkdir()
+        (folder / "2" / "b.zip").write_bytes(b"z")
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            await pilot.press("down", "enter")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            self.assertEqual(app.screen.current.title, "Page only")
+            await pilot.press("x")
+            await pilot.pause()
+            self.assertIsInstance(app.screen, ConfirmDialog)
+            await pilot.press("y")
+            await pilot.pause()
+            self.assertFalse(folder.exists())
+            self.assertEqual(app.screen.mods, ())
+            self.assertIsNone(app.screen.current)
+            self.assertEqual(app.screen.query_one("#files").row_count, 0)
+            # Regression: the 0.2 s hint refresh asked for the selected file,
+            # which notified "Add a mod first" on every tick once empty.
+            await pilot.pause(0.6)
+            notices = [str(n.message) for n in app._notifications]
+            self.assertFalse(any("Add a mod first" in m for m in notices))
+
+    async def test_x_on_one_of_two_mods_shows_the_other(self) -> None:
+        for mod_id, name in ((8, "Keep me"), (9, "Drop me")):
+            folder = self.root / f"store/archives/stellar-blade/{mod_id}"
+            info = NexusModInfo(name, "s", "a", "", None)
+            save_mod_details(folder, info, (NexusFile(1, "a.zip", "MAIN", 1),))
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            await pilot.press("down", "enter")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            await pilot.press("down")
+            await pilot.pause()
+            self.assertEqual(app.screen.current.title, "Drop me")
+            await pilot.press("x", "y")
+            await pilot.pause()
+            self.assertEqual(app.screen.current.title, "Keep me")
+            details = str(app.screen.query_one("#details").render())
+            self.assertIn("Keep me", details)
 
     async def _open_mods_with(self, app: OmaModsApp, pilot, names: dict[int, str]):
         for mod_id, name in names.items():
