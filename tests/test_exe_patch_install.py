@@ -11,6 +11,7 @@ from omamods.exe_patch_install import (
     apply_exe_patch,
     describe_patch_state,
     load_patch_record,
+    remove_patch_files,
     revert_exe_patch,
 )
 
@@ -98,6 +99,23 @@ class ExePatchInstallTests(unittest.TestCase):
     def test_revert_without_a_record(self) -> None:
         with self.assertRaisesRegex(ValueError, "expected an OmaMods patch record"):
             revert_exe_patch(self.target)
+
+    def test_remove_restores_a_patched_exe_and_deletes_storage(self) -> None:
+        self._apply()
+        self.assertIn("restored", remove_patch_files(self.target))
+        self.assertEqual(self.target.exe.read_bytes(), ORIGINAL)
+        self.assertFalse(self.target.backup.parent.exists())
+        self.assertFalse(self.target.record.parent.exists())
+
+    def test_remove_deletes_a_leftover_backup(self) -> None:
+        self.target.backup.parent.mkdir(parents=True)
+        self.target.backup.write_bytes(ORIGINAL)
+        self.assertIn("leftover backup", remove_patch_files(self.target))
+        self.assertFalse(self.target.backup.parent.exists())
+        self.assertEqual(self.target.exe.read_bytes(), ORIGINAL)
+
+    def test_remove_with_nothing_stored(self) -> None:
+        self.assertIn("nothing stored", remove_patch_files(self.target))
 
     def test_malformed_record_is_refused(self) -> None:
         self.target.record.parent.mkdir(parents=True)

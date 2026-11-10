@@ -117,7 +117,7 @@ class PatchModsScreenTests(TuiFixture):
             screen = await self._open(app, pilot)
             self.assertEqual(screen.current.site, PATCH_SITE)
             self.assertEqual(screen.current.title, "Ultrawide patch (built in)")
-            await pilot.press("d", "x")
+            await pilot.press("d")
             await pilot.pause()
             self.assertTrue(self.exe.is_file())
             messages = [str(n.message) for n in app._notifications]
@@ -148,6 +148,30 @@ class PatchModsScreenTests(TuiFixture):
             self.assertEqual(self.exe.read_bytes(), b"original")
             messages = [str(n.message) for n in app._notifications]
             self.assertIn("Pick 1080p.", messages)
+
+    async def test_remove_download_restores_and_deletes_storage(self) -> None:
+        app = self._app({}, runner=FakeCommandRunner(output=MONITORS))
+        async with app.run_test(size=(140, 45)) as pilot:
+            screen = await self._open(app, pilot)
+            await pilot.press("i")
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.press("y")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            target = self.service_of(app).exe_patch.target(screen.game)
+            self.assertTrue(target.backup.is_file())
+            await pilot.press("x")
+            await pilot.pause()
+            self.assertIsInstance(app.screen, ConfirmDialog)
+            await pilot.press("y")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            self.assertEqual(self.exe.read_bytes(), b"original")
+            self.assertFalse(target.backup.exists())
+            self.assertFalse(target.record.exists())
+            self.assertEqual(screen.current.installed, frozenset())
 
     async def test_other_size_prefills_a_real_example(self) -> None:
         app = self._app({}, runner=FakeCommandRunner(127))

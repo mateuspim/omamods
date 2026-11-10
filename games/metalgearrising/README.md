@@ -17,8 +17,10 @@ is listed first as **Ultrawide patch (built in)**. `i` (or Enter on its file)
 shows a resolution picker with your monitors first, by connector and model,
 with their aspect (16:9, 21:9, 32:9), then common sizes and "Other size…".
 Sizes narrower than 16:9, such as 16:10, are shown but can't be picked. `u`
-restores the original exe. `d` and `x` do nothing here, since nothing is
-downloaded, and `U` (uninstall all mods) leaves the patch alone. Nexus archives
+restores the original exe. `x` (remove download) also deletes the backup and
+patch record from OmaMods storage, restoring the exe first if it is patched.
+`d` does nothing here, since nothing is downloaded, and `U` (uninstall all
+mods) leaves the patch alone. Nexus archives
 for this game are refused for now. From the command line:
 
 ```sh

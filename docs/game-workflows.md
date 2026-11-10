@@ -143,7 +143,8 @@ the line to paste. See the
 The game renders 16:9 only. OmaMods patches its executable for an ultrawide
 resolution, with no download and no MGROverride or Flawless Widescreen. In
 the TUI, its mods list starts with **Ultrawide patch (built in)**. `i` picks a
-resolution, with your monitors first, and patches; `u` restores the original.
+resolution, with your monitors first, and patches; `u` restores the original;
+`x` restores it if needed and deletes the stored backup and record.
 From the command line:
 
 ```sh

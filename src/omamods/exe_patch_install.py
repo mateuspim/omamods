@@ -136,6 +136,30 @@ def revert_exe_patch(target: ExePatchTarget) -> str:
     return f"{target.exe.name} restored to the original"
 
 
+def _remove_empty_dirs(target: ExePatchTarget) -> None:
+    for folder in (target.backup.parent, target.record.parent):
+        if folder.is_dir() and not any(folder.iterdir()):
+            folder.rmdir()
+
+
+def remove_patch_files(target: ExePatchTarget) -> str:
+    """Delete everything stored for the patch; e.g. ``remove_patch_files(t)``.
+
+    A patched exe is restored first, since the backup is its only original.
+    Without a record the exe was never replaced (apply writes the backup, then
+    the record, then the exe), so a leftover backup is safe to delete.
+    """
+    if load_patch_record(target) is not None:
+        message = revert_exe_patch(target)
+    elif target.backup.exists():
+        target.backup.unlink()
+        message = f"{target.exe.name}: leftover backup deleted"
+    else:
+        message = f"{target.exe.name}: nothing stored to remove"
+    _remove_empty_dirs(target)
+    return message
+
+
 def describe_patch_state(target: ExePatchTarget) -> str:
     """Summarise the exe; e.g. ``describe_patch_state(target)``."""
     record = load_patch_record(target)

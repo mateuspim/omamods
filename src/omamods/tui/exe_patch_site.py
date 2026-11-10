@@ -2,8 +2,8 @@
 
 Games such as METAL GEAR RISING have a fix that is a patch of the game's own
 exe (see exe_patch_games). It is listed first in the game's mods like any
-other mod, so i installs it and u restores the original, but nothing is
-downloaded and no archive is staged.
+other mod, so i installs it, u restores the original, and x also deletes the stored
+backup. Nothing is downloaded and no archive is staged.
 """
 
 from pathlib import Path
@@ -22,6 +22,7 @@ from omamods.exe_patch_install import (
     describe_patch_state,
     ensure_unpatched,
     load_patch_record,
+    remove_patch_files,
     revert_exe_patch,
 )
 from omamods.mod_sites import PATCH_SITE
@@ -114,6 +115,10 @@ class ExePatchSite:
     def revert(self, game: PakOverlayGame) -> str:
         """Restore the original; e.g. ``service.exe_patch.revert(mgr)``."""
         return revert_exe_patch(self.target(game))
+
+    def remove(self, game: PakOverlayGame) -> str:
+        """Restore if patched, then delete stored files; e.g. ``site.remove(mgr)``."""
+        return remove_patch_files(self.target(game))
 
     def after_apply(self, game: PakOverlayGame) -> str:
         """What to do in the game next; e.g. ``site.after_apply(mgr)``."""
