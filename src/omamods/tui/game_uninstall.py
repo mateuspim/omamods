@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from omamods.mod_sites import PATCH_SITE
 from omamods.game_revert import GameRevert, OwnedRecord, revert_game_records
 from omamods.install_records import mod_state_records
 from omamods.pak_games import PakOverlayGame
@@ -19,7 +20,9 @@ class GameUninstall:
 
     def installed_mods(self, game: PakOverlayGame) -> tuple[StagedMod, ...]:
         """List mods with an installed file; e.g. ``uninstall.installed_mods(sb)``."""
-        return tuple(mod for mod in self.service.staged_mods(game) if mod.installed)
+        # A built-in exe patch has no file records; u on it restores the exe.
+        mods = self.service.staged_mods(game)
+        return tuple(m for m in mods if m.installed and m.site != PATCH_SITE)
 
     def owned_records(
         self, game: PakOverlayGame, mods: tuple[StagedMod, ...]

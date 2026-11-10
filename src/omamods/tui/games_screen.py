@@ -13,9 +13,9 @@ from omamods.clean_all import GameClean, summarize_clean
 from omamods.game_shelf import GameShelf, ShelfEntry
 from omamods.tui.clean_picker import CleanPicker
 from omamods.tui.dialogs import ConfirmDialog, InfoDialog
-from omamods.tui.exe_patch_actions import ExePatchScreen
 from omamods.tui.list_filter import no_match_option, search_title
-from omamods.tui.mods_screen import ModsScreen
+from omamods.tui.list_search import SearchableScreen
+from omamods.tui.exe_patch_actions import mods_screen_for
 from omamods.tui.service import ModsService
 from omamods.tui.shelf_view import entry_detail, setup_summary, shelf_options
 from omamods.tui.workspace import WorkspaceHeader, WorkspaceHints, WorkspaceStatus
@@ -27,7 +27,7 @@ WELCOME = (
 )
 
 
-class GamesScreen(ExePatchScreen):
+class GamesScreen(SearchableScreen):
     """Choose a game; e.g. ``app.push_screen(GamesScreen(service))``."""
 
     BINDINGS = [
@@ -239,13 +239,10 @@ class GamesScreen(ExePatchScreen):
         entry = self.selected_entry()
         if entry is None:
             return
-        if entry.exe_patch is not None:
-            self.open_exe_patch(entry)
-            return
         if entry.pak_game is None:
             self.notify(f"{entry.name}: installing mods is not supported yet.")
             return
-        self.app.push_screen(ModsScreen(self.service, entry.pak_game))
+        self.app.push_screen(mods_screen_for(self.service, entry.pak_game))
 
     def action_open_folder(self) -> None:
         """Open the highlighted game's install folder in the file manager."""

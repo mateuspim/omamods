@@ -40,6 +40,9 @@ class PakOverlayGame:
     # (MGSV's MGSVFix), installed beside the executable; paks_subpath is the
     # executable's folder.
     asi_loader: bool = False
+    # Games whose only supported mod is a built-in exe patch (exe_patch_games);
+    # archives from Nexus are refused until their data layout is supported.
+    exe_patch_only: bool = False
 
     def folder_label(self) -> str:
         """Name the install folder in plans; e.g. ``cyberpunk.folder_label()``."""
@@ -90,6 +93,17 @@ PAK_OVERLAY_GAMES: dict[str, PakOverlayGame] = {
         flat_suffix_sets=(),
         steam_app_id="287700",
         asi_loader=True,
+    ),
+    "metalgearrising": PakOverlayGame(
+        game_id="metalgearrising",
+        name="METAL GEAR RISING: REVENGEANCE",
+        nexus_domain="metalgearrisingrevengeance",
+        # The exe sits at the top of the game folder.
+        paks_subpath=Path("."),
+        mods_dirname=".",
+        flat_suffix_sets=(),
+        steam_app_id="235460",
+        exe_patch_only=True,
     ),
     "cyberpunk-2077": PakOverlayGame(
         game_id="cyberpunk-2077",

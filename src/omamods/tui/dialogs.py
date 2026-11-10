@@ -17,16 +17,20 @@ class TextPrompt(ModalScreen[str | None]):
 
     BINDINGS = [Binding("escape", "cancel", "Cancel")]
 
-    def __init__(self, title: str, placeholder: str, secret: bool = False) -> None:
+    def __init__(
+        self, title: str, placeholder: str, secret: bool = False, value: str = ""
+    ) -> None:
         super().__init__()
         self.title_text = title
         self.placeholder = placeholder
         self.secret = secret
+        # Prefilled text, so people edit an example instead of guessing a format.
+        self.value = value
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog"):
             yield Label(self.title_text, classes="dialog-title")
-            yield Input(placeholder=self.placeholder, password=self.secret)
+            yield Input(self.value, self.placeholder, password=self.secret)
             yield Static("Enter to confirm, Esc to cancel", classes="hint")
 
     def on_input_submitted(self, event: Input.Submitted) -> None:

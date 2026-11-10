@@ -25,6 +25,7 @@ from omamods.tui.downloads_screen import DownloadsScreen
 from omamods.tui.games_screen import GamesScreen
 from omamods.tui.list_search import SearchableScreen
 from omamods.tui.login_dialog import LoginCookiePrompt
+from omamods.tui.exe_patch_actions import mods_screen_for
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.service import ModsService
 from omamods.tui.styles import APP_CSS, DEFAULT_THEME, WORKSPACE_THEME
@@ -235,7 +236,7 @@ class OmaModsApp(App[None]):
         game = find_game(self.service.games(), query)
         if isinstance(self.screen, ModsScreen) and self.screen.game == game:
             return self.screen
-        screen = ModsScreen(self.service, game)
+        screen = mods_screen_for(self.service, game)
         self.push_screen(screen)
         return screen
 

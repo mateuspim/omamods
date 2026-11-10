@@ -167,12 +167,6 @@ def _patch_chain_notes(root: Path, game: PakOverlayGame) -> Text:
 
 
 def _mod_support(entry: ShelfEntry, staged_mods: int | None) -> Text:
-    if entry.exe_patch is not None:
-        return Text(
-            "Enter applies the built-in ultrawide exe patch, or restores the "
-            "original exe once it is patched.",
-            style="green",
-        )
     if entry.section == MOD_READY:
         staged = "" if staged_mods is None else f" · {staged_mods} mod(s) staged"
         text = Text(f"Enter manages this game's mods{staged}.", style="green")

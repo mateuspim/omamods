@@ -18,6 +18,8 @@ class ExePatchGame:
     game_id: str
     name: str
     exe_name: str
+    mod_title: str
+    summary: str
     option_help: str
     after_apply: str
     build: Callable[[bytes, str], bytes]
@@ -36,6 +38,16 @@ EXE_PATCH_GAMES: dict[str, ExePatchGame] = {
         game_id="metalgearrising",
         name="METAL GEAR RISING: REVENGEANCE",
         exe_name=EXE_NAME,
+        mod_title="Ultrawide patch (built in)",
+        summary=(
+            "Runs the game at your monitor's resolution, 16:9 or wider, with "
+            "no MGROverride or Flawless Widescreen. The 3D fills the screen; "
+            "menus and cutscene movies stay 16:9 and centred. The gameplay HUD "
+            "and menu background movies still stretch.\n\n"
+            "i patches METAL GEAR RISING REVENGEANCE.exe for a resolution you "
+            "pick and keeps the original in OmaMods storage; u restores it. "
+            "Then choose 1920x1080 (16:9) in the game's options."
+        ),
         option_help="display resolution WIDTHxHEIGHT, 16:9 or wider, e.g. 3440x1440",
         after_apply="In the game, choose 1920x1080 (16:9); it now runs at your size.",
         build=_build_mgr,

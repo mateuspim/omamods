@@ -15,6 +15,11 @@ def plan_game_assets(
 
     Unreal archives that bundle UE4SS go beside the executable, not into Paks.
     """
+    if game.exe_patch_only:
+        raise ValueError(
+            f"{game.name}: archives are not supported yet; expected only the "
+            "built-in ultrawide patch listed first in its mods"
+        )
     if game.asi_loader:
         return plan_asi_bundle(members, game)
     if game.redengine:
@@ -28,8 +33,8 @@ def plan_game_assets(
 
 def game_variants(members: tuple[str, ...], game: PakOverlayGame) -> tuple[str, ...]:
     """List variant folders for any engine; e.g. ``game_variants(names, re7)``."""
-    if game.asi_loader:
-        return ()  # An ASI archive installs whole.
+    if game.asi_loader or game.exe_patch_only:
+        return ()  # An ASI archive installs whole; patch-only games plan none.
     if game.redengine:
         return red_archive_variants(members, game)
     if game.patch_chain is not None:

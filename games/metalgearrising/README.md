@@ -12,9 +12,14 @@ are not needed. The patch is computed from the untouched Steam build
 and refuses any other file. Every changed byte is checked against the
 original before anything is written.
 
-In the TUI, the game is listed as Mod-ready. Enter on it asks for your
-resolution and patches the exe. Once it is patched, Enter offers to restore the
-original. The same works from the command line:
+In the TUI, Enter on the game opens its mods like any other game. The patch
+is listed first as **Ultrawide patch (built in)**. `i` (or Enter on its file)
+shows a resolution picker with your monitors first, by connector and model,
+with their aspect (16:9, 21:9, 32:9), then common sizes and "Other size…".
+Sizes narrower than 16:9, such as 16:10, are shown but can't be picked. `u`
+restores the original exe. `d` and `x` do nothing here, since nothing is
+downloaded, and `U` (uninstall all mods) leaves the patch alone. Nexus archives
+for this game are refused for now. From the command line:
 
 ```sh
 omamods patch apply metalgearrising --resolution 3440x1440
@@ -24,7 +29,8 @@ omamods patch revert metalgearrising
 
 Then start the game and pick **1920x1080 (16:9)** under Options → Resolution,
 in fullscreen. That menu entry now runs at the patched resolution; the label
-still says 1920x1080. Any resolution 16:9 or wider works.
+still says 1920x1080. Any resolution 16:9 or wider works: on a 16:9 monitor,
+such as 2560x1440 or 3840x2160, the patch is just a resolution unlock.
 
 What changes:
 

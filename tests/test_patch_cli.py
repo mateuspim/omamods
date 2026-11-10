@@ -24,7 +24,14 @@ def _fake_build(image: bytes, option: str) -> bytes:
 
 
 FAKE_GAME = ExePatchGame(
-    "metalgearrising", "Demo Rising", "Game.exe", "WxH", "Pick 1080p.", _fake_build
+    game_id="metalgearrising",
+    name="Demo Rising",
+    exe_name="Game.exe",
+    mod_title="Ultrawide patch (built in)",
+    summary="Demo patch.",
+    option_help="WxH",
+    after_apply="Pick 1080p.",
+    build=_fake_build,
 )
 
 

@@ -1,65 +1,116 @@
-"""Games-screen actions for built-in executable patches.
+"""The mods screen for games whose fix is a built-in exe patch.
 
-Split from games_screen.py to keep it focused on the shelf. Enter on a game
-with an exe patch asks for the resolution and patches, or offers to restore
-the original when the patch is already applied.
+Enter on such a game opens its mods like any other game. The patch is listed
+first: i (or Enter on its file) picks a resolution and patches, and u (or Enter
+once installed) restores the original exe. Nothing is downloaded, so d and x
+explain instead of touching staging. Kept out of mods_screen.py, which is near
+its size limit, by overriding the few actions the patch changes.
 """
 
-from collections.abc import Callable
+import asyncio
 
 from textual import work
 
-from omamods.game_shelf import ShelfEntry
+from omamods.exe_patch_games import EXE_PATCH_GAMES
+from omamods.mod_sites import PATCH_SITE
+from omamods.nexus_api import NexusFile
+from omamods.pak_games import PakOverlayGame
+from omamods.staging import StagedMod
 from omamods.tui.dialogs import ConfirmDialog, TextPrompt
-from omamods.tui.list_search import SearchableScreen
+from omamods.tui.mods_screen import ModsScreen
+from omamods.tui.resolution_picker import (
+    OTHER_SIZE,
+    ResolutionPicker,
+    first_allowed,
+)
 from omamods.tui.service import ModsService
 
-PATCH_SECONDS = 10
+NOTICE_SECONDS = 12
+BUILT_IN = "is built in: nothing to download or remove. i patches, u restores."
 
 
-class ExePatchScreen(SearchableScreen):
-    """Base for GamesScreen: open a game's exe patch instead of its mods."""
+def mods_screen_for(service: ModsService, game: PakOverlayGame) -> ModsScreen:
+    """Open the right mods screen; e.g. ``app.push_screen(mods_screen_for(s, mgr))``."""
+    if game.game_id in EXE_PATCH_GAMES:
+        return PatchModsScreen(service, game)
+    return ModsScreen(service, game)
 
-    service: ModsService
 
-    def open_exe_patch(self, entry: ShelfEntry) -> None:
-        """Ask what to do with the patch; e.g. ``screen.open_exe_patch(mgr)``."""
-        site = self.service.exe_patch
-        try:
-            patched, state = site.is_patched(entry), site.state(entry)
-        except (OSError, ValueError) as error:
-            self.notify(str(error), severity="error")
+def _is_patch(mod: StagedMod | None) -> bool:
+    return mod is not None and mod.site == PATCH_SITE
+
+
+class PatchModsScreen(ModsScreen):
+    """ModsScreen plus the built-in patch; e.g. ``PatchModsScreen(service, mgr)``."""
+
+    def install_files(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
+        if _is_patch(mod):
+            self.patch_now(mod)
             return
-        if patched:
-            self._ask_revert(entry, state)
-        else:
-            self._ask_resolution(entry)
+        super().install_files(mod, files)
 
-    def _ask_resolution(self, entry: ShelfEntry) -> None:
-        help_text = entry.exe_patch.option_help if entry.exe_patch else ""
-        prompt = TextPrompt(f"{entry.name}: ultrawide patch", help_text)
-        self.app.push_screen(prompt, lambda value: value and self._apply(entry, value))
+    def confirm_uninstall(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
+        if not _is_patch(mod):
+            super().confirm_uninstall(mod, files)
+            return
+        details = (
+            f"{self._state()}\n\nThe original exe comes back from OmaMods storage."
+        )
+        dialog = ConfirmDialog(f"Restore {self.game.name}'s original exe?", details)
+        self.app.push_screen(dialog, lambda yes: yes and self._restore())
 
-    def _ask_revert(self, entry: ShelfEntry, state: str) -> None:
-        details = f"{state}\n\nThe original exe comes back from OmaMods storage."
-        dialog = ConfirmDialog(f"Restore {entry.name}'s original exe?", details)
-        self.app.push_screen(dialog, lambda yes: yes and self._revert(entry))
+    def action_download(self) -> None:
+        if _is_patch(self.current):
+            self.notify(f"{self.current.title} {BUILT_IN}")
+            return
+        super().action_download()
+
+    def action_remove_staged(self) -> None:
+        if _is_patch(self.current):
+            self.notify(f"{self.current.title} {BUILT_IN}")
+            return
+        super().action_remove_staged()
+
+    def _state(self) -> str:
+        state = self._attempt(lambda: self.service.exe_patch.state(self.game))
+        return state or ""
+
+    async def _pick_size(self) -> str | None:
+        site = self.service.exe_patch
+        monitors = await asyncio.to_thread(site.monitors)
+        choices = site.resolution_choices(monitors)
+        title = f"{self.game.name}: pick your display resolution"
+        picked = await self.app.push_screen_wait(ResolutionPicker(title, choices))
+        if picked != OTHER_SIZE:
+            return picked
+        prompt = TextPrompt(title, "WIDTHxHEIGHT", value=first_allowed(choices))
+        return await self.app.push_screen_wait(prompt)
+
+    @work
+    async def patch_now(self, mod: StagedMod) -> None:
+        size = await self._pick_size()
+        if not size:
+            return
+        details = (
+            f"{mod.info.summary if mod.info else ''}\n\nResolution: {size}\n"
+            "The original exe is copied to OmaMods storage first."
+        )
+        if not await self.app.push_screen_wait(
+            ConfirmDialog(f"Patch for {size}?", details)
+        ):
+            return
+        site = self.service.exe_patch
+        done = await asyncio.to_thread(
+            lambda: self._attempt(lambda: site.apply(self.game, size))
+        )
+        if done:
+            self.notify(done, timeout=NOTICE_SECONDS)
+            self.notify(site.after_apply(self.game), timeout=NOTICE_SECONDS)
+        self.reload()
 
     @work(thread=True)
-    def _apply(self, entry: ShelfEntry, option: str) -> None:
-        done = self._report(lambda: self.service.exe_patch.apply(entry, option))
-        if done and entry.exe_patch is not None:
-            self.notify(entry.exe_patch.after_apply, timeout=PATCH_SECONDS)
-
-    @work(thread=True)
-    def _revert(self, entry: ShelfEntry) -> None:
-        self._report(lambda: self.service.exe_patch.revert(entry))
-
-    def _report(self, action: Callable[[], str]) -> bool:
-        try:
-            message = action()
-        except (OSError, ValueError) as error:
-            self.notify(str(error), severity="error", timeout=PATCH_SECONDS)
-            return False
-        self.notify(message, timeout=PATCH_SECONDS)
-        return True
+    def _restore(self) -> None:
+        done = self._attempt(lambda: self.service.exe_patch.revert(self.game))
+        if done:
+            self.notify(done, timeout=NOTICE_SECONDS)
+        self.app.call_from_thread(self.reload)

@@ -4,7 +4,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from omamods.exe_patch_games import EXE_PATCH_GAMES, ExePatchGame
 from omamods.installed_games import InstalledGame, InstalledScan
 from omamods.manifests import GameManifest
 from omamods.nexus_config import UserSettings
@@ -30,8 +29,6 @@ class ShelfEntry:
     unreal: UnrealLayout | None = None
     # The base pak an RE Engine game's mods patch, set even without a Nexus match.
     patch_chain: str | None = None
-    # Games whose fix is a built-in executable patch rather than downloaded mods.
-    exe_patch: ExePatchGame | None = None
 
     @property
     def install(self) -> InstalledGame | None:
@@ -63,17 +60,8 @@ def _catalog_entry(
     app_id = str(manifest.steam_app_id) if manifest.steam_app_id else None
     installs = tuple(g for g in games if g.store == "Steam" and g.app_id == app_id)
     pak_game = pak_games.games.get(manifest.id)
-    exe_patch = EXE_PATCH_GAMES.get(manifest.id)
-    section = MOD_READY if pak_game or exe_patch else CATALOG
-    return ShelfEntry(
-        manifest.id,
-        manifest.name,
-        section,
-        installs,
-        manifest,
-        pak_game,
-        exe_patch=exe_patch,
-    )
+    section = MOD_READY if pak_game else CATALOG
+    return ShelfEntry(manifest.id, manifest.name, section, installs, manifest, pak_game)
 
 
 def _library_entry(game: InstalledGame) -> ShelfEntry:
