@@ -17,25 +17,31 @@ from omamods.tui.mod_inspector import (
 )
 from omamods.tui.service import ModsService
 
+# Placeholders shown before a mod is picked, and again once the list empties.
+EMPTY_DETAILS = (
+    "Your next great playthrough starts here.\nAdd a mod with a or :add <url>."
+)
+EMPTY_PANES = {
+    "#mod-overview": "Your mod collection, at a glance.",
+    "#file-inspector": "Choose a file to inspect its details.",
+    "#mod-collisions": "Install a mod to check its assets.",
+}
+
 
 def mod_detail_panes() -> ComposeResult:
     """Keep file actions above the fold; e.g. ``yield from mod_detail_panes()``."""
     with Vertical(id="detail"):
-        yield Static(
-            "Your next great playthrough starts here.\nAdd a mod with a or :add <url>.",
-            id="details",
-            markup=False,
-        )
+        yield Static(EMPTY_DETAILS, id="details", markup=False)
         yield ModFilesTable()
     with Vertical(id="preview-pane"):
         yield PicturePreview(id="picture")
         yield Static("o full picture   ·   w mod page", classes="preview-caption")
         yield Static("OVERVIEW", classes="inspector-label")
-        yield Static("Your mod collection, at a glance.", id="mod-overview")
+        yield Static(EMPTY_PANES["#mod-overview"], id="mod-overview")
         yield Static("SELECTED FILE", classes="inspector-label")
-        yield Static("Choose a file to inspect its details.", id="file-inspector")
+        yield Static(EMPTY_PANES["#file-inspector"], id="file-inspector")
         yield Static("COLLISIONS", classes="inspector-label")
-        yield Static("Install a mod to check its assets.", id="mod-collisions")
+        yield Static(EMPTY_PANES["#mod-collisions"], id="mod-collisions")
 
 
 class ModDetail(Horizontal):
@@ -59,6 +65,14 @@ class ModDetail(Horizontal):
         self.query_one("#mod-overview", Static).update(mod_overview(mod))
         self._inspect_file(table.cursor_row)
         self._check_collisions(mod)
+
+    def clear(self) -> None:
+        """Show no mod, e.g. after the last one is removed; ``detail.clear()``."""
+        self.current_mod = None
+        self.query_one(ModFilesTable).show_mod(None)
+        self.query_one("#details", Static).update(EMPTY_DETAILS)
+        for selector, text in EMPTY_PANES.items():
+            self.query_one(selector, Static).update(text)
 
     @work(thread=True, group="collisions")
     def _check_collisions(self, mod: StagedMod) -> None:

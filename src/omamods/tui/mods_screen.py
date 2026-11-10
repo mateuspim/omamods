@@ -176,7 +176,7 @@ class ModsScreen(
         ids = [mod_key(m) for m in self.shown]
         selected = mod_key(self.current) if self.current else None
         if not ids:
-            self.current = None  # Nothing listed, so no key acts on a stale mod.
+            self._show_nothing()  # So no key or pane acts on a stale mod.
             return 0
         keep = selected in ids and not jump_to_first
         mod_list.highlighted = ids.index(selected) if keep else 0
@@ -216,6 +216,11 @@ class ModsScreen(
         if event.option.id in by_key:
             self._show(by_key[event.option.id])
 
+    def _show_nothing(self) -> None:
+        self.current = None
+        self.query_one("#picture", PicturePreview).show(None)
+        self.query_one(ModDetail).clear()
+
     def _show(self, mod: StagedMod) -> None:
         self.current = mod
         blurred = self.adult.mode == BLUR and self.mod_is_adult(mod)
@@ -250,11 +255,18 @@ class ModsScreen(
             return
         self.app.call_from_thread(self.reload)
 
-    def _selected_file(self) -> NexusFile | None:
+    def highlighted_file(self) -> NexusFile | None:
+        """The file under the files cursor, quietly; e.g. ``screen.highlighted_file()``."""
         if self.current is None or not self.current.files:
-            self.notify("Add a mod first (a) and pick one of its files.")
             return None
-        return self.current.files[self.query_one("#files", DataTable).cursor_row]
+        row = self.query_one("#files", DataTable).cursor_row
+        return self.current.files[min(row, len(self.current.files) - 1)]
+
+    def _selected_file(self) -> NexusFile | None:
+        file = self.highlighted_file()
+        if file is None:
+            self.notify("Add a mod first (a) and pick one of its files.")
+        return file
 
     def action_add(self) -> None:
         prompt = TextPrompt(

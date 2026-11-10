@@ -553,6 +553,32 @@ class TuiTests(TuiFixture):
             self.assertFalse(folder.exists())
             self.assertEqual(app.screen.mods, ())
             self.assertIsNone(app.screen.current)
+            self.assertEqual(app.screen.query_one("#files").row_count, 0)
+            # Regression: the 0.2 s hint refresh asked for the selected file,
+            # which notified "Add a mod first" on every tick once empty.
+            await pilot.pause(0.6)
+            notices = [str(n.message) for n in app._notifications]
+            self.assertFalse(any("Add a mod first" in m for m in notices))
+
+    async def test_x_on_one_of_two_mods_shows_the_other(self) -> None:
+        for mod_id, name in ((8, "Keep me"), (9, "Drop me")):
+            folder = self.root / f"store/archives/stellar-blade/{mod_id}"
+            info = NexusModInfo(name, "s", "a", "", None)
+            save_mod_details(folder, info, (NexusFile(1, "a.zip", "MAIN", 1),))
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            await pilot.press("down", "enter")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            await pilot.press("down")
+            await pilot.pause()
+            self.assertEqual(app.screen.current.title, "Drop me")
+            await pilot.press("x", "y")
+            await pilot.pause()
+            self.assertEqual(app.screen.current.title, "Keep me")
+            details = str(app.screen.query_one("#details").render())
+            self.assertIn("Keep me", details)
 
     async def _open_mods_with(self, app: OmaModsApp, pilot, names: dict[int, str]):
         for mod_id, name in names.items():

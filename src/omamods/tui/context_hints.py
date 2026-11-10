@@ -83,12 +83,13 @@ def mod_list_pairs(
 class ModListHints:
     """Mixin giving the hint line the mod list's keys; see ``context_hints``."""
 
-    # Annotations only, so ModsScreen's own methods are used.
+    # Annotations only, so ModsScreen's own methods are used. This runs on a
+    # 0.2 s timer, so it must use the quiet lookup: _selected_file notifies.
     current: StagedMod | None
-    _selected_file: Callable[[], NexusFile | None]
+    highlighted_file: Callable[[], NexusFile | None]
 
     def context_hints(self, focused: Widget | None) -> str | None:
         """Hints while the mod list has focus; e.g. ``screen.context_hints(w)``."""
         if not isinstance(focused, OptionList) or focused.id != "mods":
             return None
-        return key_hints(*mod_list_pairs(self.current, self._selected_file()))
+        return key_hints(*mod_list_pairs(self.current, self.highlighted_file()))
