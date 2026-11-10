@@ -15,6 +15,7 @@ from omamods.pak_games import PAK_OVERLAY_GAMES, PakGameCatalog
 from omamods.tui.dialogs import ConfirmDialog
 from omamods.tui.exe_patch_actions import PatchModsScreen
 from omamods.tui.resolution_picker import ResolutionPicker
+from omamods.tui.workspace import WorkspaceHints, WorkspaceStatus
 from tests.fakes import FakeCommandRunner, FakeShelfScanner
 from tests.test_patch_cli import FAKE_GAME
 from tests.test_tui import TuiFixture
@@ -171,7 +172,23 @@ class PatchModsScreenTests(TuiFixture):
             self.assertEqual(self.exe.read_bytes(), b"original")
             self.assertFalse(target.backup.exists())
             self.assertFalse(target.record.exists())
+            self.assertEqual(screen.mods, ())
+            await pilot.press("a")
+            await pilot.pause()
+            self.assertEqual(screen.current.site, PATCH_SITE)
             self.assertEqual(screen.current.installed, frozenset())
+            state = target.record.parent
+            self.assertFalse((state / "exe-patch.removed").exists())
+
+    async def test_hints_name_the_patch_keys(self) -> None:
+        app = self._app({}, runner=FakeCommandRunner(127))
+        async with app.run_test(size=(140, 45)) as pilot:
+            screen = await self._open(app, pilot)
+            screen.query_one(WorkspaceStatus).refresh_state()
+            hints = screen.query_one(WorkspaceHints).current_hints
+            self.assertIn("[b]i[/] patch exe", hints)
+            self.assertIn("[b]x[/] remove from list", hints)
+            self.assertNotIn("[b]u[/]", hints)
 
     async def test_other_size_prefills_a_real_example(self) -> None:
         app = self._app({}, runner=FakeCommandRunner(127))

@@ -49,6 +49,7 @@ class InspectorInteractionTests(TuiFixture):
             table = inspector.query_one(ModFilesTable)
             hints = app.screen.query_one(WorkspaceHints)
             table.focus()
+            await pilot.pause()
             app.screen.query_one(WorkspaceStatus).refresh_state()
             self.assertIn("install", hints.current_hints)
             table.move_cursor(row=1)

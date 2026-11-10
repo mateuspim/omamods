@@ -8,7 +8,7 @@ from textual.widget import Widget
 from textual.widgets import DataTable, Input, OptionList, Static
 from omamods.tui.command_bar import SearchPrompt
 from omamods.tui.file_table import ModFilesTable
-from omamods.tui.mod_rows import file_next_action
+from omamods.tui.context_hints import file_pairs, key_hints
 
 
 def cursor_location(widget: Widget | None) -> str:
@@ -109,20 +109,23 @@ class WorkspaceHints(Horizontal):
 
     def refresh_context(self, focused: Widget | None) -> None:
         """Show actions for the focused pane; e.g. ``hints.refresh_context(table)``."""
-        hints = self.hints
+        hints = self._hints_for(focused)
+        if hints != self.current_hints:
+            self.current_hints = hints
+            self.query_one(".hints-context", Static).update(hints)
+
+    def _hints_for(self, focused: Widget | None) -> str:
         if isinstance(focused, ModFilesTable) and focused.mod and focused.mod.files:
             file = focused.mod.files[
                 min(focused.cursor_row, len(focused.mod.files) - 1)
             ]
-            action = file_next_action(focused.mod, file)
-            hints = f"[b]enter[/] {action}   [b]d[/] download   [b]x[/] remove"
-            if file.file_id in focused.mod.installed:
-                hints += "   [b]P[/] load last"
-        elif focused is not None and focused.id in ("queue", "downloads-table"):
-            hints = (
+            return key_hints(*file_pairs(focused.mod, file))
+        if focused is not None and focused.id in ("queue", "downloads-table"):
+            return (
                 "[b]r[/] retry   [b]x[/] remove   [b]c[/] clear finished   "
                 "[b]C[/] clear all   [b]h[/] previous pane"
             )
-        if hints != self.current_hints:
-            self.current_hints = hints
-            self.query_one(".hints-context", Static).update(hints)
+        # Screens such as the mods screen name keys for the selected item.
+        screen_hints = getattr(self.screen, "context_hints", None)
+        hints = screen_hints(focused) if callable(screen_hints) else None
+        return hints if isinstance(hints, str) else self.hints

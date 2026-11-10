@@ -3,7 +3,8 @@
 Enter on such a game opens its mods like any other game. The patch is listed
 first: i (or Enter on its file) picks a resolution and patches, and u (or Enter
 once installed) restores the original exe. Nothing is downloaded, so d
-explains, and x restores if needed and deletes the files kept in storage. Kept out of mods_screen.py, which is near
+explains, and x restores if needed, deletes the files kept in storage, and
+takes the patch off the list; a lists it again. Kept out of mods_screen.py, which is near
 its size limit, by overriding the few actions the patch changes.
 """
 
@@ -11,12 +12,14 @@ import asyncio
 from collections.abc import Callable
 
 from textual import work
+from textual.widget import Widget
 
 from omamods.exe_patch_games import EXE_PATCH_GAMES
 from omamods.mod_sites import PATCH_SITE
 from omamods.nexus_api import NexusFile
 from omamods.pak_games import PakOverlayGame
 from omamods.staging import StagedMod
+from omamods.tui.context_hints import key_hints
 from omamods.tui.dialogs import ConfirmDialog, TextPrompt
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.resolution_picker import (
@@ -43,6 +46,20 @@ def _is_patch(mod: StagedMod | None) -> bool:
 
 class PatchModsScreen(ModsScreen):
     """ModsScreen plus the built-in patch; e.g. ``PatchModsScreen(service, mgr)``."""
+
+    def context_hints(self, focused: Widget | None) -> str | None:
+        hints = super().context_hints(focused)
+        if hints is not None and self.current is None:
+            return key_hints(("a", "list the patch again"))
+        return hints
+
+    def action_add(self) -> None:
+        # Archives are refused for patch-only games, so a only relists the patch.
+        if self.service.exe_patch.list_again(self.game):
+            self.notify(f"{self.game.name}: patch listed again")
+            self.reload()
+            return
+        self.notify(f"{self.game.name} takes no mod archives; the patch is listed")
 
     def install_files(self, mod: StagedMod, files: tuple[NexusFile, ...]) -> None:
         if _is_patch(mod):

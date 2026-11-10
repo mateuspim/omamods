@@ -48,6 +48,7 @@ from omamods.tui.toast_filter import RepeatedToastFilter
 from omamods.tui.uninstall_all_actions import UninstallAllScreen
 from omamods.tui.mod_detail import ModDetail
 from omamods.tui.mod_inspector import collision_warning
+from omamods.tui.context_hints import ModListHints
 from omamods.tui.workspace import WorkspaceHeader, WorkspaceHints, WorkspaceStatus
 
 REFRESH_SECONDS = 3.0
@@ -57,7 +58,9 @@ BROWSER_HINT = (
 )
 
 
-class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScreen):
+class ModsScreen(
+    ModListHints, SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScreen
+):
     """Show and change one game's mods; e.g. ``app.push_screen(ModsScreen(s, sb))``."""
 
     BINDINGS = [
@@ -108,10 +111,7 @@ class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScr
         yield DownloadsPanel(self.service, self.game)
         yield Static(id="status", markup=False)
         yield WorkspaceStatus(self.game.name)
-        yield WorkspaceHints(
-            "[b]a[/] add   [b]i[/] install   [b]enter[/] file   [b]/[/] find   "
-            "[b]p[/] preview   [b]D[/] downloads   [b]U[/] uninstall all"
-        )
+        yield WorkspaceHints("[b]a[/] add   [b]/[/] find   [b]D[/] downloads")
 
     def action_toggle_preview(self) -> None:
         """Make room for artwork or files; e.g. ``screen.action_toggle_preview()``."""
@@ -169,9 +169,11 @@ class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScr
         self._title_mod_list(mod_list, len(hidden))
         ids = [mod_key(m) for m in self.shown]
         selected = mod_key(self.current) if self.current else None
-        if ids:
-            keep = selected in ids and not jump_to_first
-            mod_list.highlighted = ids.index(selected) if keep else 0
+        if not ids:
+            self.current = None  # Nothing listed, so no key acts on a stale mod.
+            return 0
+        keep = selected in ids and not jump_to_first
+        mod_list.highlighted = ids.index(selected) if keep else 0
         return len(ids)
 
     def _mod_options(self) -> list[Option]:
@@ -460,7 +462,7 @@ class ModsScreen(SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScr
     def confirm_remove(self, file: NexusFile) -> None:
         """Ask, then delete a download; for example, ``screen.confirm_remove(file)``."""
         if self.current is None or file.file_id not in self.current.archives:
-            self.notify("This file is not downloaded.")
+            self.notify(f"Nothing to remove: {file.file_name} is not downloaded.")
             return
         mod = self.current
         dialog = ConfirmDialog(
