@@ -459,12 +459,6 @@ class ModsScreen(
             self.notify(f"Removed {count} files of {file.file_name}")
         self.reload()
 
-    def action_remove_staged(self) -> None:
-        file = self._selected_file()
-        if file is None or self.current is None:
-            return
-        self.confirm_remove(file)
-
     def run_command(self, name: str, args: tuple[str, ...]) -> None:
         """Run a ':' command; for example, ``screen.run_command('install', ())``."""
         run_mods_command(self, name, args)

@@ -529,10 +529,15 @@ class TuiTests(TuiFixture):
             self.assertIsNone(app.screen.current.info)
             self.assertEqual(app._notifications.__len__(), 0)
 
-    async def test_x_drops_a_mod_with_nothing_downloaded(self) -> None:
+    async def test_x_on_the_list_removes_the_whole_mod(self) -> None:
+        # Regression: x acted on the files-table row, an undownloaded file
+        # there left a mod with another downloaded file stuck on the list.
         folder = self.root / "store/archives/stellar-blade/9"
         info = NexusModInfo("Page only", "s", "a", "", None)
-        save_mod_details(folder, info, (NexusFile(1, "a.zip", "MAIN", 1),))
+        files = (NexusFile(1, "a.zip", "MAIN", 1), NexusFile(2, "b.zip", "MAIN", 1))
+        save_mod_details(folder, info, files)
+        (folder / "2").mkdir()
+        (folder / "2" / "b.zip").write_bytes(b"z")
         app = self._app({})
         async with app.run_test(size=(140, 45)) as pilot:
             await self._wait_for_shelf(app, pilot)

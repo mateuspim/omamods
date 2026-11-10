@@ -145,21 +145,26 @@ def remove_staged_archive(
     return archive
 
 
-def forget_staged_mod(root: Path, game: PakOverlayGame, mod_id: int) -> Path:
-    """Drop a listed mod with no downloads; e.g. ``forget_staged_mod(root, sb, 1)``.
+def remove_staged_mod(root: Path, game: PakOverlayGame, mod_id: int) -> Path:
+    """Delete a mod's downloads and details; e.g. ``remove_staged_mod(root, sb, 1)``.
 
-    Only page details and the picture may be inside: a file folder means a
-    download finished or is still arriving, so that has to be removed first.
+    Refuses an installed mod, and a file folder with no finished archive, since
+    that is a download still arriving (partial files start with a dot).
     """
     folder = mod_folder(root, game, mod_id)
     if installed_file_ids(root, game, mod_id):
         raise ValueError(
             f"mod_id={mod_id}: expected nothing installed; uninstall first"
         )
-    downloads = sorted(path.name for path in folder.glob("*/"))
-    if downloads:
+    arriving = sorted(
+        path.name
+        for path in folder.glob("*/")
+        if path.name.isdecimal() and int(path.name) not in staged_archives(folder)
+    )
+    if arriving:
         raise ValueError(
-            f"mod_id={mod_id}: expected no downloads, found file folders {downloads!r}"
+            f"mod_id={mod_id}: expected finished downloads, files {arriving!r} "
+            "are still arriving"
         )
     shutil.rmtree(folder)
     return folder

@@ -43,8 +43,6 @@ def file_pairs(mod: StagedMod, file: NexusFile) -> tuple[KeyHint, ...]:
         pairs.append(("x", "remove download"))
     elif file.file_id not in mod.installed:
         pairs.append(("d", "download"))
-    if not mod.archives and not mod.installed and mod.site in LISTED_SITES:
-        pairs.append(("x", "remove mod"))
     if file.file_id in mod.installed:
         pairs.append(("P", "load last"))
     return tuple(pairs)
@@ -70,8 +68,15 @@ def mod_list_pairs(
     if mod.site == PATCH_SITE:
         return patch_pairs(mod) + (("w", "about"),)
     pairs = _mod_actions(mod)
-    if file is not None:
-        pairs += [pair for pair in file_pairs(mod, file) if pair[0] in "dx"]
+    if file is not None and not ({file.file_id} & (set(mod.archives) | mod.installed)):
+        pairs.append(("d", "download"))
+    if mod.site not in LISTED_SITES:
+        keep = (
+            [pair for pair in file_pairs(mod, file) if pair[0] == "x"] if file else []
+        )
+        pairs += keep  # Release mods stay listed, so x only deletes a download.
+    elif not mod.installed:
+        pairs.append(("x", "remove mod"))
     return (*pairs, ("enter", "files"), ("w", "web page"), ("a", "add"), ("/", "find"))
 
 

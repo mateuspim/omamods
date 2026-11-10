@@ -34,11 +34,9 @@ class ContextHintTests(unittest.TestCase):
             "[b]i[/] install   [b]u[/] uninstall",
         )
 
-    def test_page_only_mod_offers_download_and_dropping_the_mod(self) -> None:
+    def test_file_not_downloaded_offers_download_not_remove(self) -> None:
         pairs = file_pairs(staged((), ()), MAIN)
-        self.assertEqual(
-            pairs, (("enter", "download"), ("d", "download"), ("x", "remove mod"))
-        )
+        self.assertEqual(pairs, (("enter", "download"), ("d", "download")))
 
     def test_other_file_downloaded_means_no_remove_on_this_one(self) -> None:
         self.assertEqual(keys(file_pairs(staged((2,), ()), MAIN)), ["enter", "d"])
@@ -52,14 +50,16 @@ class ContextHintTests(unittest.TestCase):
         self.assertEqual(pairs[0], ("enter", "uninstall"))
 
     def test_mod_list_names_mod_keys_and_the_selected_file(self) -> None:
-        mod = staged((1,), (1,))
+        installed = staged((1,), (1,))
         self.assertEqual(
-            keys(mod_list_pairs(mod, MAIN)), ["u", "x", "enter", "w", "a", "/"]
+            keys(mod_list_pairs(installed, MAIN)), ["u", "enter", "w", "a", "/"]
         )
         self.assertEqual(
-            keys(mod_list_pairs(mod, EXTRA)), ["u", "d", "enter", "w", "a", "/"]
+            keys(mod_list_pairs(installed, EXTRA)), ["u", "d", "enter", "w", "a", "/"]
         )
-        self.assertEqual(keys(mod_list_pairs(staged((2,), ()), MAIN))[0], "i")
+        half = staged((2,), ())
+        self.assertEqual(keys(mod_list_pairs(half, MAIN))[:3], ["i", "d", "x"])
+        self.assertIn(("x", "remove mod"), mod_list_pairs(staged((), ()), MAIN))
 
     def test_no_mod_offers_add(self) -> None:
         self.assertEqual(keys(mod_list_pairs(None, None)), ["a", "/"])
