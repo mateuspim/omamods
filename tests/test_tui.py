@@ -21,6 +21,8 @@ from omamods.nexus_config import UserSettings
 from omamods.pak_games import PakGameCatalog, PakOverlayGame
 from omamods.tui.app import OmaModsApp
 from omamods.tui.dialogs import ConfirmDialog, InfoDialog
+from omamods.nexus_api import NexusFile, NexusModInfo
+from omamods.staging import save_mod_details
 from omamods.tui.mod_rows import describe_mod
 from omamods.tui.mods_screen import ModsScreen
 from omamods.tui.preview import PicturePreview
@@ -526,6 +528,26 @@ class TuiTests(TuiFixture):
             await pilot.pause()
             self.assertIsNone(app.screen.current.info)
             self.assertEqual(app._notifications.__len__(), 0)
+
+    async def test_x_drops_a_mod_with_nothing_downloaded(self) -> None:
+        folder = self.root / "store/archives/stellar-blade/9"
+        info = NexusModInfo("Page only", "s", "a", "", None)
+        save_mod_details(folder, info, (NexusFile(1, "a.zip", "MAIN", 1),))
+        app = self._app({})
+        async with app.run_test(size=(140, 45)) as pilot:
+            await self._wait_for_shelf(app, pilot)
+            await pilot.press("down", "enter")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            self.assertEqual(app.screen.current.title, "Page only")
+            await pilot.press("x")
+            await pilot.pause()
+            self.assertIsInstance(app.screen, ConfirmDialog)
+            await pilot.press("y")
+            await pilot.pause()
+            self.assertFalse(folder.exists())
+            self.assertEqual(app.screen.mods, ())
+            self.assertIsNone(app.screen.current)
 
     async def _open_mods_with(self, app: OmaModsApp, pilot, names: dict[int, str]):
         for mod_id, name in names.items():

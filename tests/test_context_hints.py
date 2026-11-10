@@ -34,9 +34,14 @@ class ContextHintTests(unittest.TestCase):
             "[b]i[/] install   [b]u[/] uninstall",
         )
 
-    def test_file_not_downloaded_offers_download_not_remove(self) -> None:
+    def test_page_only_mod_offers_download_and_dropping_the_mod(self) -> None:
         pairs = file_pairs(staged((), ()), MAIN)
-        self.assertEqual(pairs, (("enter", "download"), ("d", "download")))
+        self.assertEqual(
+            pairs, (("enter", "download"), ("d", "download"), ("x", "remove mod"))
+        )
+
+    def test_other_file_downloaded_means_no_remove_on_this_one(self) -> None:
+        self.assertEqual(keys(file_pairs(staged((2,), ()), MAIN)), ["enter", "d"])
 
     def test_downloaded_file_offers_install_and_remove(self) -> None:
         self.assertEqual(keys(file_pairs(staged((1,), ()), MAIN)), ["enter", "x"])

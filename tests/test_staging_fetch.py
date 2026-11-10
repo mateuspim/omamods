@@ -17,6 +17,8 @@ from omamods.mod_fetch import (
 )
 from omamods.nexus_api import (
     NexusApi,
+    NexusFile,
+    NexusModInfo,
     NexusPage,
     parse_file_listing,
     parse_mod_info,
@@ -25,7 +27,9 @@ from omamods.nexus_api import (
 from omamods.nexus_workflow import revert_mod_files
 from omamods.pak_games import PAK_OVERLAY_GAMES, PakGameCatalog
 from omamods.staging import (
+    forget_staged_mod,
     list_staged_mods,
+    save_mod_details,
     picture_path,
     remove_staged_archive,
     staged_archives,
@@ -129,6 +133,36 @@ class RemoveStagedTests(TemporaryRoot):
         with self.assertRaisesRegex(ValueError, "uninstall it first"):
             remove_staged_archive(self.root, SB, 1, 7)
         self.assertTrue(archive.is_file())
+
+
+class ForgetStagedModTests(TemporaryRoot):
+    def _page_only(self, mod_id: int) -> Path:
+        folder = self.root / f"archives/stellar-blade/{mod_id}"
+        info = NexusModInfo("Page only", "s", "a", "", None)
+        save_mod_details(folder, info, (NexusFile(1, "a.zip", "MAIN", 1),))
+        (folder / "picture.png").write_bytes(b"p")
+        return folder
+
+    def test_drops_a_mod_with_only_page_details(self) -> None:
+        folder = self._page_only(9)
+        self.assertEqual(forget_staged_mod(self.root, SB, 9), folder)
+        self.assertFalse(folder.exists())
+        self.assertEqual(list_staged_mods(self.root, SB), ())
+
+    def test_refuses_a_mod_with_a_download(self) -> None:
+        folder = self._page_only(9)
+        (folder / "1").mkdir()
+        with self.assertRaisesRegex(ValueError, "expected no downloads.*'1'"):
+            forget_staged_mod(self.root, SB, 9)
+        self.assertTrue((folder / "mod.json").is_file())
+
+    def test_refuses_an_installed_mod(self) -> None:
+        self._page_only(9)
+        record = file_state_path(self.root, SB, 9, 1, None)
+        record.parent.mkdir(parents=True)
+        record.write_text("{}")
+        with self.assertRaisesRegex(ValueError, "uninstall first"):
+            forget_staged_mod(self.root, SB, 9)
 
 
 class DownloadTests(TemporaryRoot):

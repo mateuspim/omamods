@@ -114,7 +114,8 @@ Omarchy theme change resumes desktop sync. The bottom statusline shows the
 interaction mode, active pane, and cursor position. The key hints follow focus
 and only name keys that act on what is selected: on a mod, `i` appears only if
 a download is not installed yet, `u` only if something is installed, `d` or
-`x` depending on whether the highlighted file is downloaded; files show
+`x` depending on whether the highlighted file is downloaded, and `x remove
+mod` for a mod whose files were never downloaded; files show
 Enter's exact action, and queues show retry and clear keys.
 **Space** opens a searchable action picker: type a name or
 description, use `↑`/`↓` (or `Ctrl+j`/`Ctrl+k`) to select, and Enter to run it.

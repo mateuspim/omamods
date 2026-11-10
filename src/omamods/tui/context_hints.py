@@ -6,15 +6,19 @@ ones that did (u on an installed mod). These functions look at the mod and
 file under the cursor and list only the keys that would act on them.
 """
 
+from collections.abc import Callable
+
 from textual.widget import Widget
 from textual.widgets import OptionList
 
-from omamods.mod_sites import PATCH_SITE
+from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE, PATCH_SITE
 from omamods.nexus_api import NexusFile
 from omamods.staging import StagedMod
 from omamods.tui.mod_rows import file_next_action
 
 KeyHint = tuple[str, str]
+# Sites whose mods x can drop from the list once nothing is downloaded.
+LISTED_SITES = (NEXUS_SITE, AYAKA_SITE)
 
 
 def key_hints(*pairs: KeyHint) -> str:
@@ -39,6 +43,8 @@ def file_pairs(mod: StagedMod, file: NexusFile) -> tuple[KeyHint, ...]:
         pairs.append(("x", "remove download"))
     elif file.file_id not in mod.installed:
         pairs.append(("d", "download"))
+    if not mod.archives and not mod.installed and mod.site in LISTED_SITES:
+        pairs.append(("x", "remove mod"))
     if file.file_id in mod.installed:
         pairs.append(("P", "load last"))
     return tuple(pairs)
@@ -72,10 +78,9 @@ def mod_list_pairs(
 class ModListHints:
     """Mixin giving the hint line the mod list's keys; see ``context_hints``."""
 
+    # Annotations only, so ModsScreen's own methods are used.
     current: StagedMod | None
-
-    def _selected_file(self) -> NexusFile | None:
-        raise NotImplementedError
+    _selected_file: Callable[[], NexusFile | None]
 
     def context_hints(self, focused: Widget | None) -> str | None:
         """Hints while the mod list has focus; e.g. ``screen.context_hints(w)``."""

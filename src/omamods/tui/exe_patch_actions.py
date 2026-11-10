@@ -84,8 +84,15 @@ class PatchModsScreen(ModsScreen):
         super().action_download()
 
     def action_remove_staged(self) -> None:
+        if _is_patch(self.current):
+            self.confirm_remove(self.current.files[0])  # The patch has one file.
+            return
+        super().action_remove_staged()
+
+    def confirm_remove(self, file: NexusFile) -> None:
+        # Also reached by :remove; the patch's "download" is a placeholder.
         if not _is_patch(self.current):
-            super().action_remove_staged()
+            super().confirm_remove(file)
             return
         details = (
             f"{self._state()}\n\nA patched exe is restored first, then the "

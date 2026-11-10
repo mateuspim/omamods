@@ -18,7 +18,7 @@ from omamods.mod_plan import (
     describe_plans,
 )
 from omamods.ayaka_pages import is_ayaka_url
-from omamods.nexus_api import NexusFile, describe_nexus_file
+from omamods.nexus_api import NexusFile
 from omamods.pak_games import PakOverlayGame
 from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE, RELEASE_SITE
 from omamods.staging import StagedMod
@@ -49,6 +49,7 @@ from omamods.tui.uninstall_all_actions import UninstallAllScreen
 from omamods.tui.mod_detail import ModDetail
 from omamods.tui.mod_inspector import collision_warning
 from omamods.tui.context_hints import ModListHints
+from omamods.tui.mod_removal import RemoveDownloadActions
 from omamods.tui.workspace import WorkspaceHeader, WorkspaceHints, WorkspaceStatus
 
 REFRESH_SECONDS = 3.0
@@ -59,7 +60,12 @@ BROWSER_HINT = (
 
 
 class ModsScreen(
-    ModListHints, SearchableScreen, UninstallAllScreen, AdultScreen, LoadOrderScreen
+    ModListHints,
+    RemoveDownloadActions,
+    SearchableScreen,
+    UninstallAllScreen,
+    AdultScreen,
+    LoadOrderScreen,
 ):
     """Show and change one game's mods; e.g. ``app.push_screen(ModsScreen(s, sb))``."""
 
@@ -458,28 +464,6 @@ class ModsScreen(
         if file is None or self.current is None:
             return
         self.confirm_remove(file)
-
-    def confirm_remove(self, file: NexusFile) -> None:
-        """Ask, then delete a download; for example, ``screen.confirm_remove(file)``."""
-        if self.current is None or file.file_id not in self.current.archives:
-            self.notify(f"Nothing to remove: {file.file_name} is not downloaded.")
-            return
-        mod = self.current
-        dialog = ConfirmDialog(
-            f"Delete the download {file.file_name}?",
-            f"{describe_nexus_file(file)}\nThe game is not touched.",
-        )
-        self.app.push_screen(dialog, lambda yes: yes and self._remove(mod, file))
-
-    def _remove(self, mod: StagedMod, file: NexusFile) -> None:
-        removed = self._attempt(
-            lambda: self.service.remove_staged(
-                self.game, mod.mod_id, file.file_id, mod.site
-            )
-        )
-        if removed is not None:
-            self.notify(f"Deleted {removed.name}")
-        self.reload()
 
     def run_command(self, name: str, args: tuple[str, ...]) -> None:
         """Run a ':' command; for example, ``screen.run_command('install', ())``."""
