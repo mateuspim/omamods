@@ -1,0 +1,11 @@
+id: metalgearrising
+name: 'METAL GEAR RISING: REVENGEANCE'
+status: discovery
+platforms:
+  - steam
+adapter: exe-patcher
+steam_app_id: 235460
+notes:
+  - The ultrawide fix is a built-in patch of METAL GEAR RISING REVENGEANCE.exe, computed from the Steam build; nothing is downloaded.
+  - After patching, choose 1920x1080 (16:9) in the game's options; that entry becomes the patched resolution.
+  - The gameplay HUD and the menu background movies still stretch to the full width.

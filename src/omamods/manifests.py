@@ -12,6 +12,7 @@ ADAPTER_KINDS: tuple[str, ...] = (
     "direct-overlay",
     "external-manager",
     "archive-patcher",
+    "exe-patcher",
     "game-native",
 )
 

@@ -14,6 +14,7 @@ about when the original change landed. For the current component map, see the
 | [5](0005-predict-unreal-asset-load-order.md) | Predict Unreal asset load order from container names | Accepted |
 | [6](0006-rename-containers-to-choose-load-order.md) | Rename containers to choose Unreal load order | Accepted |
 | [7](0007-move-mods-aside-instead-of-deleting.md) | Move mods aside instead of deleting them in library clean-ups | Accepted |
+| [8](0008-patch-executables-from-verified-bytes.md) | Patch game executables from verified bytes | Accepted |
 
 Add the next number for a new durable choice. Include context, decision, and
 consequences. When replacing a decision, mark the old record superseded and

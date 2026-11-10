@@ -40,6 +40,7 @@ from omamods.tui.ayaka_site import AyakaSite
 from omamods.tui.browser_downloads import BrowserDownloads
 from omamods.tui.host import TuiHost
 from omamods.tui.library_clean import LibraryClean
+from omamods.tui.exe_patch_site import ExePatchSite
 from omamods.tui.release_site import ReleaseSite
 from omamods.tui.steam_setup import SteamSetup
 from omamods.tui.asset_conflicts import AssetConflicts
@@ -48,7 +49,7 @@ from omamods.tui.load_order_choices import LoadOrderChoices
 from omamods.tui.requirement_flow import RequirementFlow
 from omamods.variant_choices import addon_bases, exclusive_variants, nested_archives
 from omamods.omarchy_palette import OmarchyPalette
-from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE, RELEASE_SITE
+from omamods.mod_sites import AYAKA_SITE, NEXUS_SITE, PATCH_SITE, RELEASE_SITE
 from omamods.staging import (
     StagedMod,
     list_staged_mods,
@@ -71,6 +72,7 @@ class ModsService:
         self.requirements = RequirementFlow(self)
         self.ayaka = AyakaSite(self)
         self.release = ReleaseSite(self)
+        self.exe_patch = ExePatchSite(self)
         self.steam_setup = SteamSetup(self)
         self.conflicts = AssetConflicts(self)
         self.game_uninstall = GameUninstall(self)
@@ -147,7 +149,8 @@ class ModsService:
     def staged_mods(self, game: PakOverlayGame) -> tuple[StagedMod, ...]:
         """List every site's staging; for example, ``service.staged_mods(sb)``."""
         nexus = list_staged_mods(self.settings.storage_root, game)
-        return self.release.staged_mods(game) + nexus + self.ayaka.staged_mods(game)
+        builtin = self.exe_patch.staged_mods(game) + self.release.staged_mods(game)
+        return builtin + nexus + self.ayaka.staged_mods(game)
 
     def staged_mod(
         self, game: PakOverlayGame, mod_id: int, site: str = NEXUS_SITE
@@ -157,6 +160,8 @@ class ModsService:
             return self.ayaka.staged_mod(game, mod_id)
         if site == RELEASE_SITE:
             return self.release.staged_mod(game, mod_id)
+        if site == PATCH_SITE:
+            return self.exe_patch.staged_mod(game, mod_id)
         return load_staged_mod(self.settings.storage_root, game, mod_id)
 
     def state_root(self, site: str) -> Path:
@@ -223,6 +228,8 @@ class ModsService:
             return ayaka_page_url(AyakaPage(mod_id))
         if site == RELEASE_SITE:
             return self.release.page_url(game, mod_id)
+        if site == PATCH_SITE:
+            return self.exe_patch.page_url(game)
         return f"https://www.nexusmods.com/{game.nexus_domain}/mods/{mod_id}"
 
     def open_url(self, url: str) -> None:
